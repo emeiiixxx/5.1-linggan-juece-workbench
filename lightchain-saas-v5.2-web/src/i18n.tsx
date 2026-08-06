@@ -20,6 +20,7 @@ const copy: Record<string, Translation> = {
   "购买积分": { ja: "クレジット購入", en: "Buy Credits" },
   "打开个人中心": { ja: "アカウントを開く", en: "Open account" },
   "灵感决策工作台": { ja: "インサイトワークスペース", en: "Inspiration Workspace" },
+  "返回首页": { ja: "ホームに戻る", en: "Back to Home" },
   "搜索": { ja: "検索", en: "Search" },
   "收起侧栏": { ja: "サイドバーを閉じる", en: "Collapse sidebar" },
   "展开菜单": { ja: "メニューを開く", en: "Expand menu" },

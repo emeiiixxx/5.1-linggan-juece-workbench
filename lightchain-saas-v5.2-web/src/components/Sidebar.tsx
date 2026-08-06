@@ -19,6 +19,7 @@ type SidebarProps = {
   activeView?: "workspace" | "preferences";
   onOpenWorkspace?: () => void;
   onOpenPreferences?: () => void;
+  onCreateTaskInProject?: (project: { id: number; name: string }) => void;
   createdTask?: { id: number; title: string; projectId: number | null } | null;
 };
 
@@ -54,6 +55,7 @@ export function Sidebar({
   activeView = "workspace",
   onOpenWorkspace,
   onOpenPreferences,
+  onCreateTaskInProject,
   createdTask,
 }: SidebarProps) {
   const { t } = useI18n();
@@ -62,7 +64,8 @@ export function Sidebar({
   const [searchOpen, setSearchOpen] = useState(false);
   const [collapsedMenu, setCollapsedMenu] = useState<"projects" | "tasks" | null>(null);
   const [groups, setGroups] = useState(() =>
-    projectGroups.map((group) => ({
+    projectGroups.map((group, groupIndex) => ({
+      id: groupIndex,
       ...group,
       items: [...group.items],
       expanded: group.items.length > 0,
@@ -94,15 +97,17 @@ export function Sidebar({
       return;
     }
 
+    const groupIndex = groups.findIndex((group) => group.id === createdTask.projectId);
+    if (groupIndex < 0) return;
     setGroups((current) =>
-      current.map((group, groupIndex) =>
-        groupIndex === createdTask.projectId
+      current.map((group) =>
+        group.id === createdTask.projectId
           ? { ...group, items: [createdTask.title, ...group.items], expanded: true }
           : group,
       ),
     );
     setProjectsExpanded(true);
-    setSelectedRow({ kind: "item", groupIndex: createdTask.projectId, itemIndex: 0 });
+    setSelectedRow({ kind: "item", groupIndex, itemIndex: 0 });
   }, [createdTask]);
 
   const openCollapsedMenu = (menu: "projects" | "tasks") => {
@@ -336,12 +341,18 @@ export function Sidebar({
     const projectName = createProjectValue.trim();
     if (!projectName) return;
     setGroups((current) => [
-      { title: projectName, items: [], expanded: false },
+      { id: Date.now(), title: projectName, items: [], expanded: false },
       ...current,
     ]);
     setProjectsExpanded(true);
     setCreateProjectOpen(false);
     setCreateProjectValue("");
+  };
+
+  const createTaskInProject = (project: { id: number; title: string }) => {
+    setActionMenu(null);
+    setCollapsedMenu(null);
+    onCreateTaskInProject?.({ id: project.id, name: project.title });
   };
 
   const handleDragStart = (
@@ -407,7 +418,15 @@ export function Sidebar({
         <div className="sidebar__fixed">
           <div className="sidebar__header">
             <div className="sidebar__title">
-              <FigmaIcon name="chevron-left" size={20} />
+              <IconControl
+                size="xsmall"
+                variant="bare"
+                label={t("返回首页")}
+                tooltipPlacement="bottom"
+                onClick={onOpenWorkspace}
+              >
+                <FigmaIcon name="chevron-left" size={16} />
+              </IconControl>
               <span title={t("灵感决策工作台")}>{t("灵感决策工作台")}</span>
             </div>
             <div className="sidebar__header-actions">
@@ -522,7 +541,12 @@ export function Sidebar({
                       >
                         <FigmaIcon name="more-horizontal" size={16} />
                       </IconControl>
-                      <IconControl size="small" label={t("在{name}中新建对话", { name: group.title })} tooltipPlacement="top">
+                      <IconControl
+                        size="small"
+                        label={t("在{name}中新建对话", { name: group.title })}
+                        tooltipPlacement="top"
+                        onClick={() => createTaskInProject(group)}
+                      >
                         <FigmaIcon name="new-chat" size={16} />
                       </IconControl>
                     </div>
@@ -780,6 +804,7 @@ export function Sidebar({
                         size="small"
                         label={t("在{name}中新建对话", { name: group.title })}
                         tooltipPlacement="top"
+                        onClick={() => createTaskInProject(group)}
                       >
                         <FigmaIcon name="new-chat" size={16} />
                       </IconControl>

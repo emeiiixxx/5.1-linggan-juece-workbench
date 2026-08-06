@@ -16,7 +16,8 @@ type IconControlProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   label: string;
   children: ReactNode;
   selected?: boolean;
-  size?: "small" | "medium";
+  size?: "xsmall" | "small" | "medium";
+  variant?: "ghost" | "bare";
   tooltipPlacement?: TooltipPlacement;
   showTooltip?: boolean;
 };
@@ -26,6 +27,7 @@ export function IconControl({
   children,
   selected,
   size = "medium",
+  variant = "ghost",
   tooltipPlacement = "top",
   showTooltip = true,
   className = "",
@@ -129,7 +131,7 @@ export function IconControl({
       <button
         ref={buttonRef}
         type="button"
-        className={`icon-control icon-control--${size} ${selected ? "is-selected" : ""} ${className}`}
+        className={`icon-control icon-control--${size} icon-control--${variant} ${selected ? "is-selected" : ""} ${className}`}
         aria-label={label}
         aria-describedby={describedBy || undefined}
         aria-pressed={selected === undefined ? undefined : selected}

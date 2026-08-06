@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { motion, useAnimationControls, useReducedMotion } from "motion/react";
-import { assetUrl } from "../utils/assets";
 
 const figmaSpring = (value: number) =>
   1 -
@@ -8,15 +7,22 @@ const figmaSpring = (value: number) =>
     (Math.cos(value * 8.8463) + 0.8504 * Math.sin(value * 8.8463));
 
 type GlassMotionProps = {
+  backImageSrc: string;
+  frontImageSrc: string;
   paused?: boolean;
   theme?: "dark" | "light";
 };
 
-export function ArchiveHeaderMotion({ theme }: { theme: "dark" | "light" }) {
-  return <GlassMotion theme={theme} />;
+export function ArchiveHeaderMotion(props: GlassMotionProps) {
+  return <GlassMotion {...props} />;
 }
 
-export function GlassMotion({ paused = false, theme = "dark" }: GlassMotionProps) {
+export function GlassMotion({
+  backImageSrc,
+  frontImageSrc,
+  paused = false,
+  theme = "dark",
+}: GlassMotionProps) {
   const reduceMotion = useReducedMotion();
   const backControls = useAnimationControls();
   const frontControls = useAnimationControls();
@@ -51,15 +57,11 @@ export function GlassMotion({ paused = false, theme = "dark" }: GlassMotionProps
   return (
     <div
       className={`glass-motion glass-motion--${theme}`}
-      data-node-id="415:56659"
       data-motion-runtime="motion-react"
       aria-hidden="true"
     >
       <motion.div
         className="glass-motion__back"
-        data-node-id="415:56666"
-        data-motion-keys="rotate,x,y"
-        data-motion-wrapper-for="415:56666"
         initial={{ rotate: 0, x: 0, y: 0 }}
         animate={backControls}
         transition={{
@@ -68,28 +70,28 @@ export function GlassMotion({ paused = false, theme = "dark" }: GlassMotionProps
             times: [0, 0.2, 0.4826, 1],
             ease: ["linear", figmaSpring, "linear"],
             repeat: Infinity,
-              repeatType: "mirror",
+            repeatType: "mirror",
           },
           x: {
             duration: 5,
             times: [0, 0.2527, 0.4826, 1],
             ease: ["linear", figmaSpring, "linear"],
             repeat: Infinity,
-              repeatType: "mirror",
+            repeatType: "mirror",
           },
           y: {
             duration: 5,
             times: [0, 0.2527, 0.4826, 1],
             ease: ["linear", figmaSpring, "linear"],
             repeat: Infinity,
-              repeatType: "mirror",
+            repeatType: "mirror",
           },
         }}
       >
         <div className="glass-motion__back-static">
-          <div className="glass-motion__back-card" data-name="后">
-            <div className="glass-motion__back-content" data-node-id="415:56668">
-              <img src={assetUrl("assets/figma-icons/glass-motion-56659-back-v2@2x.png")} alt="" />
+          <div className="glass-motion__back-card">
+            <div className="glass-motion__back-content">
+              <img src={backImageSrc} alt="" />
             </div>
           </div>
         </div>
@@ -97,9 +99,6 @@ export function GlassMotion({ paused = false, theme = "dark" }: GlassMotionProps
 
       <motion.div
         className="glass-motion__front"
-        data-node-id="415:56675"
-        data-motion-keys="rotate,x,y"
-        data-motion-wrapper-for="415:56675"
         initial={{ rotate: 0, x: 0, y: 0 }}
         animate={frontControls}
         transition={{
@@ -108,34 +107,29 @@ export function GlassMotion({ paused = false, theme = "dark" }: GlassMotionProps
             times: [0, 0.2, 0.4826, 1],
             ease: ["linear", figmaSpring, "linear"],
             repeat: Infinity,
-              repeatType: "mirror",
+            repeatType: "mirror",
           },
           x: {
             duration: 5,
             times: [0, 0.2542, 0.4826, 1],
             ease: ["linear", figmaSpring, "linear"],
             repeat: Infinity,
-              repeatType: "mirror",
+            repeatType: "mirror",
           },
           y: {
             duration: 5,
             times: [0, 0.2542, 0.4826, 1],
             ease: ["linear", figmaSpring, "linear"],
             repeat: Infinity,
-              repeatType: "mirror",
+            repeatType: "mirror",
           },
         }}
       >
         <div className="glass-motion__front-static">
-          <img
-            className="glass-motion__front-card glass-motion__front-card--base"
-            data-node-id="415:56676"
-            data-name="前"
-            src={assetUrl("assets/figma-icons/glass-motion-56659-front-base@2x.png")}
-            alt=""
-          />
+          <img className="glass-motion__front-card" src={frontImageSrc} alt="" />
         </div>
       </motion.div>
     </div>
   );
 }
+

@@ -69,6 +69,10 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
   const quickStartLayoutTransition = quickStartOpen
     ? quickStartExpandTransition
     : quickStartCollapseTransition;
+  const availableProjectOptions =
+    selectedProject && !projectOptions.some((project) => project.id === selectedProject.id)
+      ? [selectedProject, ...projectOptions]
+      : projectOptions;
 
   useLayoutEffect(() => {
     const tabList = tabsRef.current;
@@ -405,7 +409,7 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
                   >
                     <span className="composer-profile-menu__label">{t("选择项目")}</span>
                     <div className="composer-profile-menu__options composer-project-menu__options">
-                      {projectOptions.map((project) => {
+                      {availableProjectOptions.map((project) => {
                         const selected = selectedProject?.id === project.id;
                         return (
                           <button

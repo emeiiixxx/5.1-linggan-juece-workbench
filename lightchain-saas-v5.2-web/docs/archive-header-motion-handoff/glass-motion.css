@@ -1,0 +1,95 @@
+.glass-motion {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 240px;
+  height: 172px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.glass-motion__back,
+.glass-motion__front {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: 50% 50%;
+  transform-style: preserve-3d;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+.glass-motion__back {
+  top: 20px;
+  right: 7.94px;
+  width: 184.128px;
+  height: 205.341px;
+}
+
+.glass-motion__back-static,
+.glass-motion__front-static {
+  flex: none;
+  transform: translateZ(0) rotate(15deg);
+  transform-style: preserve-3d;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.glass-motion__back-card {
+  position: relative;
+  width: 144px;
+  height: 174px;
+  overflow: hidden;
+  border-radius: 20px;
+}
+
+.glass-motion__back-content {
+  position: absolute;
+  inset: 0;
+}
+
+.glass-motion__back-content img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 144px;
+  height: 174px;
+  max-width: none;
+  transform: translateZ(0) scale(1.002);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.glass-motion__front {
+  top: 40px;
+  left: 0;
+  width: 185.43px;
+  height: 205.973px;
+}
+
+.glass-motion__front-static {
+  position: relative;
+  width: 145.263px;
+  height: 174.316px;
+  overflow: hidden;
+  -webkit-backdrop-filter: blur(50px);
+  backdrop-filter: blur(50px);
+  -webkit-clip-path: path("M0 24C0 10.7452 10.7452 0 24 0H100.509C104.362 0 108.057 1.53045 110.781 4.25466L141.008 34.4822C143.733 37.2065 145.263 40.9013 145.263 44.7539V150.316C145.263 163.571 134.518 174.316 121.263 174.316H24C10.7452 174.316 0 163.571 0 150.316V24Z");
+  clip-path: path("M0 24C0 10.7452 10.7452 0 24 0H100.509C104.362 0 108.057 1.53045 110.781 4.25466L141.008 34.4822C143.733 37.2065 145.263 40.9013 145.263 44.7539V150.316C145.263 163.571 134.518 174.316 121.263 174.316H24C10.7452 174.316 0 163.571 0 150.316V24Z");
+}
+
+.glass-motion__front-card {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 145.263px;
+  height: 174.316px;
+  max-width: none;
+  transform: translateZ(0) scale(1.002);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+

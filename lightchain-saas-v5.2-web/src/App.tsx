@@ -37,6 +37,10 @@ export default function App() {
           activeView={activeView}
           onOpenWorkspace={() => setActiveView("workspace")}
           onOpenPreferences={() => setActiveView("preferences")}
+          onCreateTaskInProject={(project) => {
+            setSelectedProject(project);
+            setActiveView("workspace");
+          }}
           createdTask={createdTask}
         />
         {activeView === "preferences" ? (
