@@ -53,7 +53,10 @@ export function TopBar({ theme, onToggleTheme }: TopBarProps) {
               <FigmaIcon name="chevron-down" size={16} className="language-select__chevron" />
             </button>
             {languageOpen && <div className="language-menu" role="menu" aria-label={t("选择语言")}>
-              {languageOptions.map((option) => <button className={option.value === locale ? "is-selected" : ""} type="button" role="menuitemradio" aria-checked={option.value === locale} title={option.label} key={option.value} onClick={() => { setLocale(option.value); setLanguageOpen(false); }}><span>{option.label}</span></button>)}
+              {languageOptions.map((option) => {
+                const selected = option.value === locale;
+                return <button className={selected ? "is-selected" : ""} type="button" role="menuitemradio" aria-checked={selected} title={option.label} key={option.value} onClick={() => { setLocale(option.value); setLanguageOpen(false); }}><span>{option.label}</span>{selected && <FigmaIcon name="check" size={16} />}</button>;
+              })}
             </div>}
           </div>
 

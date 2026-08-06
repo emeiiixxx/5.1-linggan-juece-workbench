@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { createPortal } from "react-dom";
 import { FigmaIcon } from "./FigmaIcon";
 import { assetUrl } from "../utils/assets";
 import { primaryPageEntrance, primaryPageEntranceFadeItem, primaryPageEntranceItem } from "../utils/pageMotion";
@@ -479,6 +480,38 @@ function ParseConfirm({ choice, onChoice, onCancel, onApply }: { choice: string;
   return <div className="profile-confirm-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}><section className="profile-confirm" role="dialog" aria-modal="true" aria-labelledby="parse-title"><button className="profile-confirm__close" type="button" aria-label={t("关闭")} onClick={onCancel}><FigmaIcon name="close" size={20} /></button><h2 id="parse-title">{t("资料解析完成")}</h2><p>{t("已识别并可预填 5 项信息，未提及内容保持为空。")}</p><ul>{recognised.map((value) => <li key={value}><img src={successIcon} alt="" /><span>{t(value)}</span></li>)}<li className="is-warning"><img src={infoIcon} alt="" /><span>{t("未识别：参考品牌")}</span></li></ul><div className="profile-confirm__divider" aria-hidden="true" /><strong>{t("价格段同时出现两个候选，请选择")}</strong><div className="profile-confirm__choices" role="radiogroup">{choices.map((value) => <button type="button" role="radio" aria-checked={choice === value} key={value} onClick={() => onChoice(value)}><span className={`profile-radio ${choice === value ? "is-checked" : ""}`}>{choice === value && <img src={radioDot} alt="" />}</span><span>{t(value)}</span></button>)}</div><footer><button className="profile-button profile-button--secondary" type="button" onClick={onCancel}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" onClick={onApply}>{t("应用预填结果")}</button></footer></section></div>;
 }
 
+function ProfileActionDialog({ mode, profile, name, titleId, onNameChange, onClose, onRename, onDelete }: { mode: "rename" | "delete"; profile: Profile; name: string; titleId: string; onNameChange: (name: string) => void; onClose: () => void; onRename: (name: string) => void; onDelete: () => void }) {
+  const { t } = useI18n();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onCloseRef.current(); };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, []);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="profile-confirm-backdrop profile-action-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="profile-action-modal" role="dialog" aria-modal="true" aria-labelledby={titleId} onPointerDown={(event) => event.stopPropagation()}>
+        <h2 id={titleId}>{t(mode === "rename" ? "重命名档案" : "删除档案")}</h2>
+        {mode === "rename" ? <><p>{t("修改后将用于后续任务中选择此档案。")}</p><input autoFocus value={name} onChange={(event) => onNameChange(event.target.value)} placeholder={t("请输入档案名称")} /></> : <p>{t("确认删除「{name}」吗？删除后不可恢复。", { name: profile.name })}</p>}
+        <footer data-node-id="444:90547">
+          <button className="profile-button profile-button--secondary" type="button" autoFocus={mode === "delete"} onClick={onClose}>{t("取消")}</button>
+          <button className={`profile-button ${mode === "delete" ? "profile-button--danger" : "profile-button--primary"}`} type="button" disabled={mode === "rename" && !name.trim()} onClick={() => { if (mode === "rename") onRename(name.trim()); else onDelete(); onClose(); }}>{t(mode === "rename" ? "确认" : "删除")}</button>
+        </footer>
+      </section>
+    </div>,
+    document.body,
+  );
+}
+
 function ProfileCard({ profile, onDetail, onCreateTask, onRename, onDuplicate, onDelete }: { profile: Profile; onDetail: () => void; onCreateTask?: (profile: Profile) => void; onRename: (name: string) => void; onDuplicate: () => void; onDelete: () => void }) {
   const { locale, t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -517,16 +550,7 @@ function ProfileCard({ profile, onDetail, onCreateTask, onRename, onDuplicate, o
           </span>
         </div>
       </div>
-      {dialog && <div className="profile-confirm-backdrop profile-action-backdrop" role="presentation">
-        <section className="profile-action-modal" role="dialog" aria-modal="true" aria-labelledby={`card-action-${profile.id}`}>
-          <h2 id={`card-action-${profile.id}`}>{t(dialog === "rename" ? "重命名档案" : "删除档案")}</h2>
-          {dialog === "rename" ? <><p>{t("修改后将用于后续任务中选择此档案。")}</p><input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={t("请输入档案名称")} /></> : <p>{t("确认删除「{name}」吗？删除后不可恢复。", { name: profile.name })}</p>}
-          <footer>
-            <button className="profile-button profile-button--secondary" type="button" onClick={() => setDialog(null)}>{t("取消")}</button>
-            <button className={`profile-button ${dialog === "delete" ? "profile-button--danger" : "profile-button--primary"}`} type="button" disabled={dialog === "rename" && !name.trim()} onClick={() => { if (dialog === "rename") onRename(name.trim()); else onDelete(); setDialog(null); }}>{t(dialog === "rename" ? "确认" : "删除")}</button>
-          </footer>
-        </section>
-      </div>}
+      {dialog && <ProfileActionDialog mode={dialog} profile={profile} name={name} titleId={`card-action-${profile.id}`} onNameChange={setName} onClose={() => setDialog(null)} onRename={onRename} onDelete={onDelete} />}
     </article>
   );
 }
@@ -541,5 +565,5 @@ function ProfileDetail({ profile, onBack, onCreateTask, onEdit, onReparse, onRen
   const separator = locale === "en-US" ? ", " : "、";
   const localizedList = (values: string[]) => values.map((value) => t(value)).join(separator);
   const cells = [["品类", localizedList(profile.category)], ["价格段", profile.price], ["国家", localizedList(profile.countries)], ["年龄段", localizedList(profile.ages)], ["渠道", localizedList(profile.channels)], ["参考品牌", profile.brands.length ? localizedList(profile.brands) : t("未填写")]];
-  return <main className="profile-region profile-editor-region profile-scene"><div className="profile-editor-shell profile-detail-shell" data-node-id="333:13015"><button className="profile-back" type="button" onClick={onBack}><FigmaIcon name="arrow-left" size={20} />{t("返回")}</button><div className="profile-detail-stage" style={sharedTransitionStyle(`profile-card-${profile.id}`)}><header className="profile-detail-header"><div><h1 title={profile.name} style={sharedTransitionStyle(`profile-title-${profile.id}`)}>{profile.name}</h1><p>{t("用于任务中的默认业务范围与生成边界")}</p></div><div><button className="profile-button profile-button--primary profile-button--small" type="button" onClick={() => onCreateTask?.(profile)}>{t("使用此档案新建任务")}</button><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onEdit}>{t("编辑")}</button><span className="profile-detail-more" ref={menuRef}><button className="profile-icon-button" type="button" aria-label={t("更多")} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><FigmaIcon name="more-horizontal" size={20} /></button>{menuOpen && <span className="profile-detail-menu" role="menu"><button type="button" role="menuitem" onClick={() => { setName(profile.name); setDialog("rename"); setMenuOpen(false); }}><FigmaIcon name="modify" size={16} /><span>{t("重命名")}</span></button><button type="button" role="menuitem" onClick={() => { onDuplicate(); setMenuOpen(false); }}><FigmaIcon name="copy" size={16} /><span>{t("复制档案")}</span></button><button className="is-danger" type="button" role="menuitem" onClick={() => { setDialog("delete"); setMenuOpen(false); }}><FigmaIcon name="trash" size={16} /><span>{t("删除")}</span></button></span>}</span></div></header><section className="profile-detail-grid">{cells.map(([label, value]) => <div key={label}><span>{t(label)}</span><strong title={value}>{value}</strong></div>)}</section><section className="profile-source-card"><div><span>{t("资料包")}</span><strong>{t("已上传 {count} 份资料", { count: profile.fileCount })}</strong></div><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onReparse}>{t("重新上传并解析")}</button></section></div></div>{dialog && <div className="profile-confirm-backdrop profile-action-backdrop" role="presentation"><section className="profile-action-modal" role="dialog" aria-modal="true" aria-labelledby="profile-action-title"><h2 id="profile-action-title">{t(dialog === "rename" ? "重命名档案" : "删除档案")}</h2>{dialog === "rename" ? <><p>{t("修改后将用于后续任务中选择此档案。")}</p><input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={t("请输入档案名称")} /></> : <p>{t("确认删除「{name}」吗？删除后不可恢复。", { name: profile.name })}</p>}<footer><button className="profile-button profile-button--secondary" type="button" onClick={() => setDialog(null)}>{t("取消")}</button><button className={`profile-button ${dialog === "delete" ? "profile-button--danger" : "profile-button--primary"}`} type="button" disabled={dialog === "rename" && !name.trim()} onClick={() => { if (dialog === "rename") onRename(name.trim()); else onDelete(); setDialog(null); }}>{t(dialog === "rename" ? "确认" : "删除")}</button></footer></section></div>}</main>;
+  return <main className="profile-region profile-editor-region profile-scene"><div className="profile-editor-shell profile-detail-shell" data-node-id="333:13015"><button className="profile-back" type="button" onClick={onBack}><FigmaIcon name="arrow-left" size={20} />{t("返回")}</button><div className="profile-detail-stage" style={sharedTransitionStyle(`profile-card-${profile.id}`)}><header className="profile-detail-header"><div><h1 title={profile.name} style={sharedTransitionStyle(`profile-title-${profile.id}`)}>{profile.name}</h1><p>{t("用于任务中的默认业务范围与生成边界")}</p></div><div><button className="profile-button profile-button--primary profile-button--small" type="button" onClick={() => onCreateTask?.(profile)}>{t("使用此档案新建任务")}</button><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onEdit}>{t("编辑")}</button><span className="profile-detail-more" ref={menuRef}><button className="profile-icon-button" type="button" aria-label={t("更多")} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><FigmaIcon name="more-horizontal" size={20} /></button>{menuOpen && <span className="profile-detail-menu" role="menu"><button type="button" role="menuitem" onClick={() => { setName(profile.name); setDialog("rename"); setMenuOpen(false); }}><FigmaIcon name="modify" size={16} /><span>{t("重命名")}</span></button><button type="button" role="menuitem" onClick={() => { onDuplicate(); setMenuOpen(false); }}><FigmaIcon name="copy" size={16} /><span>{t("复制档案")}</span></button><button className="is-danger" type="button" role="menuitem" onClick={() => { setDialog("delete"); setMenuOpen(false); }}><FigmaIcon name="trash" size={16} /><span>{t("删除")}</span></button></span>}</span></div></header><section className="profile-detail-grid">{cells.map(([label, value]) => <div key={label}><span>{t(label)}</span><strong title={value}>{value}</strong></div>)}</section><section className="profile-source-card"><div><span>{t("资料包")}</span><strong>{t("已上传 {count} 份资料", { count: profile.fileCount })}</strong></div><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onReparse}>{t("重新上传并解析")}</button></section></div></div>{dialog && <ProfileActionDialog mode={dialog} profile={profile} name={name} titleId="profile-action-title" onNameChange={setName} onClose={() => setDialog(null)} onRename={onRename} onDelete={onDelete} />}</main>;
 }

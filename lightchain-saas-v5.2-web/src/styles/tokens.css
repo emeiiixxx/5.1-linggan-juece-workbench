@@ -36,6 +36,8 @@
   --text-secondary: #e3e8e8;
   --text-tertiary: #aab8b6;
   --text-brand: #20d0c4;
+  --text-link: #0bc1b8;
+  --text-link-hover: #70ebde;
   --text-placeholder: #7b8a88;
   --text-disabled: rgb(255 255 255 / 30%);
   --text-on-brand-black: #111817;
@@ -113,6 +115,8 @@
   --text-secondary: #2f3b3a;
   --text-tertiary: #52615f;
   --text-brand: #022f31;
+  --text-link: #069b96;
+  --text-link-hover: #0bc1b8;
   --text-placeholder: #7b8a88;
   --text-disabled: rgb(0 0 0 / 20%);
   --text-on-brand-black: #111817;

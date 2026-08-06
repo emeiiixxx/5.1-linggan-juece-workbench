@@ -147,10 +147,10 @@ a:focus-visible {
 }
 
 .language-select {
-  width: 112px;
-  min-width: 112px;
+  width: 120px;
+  min-width: 120px;
   height: 32px;
-  flex: 0 0 112px;
+  flex: 0 0 120px;
   justify-content: space-between;
   gap: 8px;
   padding: 0 8px;
@@ -168,6 +168,7 @@ a:focus-visible {
   min-width: 0;
   flex: 1 1 auto;
   overflow: hidden;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -198,8 +199,12 @@ a:focus-visible {
 }
 
 .language-menu button {
+  display: flex;
   width: 100%;
   height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   overflow: hidden;
   padding: 0 8px;
   border-radius: var(--radius-base);
@@ -213,14 +218,21 @@ a:focus-visible {
   transition: color var(--motion-standard), background-color var(--motion-standard);
 }
 
+.language-menu button > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .language-menu button:hover,
 .language-menu button:focus-visible {
   background: var(--state-hover);
 }
 
 .language-menu button.is-selected {
-  color: var(--brand-primary);
-  background: var(--state-selected);
+  color: var(--text-brand);
+  background: var(--state-hover);
 }
 
 .language-select:hover,
@@ -465,11 +477,10 @@ a:focus-visible {
 
 .icon-control__tooltip::before {
   position: absolute;
-  width: 6px;
-  height: 6px;
-  background: var(--surface-floating-strong);
+  width: 0;
+  height: 0;
+  border-style: solid;
   content: "";
-  transform: rotate(45deg);
 }
 
 .icon-control__tooltip[data-placement="top"] {
@@ -477,8 +488,10 @@ a:focus-visible {
 }
 
 .icon-control__tooltip[data-placement="top"]::before {
-  bottom: -3px;
-  left: calc(50% - 3px);
+  bottom: -5px;
+  left: calc(50% - 5px);
+  border-width: 5px 5px 0;
+  border-color: var(--surface-floating-strong) transparent transparent;
 }
 
 .icon-control__tooltip[data-placement="right"] {
@@ -486,8 +499,10 @@ a:focus-visible {
 }
 
 .icon-control__tooltip[data-placement="right"]::before {
-  top: calc(50% - 3px);
-  left: -3px;
+  top: calc(50% - 5px);
+  left: -5px;
+  border-width: 5px 5px 5px 0;
+  border-color: transparent var(--surface-floating-strong) transparent transparent;
 }
 
 .icon-control__tooltip[data-placement="bottom"] {
@@ -495,8 +510,10 @@ a:focus-visible {
 }
 
 .icon-control__tooltip[data-placement="bottom"]::before {
-  top: -3px;
-  left: calc(50% - 3px);
+  top: -5px;
+  left: calc(50% - 5px);
+  border-width: 0 5px 5px;
+  border-color: transparent transparent var(--surface-floating-strong);
 }
 
 .icon-control__tooltip[data-placement="left"] {
@@ -504,8 +521,10 @@ a:focus-visible {
 }
 
 .icon-control__tooltip[data-placement="left"]::before {
-  top: calc(50% - 3px);
-  right: -3px;
+  top: calc(50% - 5px);
+  right: -5px;
+  border-width: 5px 0 5px 5px;
+  border-color: transparent transparent transparent var(--surface-floating-strong);
 }
 
 @keyframes tooltip-enter {
@@ -1639,7 +1658,7 @@ a:focus-visible {
   height: 32px;
   padding: 0;
   border-radius: var(--radius-base);
-  color: #0bc1b8;
+  color: var(--text-link);
   background: transparent;
   font-size: 12px;
   font-weight: 500;
@@ -1649,14 +1668,20 @@ a:focus-visible {
 
 .profile-search button:hover,
 .profile-search button:focus-visible {
-  color: #70ebde;
+  color: var(--text-link-hover);
   background: transparent;
 }
 
 .profile-search button:active:not(:disabled) {
-  color: #70ebde;
+  color: var(--text-link-hover);
   background: transparent;
   transform: none;
+}
+
+.profile-search button:disabled {
+  color: var(--text-disabled);
+  background: transparent;
+  opacity: .65;
 }
 
 .profile-search > button:last-child {
@@ -2736,6 +2761,7 @@ a:focus-visible {
 .quick-card__description {
   position: relative;
   display: block;
+  overflow: hidden;
   width: 190px;
   height: 16px;
 }
@@ -2745,12 +2771,15 @@ a:focus-visible {
   top: 0;
   left: 0;
   display: flex;
+  overflow: hidden;
+  max-width: 100%;
   align-items: center;
   gap: 4px;
   color: var(--text-tertiary);
   font-size: 12px;
   font-weight: 400;
   line-height: 16px;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -3077,8 +3106,10 @@ a:focus-visible {
 .profile-action-modal input:hover { background: var(--control-fill-hover); }
 .profile-action-modal input:focus { outline: 0; border-color: var(--border-brand); background: var(--control-fill-focus); }
 .profile-action-modal footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
-.profile-button--danger { color: var(--text-on-brand-black); background: var(--status-danger); }
-.profile-button--danger:hover { filter: brightness(1.08); }
+.profile-action-backdrop { z-index: 2000; }
+.profile-action-modal .profile-button { min-width: 40px; padding-right: 24px; padding-left: 24px; }
+.profile-button--danger { color: var(--text-on-brand-white); background: var(--status-danger); }
+.profile-button--danger:hover:not(:disabled) { background: var(--status-danger-hover); }
 .profile-toast { position: fixed; z-index: 140; bottom: 40px; left: 50%; padding: 10px 16px; border: 1px solid var(--border-weak); border-radius: var(--radius-base); color: var(--text-primary); background: var(--surface-default); box-shadow: var(--shadow-l); font-size: 14px; line-height: 20px; transform: translateX(-50%); animation: profile-toast-enter var(--motion-standard) both; }
 .profile-detail-grid { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; border: 1px solid var(--border-weak); border-radius: var(--radius-xl); background: var(--surface-default); }
 .profile-detail-grid > div { display: grid; min-height: 72px; align-content: center; gap: 4px; padding: 16px; border-right: 1px solid var(--border-weak); border-bottom: 1px solid var(--border-weak); }
