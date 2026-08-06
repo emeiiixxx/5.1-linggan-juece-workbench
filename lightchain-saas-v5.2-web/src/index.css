@@ -1342,6 +1342,13 @@ a:focus-visible {
   max-width: none;
 }
 
+.profile-heading-art__cut {
+  inset: 0;
+  width: 286px;
+  height: 148px;
+  object-fit: contain;
+}
+
 .profile-heading-art__card {
   top: 9px;
   left: 40px;
@@ -1462,6 +1469,13 @@ a:focus-visible {
   width: 112px;
   height: 96px;
   margin-bottom: 4px;
+}
+
+.profile-empty-art__cut {
+  display: block;
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
 }
 
 .profile-empty-art__back {

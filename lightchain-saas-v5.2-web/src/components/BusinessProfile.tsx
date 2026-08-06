@@ -37,10 +37,7 @@ export function BusinessProfile() {
       <div className="profile-shell" data-node-id="146:11417">
         <section className="profile-top" aria-labelledby="profile-title">
           <div className="profile-heading-art" aria-hidden="true">
-            <img className="profile-heading-art__card" src={profileArt("header-card.svg")} alt="" />
-            <img className="profile-heading-art__arc" src={profileArt("header-arc.svg")} alt="" />
-            <img className="profile-heading-art__archive" src={profileArt("header-archive.svg")} alt="" />
-            <img className="profile-heading-art__spark" src={profileArt("header-spark.svg")} alt="" />
+            <img className="profile-heading-art__cut" src={profileArt("header-bg.png")} alt="" />
           </div>
 
           <div className="profile-heading">
@@ -72,16 +69,7 @@ export function BusinessProfile() {
           {filteredProfiles.length === 0 ? (
             <div className="profile-empty-card">
               <div className="profile-empty-art" aria-hidden="true">
-                <div className="profile-empty-art__back" />
-                <img className="profile-empty-art__ellipse-a" src={profileArt("empty-ellipse-a.svg")} alt="" />
-                <img className="profile-empty-art__ellipse-b" src={profileArt("empty-ellipse-b.svg")} alt="" />
-                <div className="profile-empty-art__lens">
-                  <img src={profileArt("empty-magnifier.png")} alt="" />
-                  <img className="profile-empty-art__circle" src={profileArt("empty-circle.svg")} alt="" />
-                  <img className="profile-empty-art__vector" src={profileArt("empty-vector.svg")} alt="" />
-                  <img className="profile-empty-art__star-a" src={profileArt("empty-star-a.svg")} alt="" />
-                  <img className="profile-empty-art__star-b" src={profileArt("empty-star-b.svg")} alt="" />
-                </div>
+                <img className="profile-empty-art__cut" src={profileArt("EmptyIcon.png")} alt="" />
               </div>
               <div className="profile-empty-copy">
                 <strong>{query ? "没有匹配的档案" : "还没有业务偏好档案"}</strong>
