@@ -216,9 +216,10 @@ export function Sidebar({ expanded, onToggle }: SidebarProps) {
     if (!dialog || dialog.mode !== "rename") return;
     const nextLabel = renameValue.trim();
     if (!nextLabel) return;
+    const target = dialog.target;
 
-    if (dialog.target.kind === "task") {
-      const taskIndexToRename = dialog.target.taskIndex;
+    if (target.kind === "task") {
+      const taskIndexToRename = target.taskIndex;
       setTasks((current) =>
         current.map((task, taskIndex) =>
           taskIndex === taskIndexToRename ? nextLabel : task,
@@ -230,12 +231,15 @@ export function Sidebar({ expanded, onToggle }: SidebarProps) {
 
     setGroups((current) =>
       current.map((group, groupIndex) => {
-        if (groupIndex !== dialog.target.groupIndex) return group;
-        if (dialog.target.kind === "group") return { ...group, title: nextLabel };
+        if (target.kind === "group") {
+          if (groupIndex !== target.groupIndex) return group;
+          return { ...group, title: nextLabel };
+        }
+        if (groupIndex !== target.groupIndex) return group;
         return {
           ...group,
           items: group.items.map((item, itemIndex) =>
-            itemIndex === dialog.target.itemIndex ? nextLabel : item,
+            itemIndex === target.itemIndex ? nextLabel : item,
           ),
         };
       }),
@@ -245,9 +249,10 @@ export function Sidebar({ expanded, onToggle }: SidebarProps) {
 
   const confirmDelete = () => {
     if (!dialog || dialog.mode !== "delete") return;
+    const target = dialog.target;
 
-    if (dialog.target.kind === "task") {
-      const taskIndexToDelete = dialog.target.taskIndex;
+    if (target.kind === "task") {
+      const taskIndexToDelete = target.taskIndex;
       setTasks((current) =>
         current.filter((_, taskIndex) => taskIndex !== taskIndexToDelete),
       );
@@ -257,14 +262,14 @@ export function Sidebar({ expanded, onToggle }: SidebarProps) {
     }
 
     setGroups((current) => {
-      if (dialog.target.kind === "group") {
-        return current.filter((_, groupIndex) => groupIndex !== dialog.target.groupIndex);
+      if (target.kind === "group") {
+        return current.filter((_, groupIndex) => groupIndex !== target.groupIndex);
       }
       return current.map((group, groupIndex) =>
-        groupIndex === dialog.target.groupIndex
+        groupIndex === target.groupIndex
           ? {
               ...group,
-              items: group.items.filter((_, itemIndex) => itemIndex !== dialog.target.itemIndex),
+              items: group.items.filter((_, itemIndex) => itemIndex !== target.itemIndex),
             }
           : group,
       );
