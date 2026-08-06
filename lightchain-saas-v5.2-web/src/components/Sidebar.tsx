@@ -15,6 +15,9 @@ import { IconControl } from "./IconControl";
 type SidebarProps = {
   expanded: boolean;
   onToggle: () => void;
+  activeView?: "workspace" | "preferences";
+  onOpenWorkspace?: () => void;
+  onOpenPreferences?: () => void;
 };
 
 type ActionTarget =
@@ -43,7 +46,13 @@ type SelectedRow =
   | { kind: "item"; groupIndex: number; itemIndex: number }
   | { kind: "task"; taskIndex: number };
 
-export function Sidebar({ expanded, onToggle }: SidebarProps) {
+export function Sidebar({
+  expanded,
+  onToggle,
+  activeView = "workspace",
+  onOpenWorkspace,
+  onOpenPreferences,
+}: SidebarProps) {
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [tasksExpanded, setTasksExpanded] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -359,11 +368,19 @@ export function Sidebar({ expanded, onToggle }: SidebarProps) {
           </div>
 
           <nav className="sidebar__primary" aria-label="工作台入口">
-            <button type="button">
+            <button
+              type="button"
+              className={activeView === "workspace" ? "is-selected" : ""}
+              onClick={onOpenWorkspace}
+            >
               <FigmaIcon name="new-task" size={20} />
               <span>新建任务</span>
             </button>
-            <button type="button">
+            <button
+              type="button"
+              className={activeView === "preferences" ? "is-selected" : ""}
+              onClick={onOpenPreferences}
+            >
               <FigmaIcon name="company-info" size={20} />
               <span>业务偏好档案</span>
             </button>
