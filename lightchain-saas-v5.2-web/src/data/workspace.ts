@@ -1,3 +1,5 @@
+import { assetUrl } from "../utils/assets";
+
 export const projectGroups = [
   {
     title: "GG酱的灵感",
@@ -22,22 +24,22 @@ export const quickStartCards = [
   {
     title: "面料套版",
     description: "面料·指定版式快速设计",
-    image: "/assets/figma-icons/quick-image-a.png",
+    image: assetUrl("assets/figma-icons/quick-image-a.png"),
   },
   {
     title: "转线稿图",
     description: "批量转换，秒速生成线稿",
-    image: "/assets/figma-icons/quick-image-b.png",
+    image: assetUrl("assets/figma-icons/quick-image-b.png"),
   },
   {
     title: "款式融合",
     description: "融合特征，焕新呈现",
-    image: "/assets/figma-icons/quick-image-c.png",
+    image: assetUrl("assets/figma-icons/quick-image-c.png"),
   },
   {
     title: "印花设计",
     description: "基于参考图或内容生成印花图案",
-    image: "/assets/figma-icons/quick-image-a.png",
+    image: assetUrl("assets/figma-icons/quick-image-a.png"),
   },
 ];
 

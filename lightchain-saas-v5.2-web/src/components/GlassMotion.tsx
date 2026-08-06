@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { motion, useAnimationControls, useReducedMotion } from "motion/react";
+import { assetUrl } from "../utils/assets";
 
 const figmaSpring = (value: number) =>
   1 -
@@ -79,7 +80,7 @@ export function GlassMotion({ paused = false }: GlassMotionProps) {
           <div className="glass-motion__back-card" data-name="后">
             <div className="glass-motion__back-content" data-node-id="415:56668">
               <img
-                src="/assets/figma-icons/glass-motion-56659-back-v2@2x.png"
+                src={assetUrl("assets/figma-icons/glass-motion-56659-back-v2@2x.png")}
                 alt=""
               />
             </div>
@@ -123,7 +124,7 @@ export function GlassMotion({ paused = false }: GlassMotionProps) {
             className="glass-motion__front-card glass-motion__front-card--base"
             data-node-id="415:56676"
             data-name="前"
-            src="/assets/figma-icons/glass-motion-56659-front-base@2x.png"
+            src={assetUrl("assets/figma-icons/glass-motion-56659-front-base@2x.png")}
             alt=""
           />
         </div>

@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { assetUrl } from "../utils/assets";
 
 type FigmaIconProps = {
   name: string;
@@ -6,7 +7,7 @@ type FigmaIconProps = {
   className?: string;
 };
 
-const ICON_ROOT = "/assets/figma-icons";
+const ICON_ROOT = assetUrl("assets/figma-icons");
 
 const ART_INSETS: Record<string, string> = {
   "add-project": "12.5% 6.25% 12.5% 9.38%",

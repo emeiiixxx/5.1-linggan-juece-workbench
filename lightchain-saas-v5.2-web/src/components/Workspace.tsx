@@ -1,6 +1,7 @@
 import { useState, type KeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { quickStartCards } from "../data/workspace";
+import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { GlassMotion } from "./GlassMotion";
 import { IconControl } from "./IconControl";
@@ -160,8 +161,8 @@ export function Workspace() {
                       <small>{card.description}</small>
                     </span>
                     <span className="quick-card__preview" aria-hidden="true">
-                      <img src="/assets/figma-icons/quick-image-a.png" alt="" />
-                      <img src="/assets/figma-icons/quick-image-b.png" alt="" />
+                      <img src={assetUrl("assets/figma-icons/quick-image-a.png")} alt="" />
+                      <img src={assetUrl("assets/figma-icons/quick-image-b.png")} alt="" />
                       <img src={card.image} alt="" />
                     </span>
                   </button>

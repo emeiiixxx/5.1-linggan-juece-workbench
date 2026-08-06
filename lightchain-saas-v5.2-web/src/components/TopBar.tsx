@@ -1,6 +1,7 @@
 import { Moon, Sun } from "lucide-react";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
+import { assetUrl } from "../utils/assets";
 
 type TopBarProps = {
   theme: "dark" | "light";
@@ -14,10 +15,10 @@ export function TopBar({ theme, onToggleTheme }: TopBarProps) {
     <header className="topbar" data-node-id="140:6846">
       <div className="topbar__left">
         <a className="brand" href="#" aria-label="Lightchain 首页">
-          <img className="brand__mark" src="/assets/figma-icons/logo-mark.svg" alt="" />
+          <img className="brand__mark" src={assetUrl("assets/figma-icons/logo-mark.svg")} alt="" />
           <img
             className="brand__wordmark"
-            src="/assets/figma-icons/logo-wordmark.svg"
+            src={assetUrl("assets/figma-icons/logo-wordmark.svg")}
             alt="Lightchain"
           />
         </a>
@@ -57,7 +58,7 @@ export function TopBar({ theme, onToggleTheme }: TopBarProps) {
           </span>
         </button>
         <IconControl className="avatar" label="打开个人中心" tooltipPlacement="bottom">
-          <img src="/assets/figma-icons/avatar.png" alt="" />
+          <img src={assetUrl("assets/figma-icons/avatar.png")} alt="" />
         </IconControl>
       </div>
     </header>
