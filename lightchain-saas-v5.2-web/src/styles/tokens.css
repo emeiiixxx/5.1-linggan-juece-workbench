@@ -7,6 +7,8 @@
   --brand-primary-disabled: #0d6261;
   --brand-gradient: linear-gradient(90deg, #71f4d3 0%, #b69bf7 100%);
   --brand-secondary: #505c5e;
+  --brand-secondary-hover: #798386;
+  --brand-secondary-disabled: #3d484b;
   --status-danger: #ff4c4c;
   --status-danger-hover: #ff6464;
 
@@ -82,6 +84,8 @@
   --brand-primary-hover: #20d0c4;
   --brand-primary-disabled: #a7fcf0;
   --brand-secondary: #e6e9ea;
+  --brand-secondary-hover: #d3d8d9;
+  --brand-secondary-disabled: #f4f5f5;
   --status-danger: #ff4c4c;
   --status-danger-hover: #ff6464;
 

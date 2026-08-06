@@ -30,7 +30,7 @@ export default function App() {
           onOpenWorkspace={() => setActiveView("workspace")}
           onOpenPreferences={() => setActiveView("preferences")}
         />
-        {activeView === "preferences" ? <BusinessProfile /> : <Workspace />}
+        {activeView === "preferences" ? <BusinessProfile onCreateTask={() => setActiveView("workspace")} /> : <Workspace theme={theme} />}
       </div>
     </div>
   );

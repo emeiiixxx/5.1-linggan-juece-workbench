@@ -12,9 +12,12 @@ const ICON_ROOT = assetUrl("assets/figma-icons");
 const ART_INSETS: Record<string, string> = {
   "add-project": "12.5% 6.25% 12.5% 9.38%",
   "arrow-up": "20.31% 26.56%",
+  "arrow-left": "25% 18.75% 25%",
   "chevron-down": "37.5% 25%",
   "chevron-left": "25% 37.5%",
   "chevron-right": "25% 37.5%",
+  check: "0",
+  delete: "0",
   close: "13.54%",
   "company-info": "14.92% 12.5% 12.5%",
   "customer-support": "9.38% 7.81%",
@@ -30,6 +33,7 @@ const ART_INSETS: Record<string, string> = {
   "points-star": "12.81% 3.54% 9.79% 5.94%",
   project: "12.69% 9.54% 12.68%",
   search: "12.5%",
+  reset: "13.54%",
   task: "6.25%",
   trash: "6.25% 12.5% 9.38%",
 };

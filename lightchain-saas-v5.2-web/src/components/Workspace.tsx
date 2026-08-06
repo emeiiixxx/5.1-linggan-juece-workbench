@@ -3,8 +3,9 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { quickStartCards } from "../data/workspace";
 import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
-import { GlassMotion } from "./GlassMotion";
+import { ArchiveHeaderMotion } from "./GlassMotion";
 import { IconControl } from "./IconControl";
+import { primaryPageEntrance, primaryPageEntranceItem, primaryPageEntranceMediaItem } from "../utils/pageMotion";
 
 const tabs = ["选品测款", "新品方向探索", "客户提案生成"];
 const tabMetrics = [
@@ -13,7 +14,7 @@ const tabMetrics = [
   { x: 192, width: 104 },
 ];
 
-export function Workspace() {
+export function Workspace({ theme }: { theme: "dark" | "light" }) {
   const [activeTab, setActiveTab] = useState(0);
   const [quickStartOpen, setQuickStartOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -42,8 +43,14 @@ export function Workspace() {
 
   return (
     <main className="workspace-region">
-      <div className="workspace-shell" data-node-id="140:6876">
-        <section className="workspace-header" data-node-id="163:984">
+      <motion.div
+        className="workspace-shell"
+        data-node-id="140:6876"
+        variants={primaryPageEntrance}
+        initial={reduceMotion ? false : "hidden"}
+        animate="visible"
+      >
+        <motion.section className="workspace-header" data-node-id="163:984" variants={primaryPageEntranceMediaItem}>
           <div className="workspace-copy">
             <h1>今天想从哪里开始？</h1>
             <p>选择一个业务场景，描述你的目标，Agent 会带你完成后续步骤。</p>
@@ -69,10 +76,10 @@ export function Workspace() {
             ))}
           </div>
 
-          <GlassMotion paused={quickStartOpen} />
-        </section>
+          <ArchiveHeaderMotion theme={theme} />
+        </motion.section>
 
-        <section className="composer" aria-label="新建任务" data-node-id="140:6883">
+        <motion.section className="composer" aria-label="新建任务" data-node-id="140:6883" variants={primaryPageEntranceItem}>
           <div className="composer__input" data-node-id="140:6884">
             <textarea
               value={message}
@@ -107,9 +114,9 @@ export function Workspace() {
               <FigmaIcon name="chevron-right" size={16} />
             </button>
           </div>
-        </section>
+        </motion.section>
 
-        <section className={`quick-start ${quickStartOpen ? "is-open" : ""}`}>
+        <motion.section className={`quick-start ${quickStartOpen ? "is-open" : ""}`} variants={primaryPageEntranceItem}>
           <motion.button
             className="quick-start__toggle"
             type="button"
@@ -170,8 +177,8 @@ export function Workspace() {
               </motion.div>
             )}
           </AnimatePresence>
-        </section>
-      </div>
+        </motion.section>
+      </motion.div>
     </main>
   );
 }

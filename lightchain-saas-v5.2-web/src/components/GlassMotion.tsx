@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, useAnimationControls, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
 
@@ -10,6 +10,27 @@ const figmaSpring = (value: number) =>
 type GlassMotionProps = {
   paused?: boolean;
 };
+
+export function ArchiveHeaderMotion({ theme }: { theme: "dark" | "light" }) {
+  const reduceMotion = useReducedMotion();
+  const [cycle, setCycle] = useState(0);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    const interval = window.setInterval(() => setCycle((value) => value + 1), 11000);
+    return () => window.clearInterval(interval);
+  }, [reduceMotion]);
+
+  return (
+    <img
+      className="archive-header-motion"
+      key={reduceMotion ? `${theme}-reduced` : `${theme}-${cycle}`}
+      src={assetUrl(`assets/figma-icons/archive-header-${theme}.svg`)}
+      alt=""
+      aria-hidden="true"
+    />
+  );
+}
 
 export function GlassMotion({ paused = false }: GlassMotionProps) {
   const reduceMotion = useReducedMotion();
@@ -79,10 +100,7 @@ export function GlassMotion({ paused = false }: GlassMotionProps) {
         <div className="glass-motion__back-static">
           <div className="glass-motion__back-card" data-name="后">
             <div className="glass-motion__back-content" data-node-id="415:56668">
-              <img
-                src={assetUrl("assets/figma-icons/glass-motion-56659-back-v2@2x.png")}
-                alt=""
-              />
+              <img src={assetUrl("assets/figma-icons/glass-motion-56659-back-v2@2x.png")} alt="" />
             </div>
           </div>
         </div>
