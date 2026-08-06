@@ -10,8 +10,11 @@ type FigmaIconProps = {
 const ICON_ROOT = assetUrl("assets/figma-icons");
 
 const ART_INSETS: Record<string, string> = {
+  "add-file": "9.38% 25% 9.38% 21.88%",
+  "add-image": "12.5% 6.25% 12.5% 12.5%",
   "add-project": "12.5% 6.25% 12.5% 9.38%",
   "arrow-up": "20.31% 26.56%",
+  "arrow-down-right": "25%",
   "arrow-left": "25% 18.75% 25%",
   "chevron-down": "37.5% 25%",
   "chevron-left": "25% 37.5%",

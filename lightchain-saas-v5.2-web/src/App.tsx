@@ -5,11 +5,17 @@ import { Workspace } from "./components/Workspace";
 import { BusinessProfile } from "./components/BusinessProfile";
 
 type Theme = "dark" | "light";
+type SelectedProfile = { id: number; name: string };
+type SelectedProject = { id: number; name: string };
+type CreatedTask = { id: number; title: string; projectId: number | null };
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>("dark");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
-  const [activeView, setActiveView] = useState<"workspace" | "preferences">("preferences");
+  const [activeView, setActiveView] = useState<"workspace" | "preferences">("workspace");
+  const [selectedProfile, setSelectedProfile] = useState<SelectedProfile | null>(null);
+  const [selectedProject, setSelectedProject] = useState<SelectedProject | null>(null);
+  const [createdTask, setCreatedTask] = useState<CreatedTask | null>(null);
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -29,8 +35,27 @@ export default function App() {
           activeView={activeView}
           onOpenWorkspace={() => setActiveView("workspace")}
           onOpenPreferences={() => setActiveView("preferences")}
+          createdTask={createdTask}
         />
-        {activeView === "preferences" ? <BusinessProfile onCreateTask={() => setActiveView("workspace")} /> : <Workspace theme={theme} />}
+        {activeView === "preferences" ? (
+          <BusinessProfile
+            onCreateTask={(profile) => {
+              setSelectedProfile({ id: profile.id, name: profile.name });
+              setActiveView("workspace");
+            }}
+          />
+        ) : (
+          <Workspace
+            theme={theme}
+            selectedProfile={selectedProfile}
+            onSelectedProfileChange={setSelectedProfile}
+            selectedProject={selectedProject}
+            onSelectedProjectChange={setSelectedProject}
+            onCreateTask={({ title, projectId }) => {
+              setCreatedTask({ id: Date.now(), title, projectId });
+            }}
+          />
+        )}
       </div>
     </div>
   );

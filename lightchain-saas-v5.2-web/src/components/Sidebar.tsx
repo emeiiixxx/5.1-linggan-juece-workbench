@@ -18,6 +18,7 @@ type SidebarProps = {
   activeView?: "workspace" | "preferences";
   onOpenWorkspace?: () => void;
   onOpenPreferences?: () => void;
+  createdTask?: { id: number; title: string; projectId: number | null } | null;
 };
 
 type ActionTarget =
@@ -52,6 +53,7 @@ export function Sidebar({
   activeView = "workspace",
   onOpenWorkspace,
   onOpenPreferences,
+  createdTask,
 }: SidebarProps) {
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [tasksExpanded, setTasksExpanded] = useState(true);
@@ -69,12 +71,37 @@ export function Sidebar({
   const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const [createProjectValue, setCreateProjectValue] = useState("");
   const [draggedRow, setDraggedRow] = useState<DraggedRow | null>(null);
   const [dropTarget, setDropTarget] = useState<{ groupIndex: number; index: number } | null>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
   const actionMenuAnchorRef = useRef<HTMLButtonElement | null>(null);
   const actionMenuStateRef = useRef<ActionMenuState | null>(null);
   const collapsedMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastCreatedTaskIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!createdTask || lastCreatedTaskIdRef.current === createdTask.id) return;
+    lastCreatedTaskIdRef.current = createdTask.id;
+
+    if (createdTask.projectId === null) {
+      setTasks((current) => [createdTask.title, ...current]);
+      setTasksExpanded(true);
+      setSelectedRow({ kind: "task", taskIndex: 0 });
+      return;
+    }
+
+    setGroups((current) =>
+      current.map((group, groupIndex) =>
+        groupIndex === createdTask.projectId
+          ? { ...group, items: [createdTask.title, ...group.items], expanded: true }
+          : group,
+      ),
+    );
+    setProjectsExpanded(true);
+    setSelectedRow({ kind: "item", groupIndex: createdTask.projectId, itemIndex: 0 });
+  }, [createdTask]);
 
   const openCollapsedMenu = (menu: "projects" | "tasks") => {
     if (collapsedMenuCloseTimerRef.current) {
@@ -146,6 +173,15 @@ export function Sidebar({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [dialog]);
+
+  useEffect(() => {
+    if (!createProjectOpen) return;
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setCreateProjectOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [createProjectOpen]);
 
   useEffect(() => {
     if (!expanded) {
@@ -287,6 +323,25 @@ export function Sidebar({
     setDialog(null);
   };
 
+  const openCreateProject = () => {
+    setCreateProjectValue("");
+    setCreateProjectOpen(true);
+    setActionMenu(null);
+    setCollapsedMenu(null);
+  };
+
+  const confirmCreateProject = () => {
+    const projectName = createProjectValue.trim();
+    if (!projectName) return;
+    setGroups((current) => [
+      { title: projectName, items: [], expanded: false },
+      ...current,
+    ]);
+    setProjectsExpanded(true);
+    setCreateProjectOpen(false);
+    setCreateProjectValue("");
+  };
+
   const handleDragStart = (
     event: DragEvent<HTMLDivElement>,
     groupIndex: number,
@@ -405,7 +460,13 @@ export function Sidebar({
                   className={projectsExpanded ? "" : "is-closed"}
                 />
               </button>
-              <IconControl label="新建项目" tooltipPlacement="left">
+              <IconControl
+                label="新建项目"
+                tooltipPlacement="left"
+                aria-haspopup="dialog"
+                aria-expanded={createProjectOpen}
+                onClick={openCreateProject}
+              >
                 <FigmaIcon name="add-project" size={20} />
               </IconControl>
             </div>
@@ -1049,6 +1110,77 @@ export function Sidebar({
               </footer>
             </div>
           )}
+        </section>
+      </div>,
+      document.body,
+    )}
+
+    {createProjectOpen && typeof document !== "undefined" && createPortal(
+      <div
+        className="sidebar-dialog-backdrop"
+        onMouseDown={(event) => {
+          if (event.currentTarget === event.target) setCreateProjectOpen(false);
+        }}
+      >
+        <section
+          className="sidebar-dialog sidebar-create-project-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-project-dialog-title"
+          aria-describedby="create-project-dialog-description"
+          data-node-id="444:90446"
+        >
+          <header className="sidebar-dialog__header sidebar-create-project-dialog__header">
+            <div>
+              <h2 id="create-project-dialog-title">创建项目</h2>
+              <p id="create-project-dialog-description">
+                项目用于整理历史任务，名称最多 40 个字符
+              </p>
+            </div>
+            <IconControl
+              label="关闭"
+              tooltipPlacement="left"
+              onClick={() => setCreateProjectOpen(false)}
+            >
+              <FigmaIcon name="close" size={20} />
+            </IconControl>
+          </header>
+
+          <form
+            className="sidebar-dialog__form sidebar-create-project-dialog__form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              confirmCreateProject();
+            }}
+          >
+            <div className="sidebar-dialog__input-wrap">
+              <input
+                autoFocus
+                value={createProjectValue}
+                maxLength={40}
+                placeholder="输入项目名称"
+                aria-label="项目名称"
+                onChange={(event) => setCreateProjectValue(event.target.value)}
+              />
+              <span>{createProjectValue.length}/40</span>
+            </div>
+            <footer className="sidebar-dialog__footer">
+              <button
+                className="sidebar-dialog__button sidebar-dialog__button--secondary"
+                type="button"
+                onClick={() => setCreateProjectOpen(false)}
+              >
+                取消
+              </button>
+              <button
+                className="sidebar-dialog__button sidebar-dialog__button--primary"
+                type="submit"
+                disabled={!createProjectValue.trim()}
+              >
+                创建
+              </button>
+            </footer>
+          </form>
         </section>
       </div>,
       document.body,
