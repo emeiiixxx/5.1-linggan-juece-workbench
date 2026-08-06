@@ -3,6 +3,7 @@ import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { Workspace } from "./components/Workspace";
 import { BusinessProfile } from "./components/BusinessProfile";
+import { I18nProvider } from "./i18n";
 
 type Theme = "dark" | "light";
 type SelectedProfile = { id: number; name: string };
@@ -23,6 +24,7 @@ export default function App() {
   }, [theme]);
 
   return (
+    <I18nProvider>
     <div className="app-shell">
       <TopBar
         theme={theme}
@@ -58,5 +60,6 @@ export default function App() {
         )}
       </div>
     </div>
+    </I18nProvider>
   );
 }

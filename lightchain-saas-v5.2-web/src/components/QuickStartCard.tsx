@@ -1,18 +1,13 @@
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
+import { useI18n } from "../i18n";
 
 type QuickStartCardProps = {
   title: string;
   description: string;
-  image: string;
+  images: string[];
 };
-
-const previewImages = [
-  assetUrl("assets/figma-icons/quick-image-a.png"),
-  assetUrl("assets/figma-icons/quick-image-b.png"),
-];
 
 const collapsedPreview = [
   { x: 1, y: 4, width: 75, height: 112.5, rotate: 0 },
@@ -26,14 +21,13 @@ const expandedPreview = [
   { x: 4.74, y: 12.99, width: 66.667, height: 100, rotate: -10 },
 ];
 
-export function QuickStartCard({ title, description, image }: QuickStartCardProps) {
+export function QuickStartCard({ title, description, images }: QuickStartCardProps) {
+  const { t } = useI18n();
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const reduceMotion = useReducedMotion();
   const expanded = hovered || focused;
   const transition = { duration: reduceMotion ? 0 : 0.3, ease: "easeOut" as const };
-  const images = [...previewImages, image];
-
   return (
     <motion.button
       type="button"
@@ -53,9 +47,10 @@ export function QuickStartCard({ title, description, image }: QuickStartCardProp
       />
 
       <span className="quick-card__copy">
-        <strong>{title}</strong>
+        <strong title={title}>{title}</strong>
         <span className="quick-card__description">
           <motion.small
+            title={description}
             animate={{ opacity: expanded ? 0 : 1 }}
             transition={transition}
             aria-hidden={expanded}
@@ -68,7 +63,7 @@ export function QuickStartCard({ title, description, image }: QuickStartCardProp
             transition={transition}
             aria-hidden={!expanded}
           >
-            点击试试
+            {t("点击试试")}
             <FigmaIcon name="arrow-down-right" size={16} />
           </motion.small>
         </span>

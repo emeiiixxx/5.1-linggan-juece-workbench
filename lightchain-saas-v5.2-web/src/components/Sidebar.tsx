@@ -11,6 +11,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { projectGroups, recentItems, taskItems } from "../data/workspace";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
+import { useI18n } from "../i18n";
 
 type SidebarProps = {
   expanded: boolean;
@@ -55,6 +56,7 @@ export function Sidebar({
   onOpenPreferences,
   createdTask,
 }: SidebarProps) {
+  const { t } = useI18n();
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [tasksExpanded, setTasksExpanded] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -406,30 +408,30 @@ export function Sidebar({
           <div className="sidebar__header">
             <div className="sidebar__title">
               <FigmaIcon name="chevron-left" size={20} />
-              <span>灵感决策工作台</span>
+              <span title={t("灵感决策工作台")}>{t("灵感决策工作台")}</span>
             </div>
             <div className="sidebar__header-actions">
               <IconControl
-                label="搜索"
+                label={t("搜索")}
                 tooltipPlacement="bottom"
                 onClick={() => setSearchOpen((value) => !value)}
               >
                 <FigmaIcon name="search" size={20} />
               </IconControl>
-              <IconControl label="收起侧栏" tooltipPlacement="bottom" onClick={onToggle}>
+              <IconControl label={t("收起侧栏")} tooltipPlacement="bottom" onClick={onToggle}>
                 <FigmaIcon name="expand-window" size={20} />
               </IconControl>
             </div>
           </div>
 
-          <nav className="sidebar__primary" aria-label="工作台入口">
+          <nav className="sidebar__primary" aria-label={t("工作台入口")}>
             <button
               type="button"
               className={activeView === "workspace" ? "is-selected" : ""}
               onClick={onOpenWorkspace}
             >
               <FigmaIcon name="new-task" size={20} />
-              <span>新建任务</span>
+              <span title={t("新建任务")}>{t("新建任务")}</span>
             </button>
             <button
               type="button"
@@ -437,7 +439,7 @@ export function Sidebar({
               onClick={onOpenPreferences}
             >
               <FigmaIcon name="company-info" size={20} />
-              <span>业务偏好档案</span>
+              <span title={t("业务偏好档案")}>{t("业务偏好档案")}</span>
             </button>
           </nav>
 
@@ -453,7 +455,7 @@ export function Sidebar({
                 aria-expanded={projectsExpanded}
                 onClick={() => setProjectsExpanded((value) => !value)}
               >
-                <span>项目</span>
+                <span>{t("项目")}</span>
                 <FigmaIcon
                   name="chevron-down"
                   size={16}
@@ -461,7 +463,7 @@ export function Sidebar({
                 />
               </button>
               <IconControl
-                label="新建项目"
+                label={t("新建项目")}
                 tooltipPlacement="left"
                 aria-haspopup="dialog"
                 aria-expanded={createProjectOpen}
@@ -507,7 +509,7 @@ export function Sidebar({
                     <div className="tree-row__actions tree-row__actions--group">
                       <IconControl
                         size="small"
-                        label="更多"
+                        label={t("更多")}
                         tooltipPlacement="top"
                         aria-haspopup="menu"
                         aria-expanded={
@@ -520,7 +522,7 @@ export function Sidebar({
                       >
                         <FigmaIcon name="more-horizontal" size={16} />
                       </IconControl>
-                      <IconControl size="small" label={`在${group.title}中新建对话`} tooltipPlacement="top">
+                      <IconControl size="small" label={t("在{name}中新建对话", { name: group.title })} tooltipPlacement="top">
                         <FigmaIcon name="new-chat" size={16} />
                       </IconControl>
                     </div>
@@ -584,7 +586,7 @@ export function Sidebar({
                       <div className="tree-row__actions tree-row__actions--child">
                         <IconControl
                           size="small"
-                          label="更多"
+                        label={t("更多")}
                           tooltipPlacement="top"
                           aria-haspopup="menu"
                           aria-expanded={
@@ -625,7 +627,7 @@ export function Sidebar({
                 aria-expanded={tasksExpanded}
                 onClick={() => setTasksExpanded((value) => !value)}
               >
-                <span>任务</span>
+                <span>{t("任务")}</span>
                 <FigmaIcon
                   name="chevron-down"
                   size={16}
@@ -649,23 +651,22 @@ export function Sidebar({
                     }`}
                     key={`${item}-${index}`}
                   >
+                    <span className="task-row__selection-surface" aria-hidden="true" />
                     <button
                       className="task-row"
                       type="button"
                       aria-current={isSelected ? "page" : undefined}
                       onClick={() => setSelectedRow({ kind: "task", taskIndex: index })}
                     >
-                      {isSelected && (
-                        <span className="tree-row__selection-indicator" aria-hidden="true">
-                          <span className="system-dot" />
-                        </span>
-                      )}
+                      <span className="tree-row__selection-indicator" aria-hidden="true">
+                        <span className={`system-dot task-row__selection-dot ${isSelected ? "is-visible" : ""}`} />
+                      </span>
                       <span>{item}</span>
                     </button>
                     <div className="tree-row__actions tree-row__actions--task">
                       <IconControl
                         size="small"
-                        label="更多"
+                        label={t("更多")}
                         tooltipPlacement="top"
                         aria-haspopup="menu"
                         aria-expanded={isMenuOpen}
@@ -687,15 +688,15 @@ export function Sidebar({
 
       <div className="sidebar__collapsed" aria-hidden={expanded}>
         <div className="sidebar__collapsed-primary">
-          <IconControl label="展开菜单" tooltipPlacement="right" onClick={onToggle}>
+          <IconControl label={t("展开菜单")} tooltipPlacement="right" onClick={onToggle}>
             <FigmaIcon name="expand-window" size={20} />
           </IconControl>
         </div>
         <div className="sidebar__collapsed-secondary">
-          <IconControl label="新建任务" tooltipPlacement="right">
+          <IconControl label={t("新建任务")} tooltipPlacement="right">
             <FigmaIcon name="new-task" size={20} />
           </IconControl>
-          <IconControl label="企业偏好档案" tooltipPlacement="right">
+          <IconControl label={t("企业偏好档案")} tooltipPlacement="right">
             <FigmaIcon name="company-info" size={20} />
           </IconControl>
           <div className="collapsed-divider" />
@@ -713,7 +714,7 @@ export function Sidebar({
             }}
           >
             <IconControl
-              label="项目"
+              label={t("项目")}
               showTooltip={false}
               aria-haspopup="menu"
               aria-expanded={collapsedMenu === "projects"}
@@ -723,7 +724,7 @@ export function Sidebar({
             <div
               className={`collapsed-flyout collapsed-flyout--projects ${collapsedMenu === "projects" ? "is-open" : ""}`}
               role="menu"
-              aria-label="项目"
+              aria-label={t("项目")}
               onMouseEnter={() => openCollapsedMenu("projects")}
             >
               {groups.map((group, groupIndex) => (
@@ -762,7 +763,7 @@ export function Sidebar({
                     <div className="tree-row__actions tree-row__actions--group">
                       <IconControl
                         size="small"
-                        label="更多"
+                        label={t("更多")}
                         tooltipPlacement="top"
                         aria-haspopup="menu"
                         aria-expanded={
@@ -777,7 +778,7 @@ export function Sidebar({
                       </IconControl>
                       <IconControl
                         size="small"
-                        label={`在${group.title}中新建对话`}
+                        label={t("在{name}中新建对话", { name: group.title })}
                         tooltipPlacement="top"
                       >
                         <FigmaIcon name="new-chat" size={16} />
@@ -847,7 +848,7 @@ export function Sidebar({
                             <div className="tree-row__actions tree-row__actions--child">
                               <IconControl
                                 size="small"
-                                label="更多"
+                        label={t("更多")}
                                 tooltipPlacement="top"
                                 aria-haspopup="menu"
                                 aria-expanded={isMenuOpen}
@@ -888,7 +889,7 @@ export function Sidebar({
             }}
           >
             <IconControl
-              label="任务"
+              label={t("任务")}
               showTooltip={false}
               aria-haspopup="menu"
               aria-expanded={collapsedMenu === "tasks"}
@@ -898,7 +899,7 @@ export function Sidebar({
             <div
               className={`collapsed-flyout collapsed-flyout--tasks ${collapsedMenu === "tasks" ? "is-open" : ""}`}
               role="menu"
-              aria-label="任务"
+              aria-label={t("任务")}
               onMouseEnter={() => openCollapsedMenu("tasks")}
             >
               {tasks.map((item, index) => {
@@ -915,6 +916,7 @@ export function Sidebar({
                     }`}
                     key={`${item}-flyout-${index}`}
                   >
+                    <span className="task-row__selection-surface" aria-hidden="true" />
                     <button
                       className="task-row"
                       type="button"
@@ -922,17 +924,15 @@ export function Sidebar({
                       aria-current={isSelected ? "page" : undefined}
                       onClick={() => setSelectedRow({ kind: "task", taskIndex: index })}
                     >
-                      {isSelected && (
-                        <span className="tree-row__selection-indicator" aria-hidden="true">
-                          <span className="system-dot" />
-                        </span>
-                      )}
+                      <span className="tree-row__selection-indicator" aria-hidden="true">
+                        <span className={`system-dot task-row__selection-dot ${isSelected ? "is-visible" : ""}`} />
+                      </span>
                       <span>{item}</span>
                     </button>
                     <div className="tree-row__actions tree-row__actions--task">
                       <IconControl
                         size="small"
-                        label="更多"
+                        label={t("更多")}
                         tooltipPlacement="top"
                         aria-haspopup="menu"
                         aria-expanded={isMenuOpen}
@@ -963,7 +963,7 @@ export function Sidebar({
             <motion.div
               className="search-popover"
               role="dialog"
-              aria-label="搜索历史任务或项目"
+              aria-label={t("搜索历史任务或项目")}
               variants={{
                 closed: { x: -400, opacity: 0 },
                 open: { x: 0, opacity: 1 },
@@ -972,17 +972,17 @@ export function Sidebar({
             >
               <div className="search-popover__field">
                 <FigmaIcon name="search" size={20} />
-                <input autoFocus placeholder="搜索历史任务或项目" />
+                <input autoFocus placeholder={t("搜索历史任务或项目")} />
                 <IconControl
                   size="small"
-                  label="关闭搜索"
+                  label={t("关闭搜索")}
                   tooltipPlacement="left"
                   onClick={() => setSearchOpen(false)}
                 >
                   <FigmaIcon name="close" size={16} />
                 </IconControl>
               </div>
-              <p className="search-popover__label">最近编辑</p>
+              <p className="search-popover__label">{t("最近编辑")}</p>
               <div className="search-popover__list">
                 {recentItems.map(([title, meta], index) => (
                   <button type="button" key={`${title}-${index}`}>
@@ -1002,7 +1002,7 @@ export function Sidebar({
         ref={actionMenuRef}
         className="sidebar-action-menu"
         role="menu"
-        aria-label={`${getTargetLabel(actionMenu.target)}的操作`}
+        aria-label={t("{name}的操作", { name: getTargetLabel(actionMenu.target) })}
         style={{ left: actionMenu.left, top: actionMenu.top }}
         onKeyDown={handleActionMenuKeyDown}
       >
@@ -1014,16 +1014,16 @@ export function Sidebar({
           onClick={() => startDialog("rename")}
         >
           <FigmaIcon name="modify" size={16} />
-          <span>重命名</span>
+          <span>{t("重命名")}</span>
         </button>
         <button
-          className="sidebar-action-menu__item"
+          className="sidebar-action-menu__item is-danger"
           type="button"
           role="menuitem"
           onClick={() => startDialog("delete")}
         >
           <FigmaIcon name="trash" size={16} />
-          <span>删除</span>
+          <span>{t("删除")}</span>
         </button>
       </div>,
       document.body,
@@ -1045,14 +1045,14 @@ export function Sidebar({
           <header className="sidebar-dialog__header">
             <h2 id="sidebar-dialog-title">
               {dialog.mode === "rename"
-                ? "重命名"
+                ? t("重命名")
                 : dialog.target.kind === "group"
-                  ? "删除此项目？"
+                  ? t("删除此项目？")
                   : dialog.target.kind === "task"
-                    ? "删除此任务？"
-                    : "删除此对话？"}
+                    ? t("删除此任务？")
+                    : t("删除此对话？")}
             </h2>
-            <IconControl label="关闭" tooltipPlacement="left" onClick={() => setDialog(null)}>
+            <IconControl label={t("关闭")} tooltipPlacement="left" onClick={() => setDialog(null)}>
               <FigmaIcon name="close" size={20} />
             </IconControl>
           </header>
@@ -1072,17 +1072,17 @@ export function Sidebar({
                   maxLength={200}
                   placeholder={
                     dialog.target.kind === "group"
-                      ? "输入项目名称"
+                      ? t("输入项目名称")
                       : dialog.target.kind === "task"
-                        ? "输入任务名称"
-                        : "输入对话名称"
+                        ? t("输入任务名称")
+                        : t("输入对话名称")
                   }
                   aria-label={
                     dialog.target.kind === "group"
-                      ? "项目名称"
+                      ? t("项目名称")
                       : dialog.target.kind === "task"
-                        ? "任务名称"
-                        : "对话名称"
+                        ? t("任务名称")
+                        : t("对话名称")
                   }
                   onChange={(event) => setRenameValue(event.target.value)}
                 />
@@ -1090,22 +1090,22 @@ export function Sidebar({
               </div>
               <footer className="sidebar-dialog__footer">
                 <button className="sidebar-dialog__button sidebar-dialog__button--secondary" type="button" onClick={() => setDialog(null)}>
-                  取消
+                  {t("取消")}
                 </button>
                 <button className="sidebar-dialog__button sidebar-dialog__button--primary" type="submit" disabled={!renameValue.trim()}>
-                  确认
+                  {t("确认")}
                 </button>
               </footer>
             </form>
           ) : (
             <div className="sidebar-dialog__delete-content">
-              <p>删除后不可恢复，您确定删除吗？</p>
+              <p>{t("删除后不可恢复，您确定删除吗？")}</p>
               <footer className="sidebar-dialog__footer">
                 <button className="sidebar-dialog__button sidebar-dialog__button--secondary" type="button" autoFocus onClick={() => setDialog(null)}>
-                  取消
+                  {t("取消")}
                 </button>
                 <button className="sidebar-dialog__button sidebar-dialog__button--danger" type="button" onClick={confirmDelete}>
-                  删除
+                  {t("删除")}
                 </button>
               </footer>
             </div>
@@ -1132,13 +1132,13 @@ export function Sidebar({
         >
           <header className="sidebar-dialog__header sidebar-create-project-dialog__header">
             <div>
-              <h2 id="create-project-dialog-title">创建项目</h2>
+              <h2 id="create-project-dialog-title">{t("创建项目")}</h2>
               <p id="create-project-dialog-description">
-                项目用于整理历史任务，名称最多 40 个字符
+                {t("项目用于整理历史任务，名称最多 40 个字符")}
               </p>
             </div>
             <IconControl
-              label="关闭"
+              label={t("关闭")}
               tooltipPlacement="left"
               onClick={() => setCreateProjectOpen(false)}
             >
@@ -1158,8 +1158,8 @@ export function Sidebar({
                 autoFocus
                 value={createProjectValue}
                 maxLength={40}
-                placeholder="输入项目名称"
-                aria-label="项目名称"
+                placeholder={t("输入项目名称")}
+                aria-label={t("项目名称")}
                 onChange={(event) => setCreateProjectValue(event.target.value)}
               />
               <span>{createProjectValue.length}/40</span>
@@ -1170,14 +1170,14 @@ export function Sidebar({
                 type="button"
                 onClick={() => setCreateProjectOpen(false)}
               >
-                取消
+                {t("取消")}
               </button>
               <button
                 className="sidebar-dialog__button sidebar-dialog__button--primary"
                 type="submit"
                 disabled={!createProjectValue.trim()}
               >
-                创建
+                {t("创建")}
               </button>
             </footer>
           </form>

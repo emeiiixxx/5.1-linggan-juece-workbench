@@ -119,6 +119,11 @@ a:focus-visible {
   gap: 8px;
 }
 
+.language-control {
+  position: relative;
+  flex: 0 0 auto;
+}
+
 .brand {
   width: 145px;
   height: 24px;
@@ -160,9 +165,62 @@ a:focus-visible {
 }
 
 .language-select > span {
-  min-width: max-content;
-  flex: 0 0 auto;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.language-select__chevron {
+  transition: transform var(--motion-standard);
+}
+
+.language-control.is-open .language-select__chevron {
+  transform: rotate(180deg);
+}
+
+.language-menu {
+  position: absolute;
+  z-index: 1200;
+  top: 36px;
+  left: 0;
+  display: grid;
+  box-sizing: border-box;
+  width: 160px;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--radius-l);
+  background: var(--surface-default);
+  box-shadow: var(--shadow-m);
+  animation: profile-menu-enter var(--motion-standard) both;
+}
+
+.language-menu button {
+  width: 100%;
+  height: 32px;
+  overflow: hidden;
+  padding: 0 8px;
+  border-radius: var(--radius-base);
+  color: var(--text-secondary);
+  background: transparent;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--motion-standard), background-color var(--motion-standard);
+}
+
+.language-menu button:hover,
+.language-menu button:focus-visible {
+  background: var(--state-hover);
+}
+
+.language-menu button.is-selected {
+  color: var(--brand-primary);
+  background: var(--state-selected);
 }
 
 .language-select:hover,
@@ -209,8 +267,10 @@ a:focus-visible {
   padding: 4px 16px;
   border: 1px solid var(--border-weak);
   border-radius: var(--radius-base);
-  color: #0bc1b8;
-  background:
+  overflow: hidden;
+  color: var(--brand-primary);
+  background-color: #171c1c;
+  background-image:
     radial-gradient(
       ellipse 37.309px 42.557px at 0 0,
       rgb(32 208 196 / 75%) 0%,
@@ -226,27 +286,40 @@ a:focus-visible {
       rgb(25 94 138 / 25%) 50%,
       rgb(23 57 79 / 12.5%) 75%,
       rgb(20 20 20 / 0%) 100%
-    ),
-    #171c1c;
+    );
+  background-clip: padding-box;
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
   white-space: nowrap;
-  transition: filter var(--motion-standard);
+  transition:
+    color var(--motion-standard),
+    border-color var(--motion-standard),
+    background-color var(--motion-standard),
+    transform var(--motion-standard);
 }
 
-.credits-button:hover {
-  filter: brightness(1.08);
+.credits-button:hover:not(:disabled) {
+  border-color: var(--border-brand);
+  color: var(--brand-primary-hover);
+  background-color: #0a0b0b;
 }
 
-.credits-button:active {
-  filter: brightness(0.94);
+.credits-button:active:not(:disabled) {
+  transform: scale(0.98);
   transition-duration: 100ms;
 }
 
-.credits-button i {
+.credits-button:disabled {
+  border-color: var(--border-weak);
+  color: rgb(32 208 196 / 20%);
+  background-color: #2c3030;
+}
+
+.credits-button__divider {
   width: 1px;
   height: 16px;
+  flex: 0 0 1px;
   background: rgb(255 255 255 / 10%);
 }
 
@@ -254,6 +327,43 @@ a:focus-visible {
   height: 18px;
   flex: 0 0 auto;
   gap: 4px;
+}
+
+:root[data-theme="light"] .credits-button {
+  color: var(--text-secondary);
+  background-color: #effefb;
+  background-image:
+    radial-gradient(
+      ellipse 37.309px 42.557px at 0 0,
+      rgb(32 208 196 / 75%) 0%,
+      rgb(60 214 203 / 65.625%) 12.5%,
+      rgb(88 220 211 / 56.25%) 25%,
+      rgb(144 232 226 / 37.5%) 50%,
+      rgb(255 255 255 / 0%) 100%
+    ),
+    radial-gradient(
+      ellipse 45.925px 32px at 20.403px 0,
+      rgb(30 169 255 / 50%) 0%,
+      rgb(58 180 255 / 43.75%) 12.5%,
+      rgb(86 190 255 / 37.5%) 25%,
+      rgb(143 212 255 / 25%) 50%,
+      rgb(255 255 255 / 0%) 100%
+    );
+}
+
+:root[data-theme="light"] .credits-button:hover:not(:disabled) {
+  border-color: var(--border-weak);
+  color: var(--text-primary);
+  background-color: #c9fef6;
+}
+
+:root[data-theme="light"] .credits-button:disabled {
+  color: var(--text-disabled);
+  background-color: #effefb;
+}
+
+:root[data-theme="light"] .credits-button__divider {
+  background: var(--border-weak);
 }
 
 .avatar,
@@ -694,10 +804,7 @@ a:focus-visible {
 .tree-row-shell.is-selected,
 .tree-row-shell.is-selected:hover,
 .tree-row-shell.is-selected:focus-within,
-.tree-row-shell.is-selected.is-menu-open,
-.task-row-shell.is-selected,
-.task-row-shell.is-selected:hover,
-.task-row-shell.is-selected.is-menu-open {
+.tree-row-shell.is-selected.is-menu-open {
   background: var(--state-selected);
 }
 
@@ -897,6 +1004,10 @@ a:focus-visible {
   background: var(--state-hover);
 }
 
+.sidebar-action-menu__item.is-danger {
+  color: var(--status-danger);
+}
+
 /* Modal templates · nodes 243:8281 / 243:8315 */
 .sidebar-dialog-backdrop {
   position: fixed;
@@ -1078,6 +1189,8 @@ a:focus-visible {
 }
 
 .task-row {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1090,6 +1203,42 @@ a:focus-visible {
   height: 32px;
   border-radius: var(--radius-base);
   transition: background-color var(--motion-standard);
+}
+
+.task-row__selection-surface {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  background: var(--state-selected);
+  transform: scale(0.98);
+  pointer-events: none;
+  transition:
+    opacity var(--motion-standard),
+    transform var(--motion-standard);
+}
+
+.task-row-shell.is-selected .task-row__selection-surface {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.task-row__selection-dot {
+  opacity: 0;
+  transform: scale(0.5);
+  transition:
+    opacity var(--motion-standard),
+    transform var(--motion-standard);
+}
+
+.task-row__selection-dot.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.task-row-shell .tree-row__actions {
+  z-index: 2;
 }
 
 .task-row-shell:hover,
@@ -1476,17 +1625,48 @@ a:focus-visible {
 .profile-search button {
   height: 32px;
   padding: 0;
-  color: var(--text-brand);
+  border-radius: var(--radius-base);
+  color: #0bc1b8;
   background: transparent;
   font-size: 12px;
   font-weight: 500;
-  transition: color var(--motion-standard), background-color var(--motion-standard);
+  line-height: 20px;
+  transition: color var(--motion-standard);
 }
 
-.profile-search > button:last-child { min-width: 40px; border-radius: var(--radius-base); }
-.profile-search > button:last-child:hover { background: var(--state-hover); }
-.profile-search__clear { display: grid; width: 24px; height: 24px !important; min-width: 24px !important; place-items: center; border-radius: var(--radius-m); color: var(--text-secondary) !important; }
-.profile-search__clear:hover { background: var(--state-hover); color: var(--text-primary) !important; }
+.profile-search button:hover,
+.profile-search button:focus-visible {
+  color: #70ebde;
+  background: transparent;
+}
+
+.profile-search button:active:not(:disabled) {
+  color: #70ebde;
+  background: transparent;
+  transform: none;
+}
+
+.profile-search > button:last-child {
+  width: max-content;
+  min-width: 32px;
+}
+
+.profile-search__clear {
+  display: grid;
+  width: 32px;
+  height: 32px !important;
+  min-width: 32px !important;
+  place-items: center;
+  color: var(--text-tertiary) !important;
+  background: transparent !important;
+}
+
+.profile-search__clear:hover,
+.profile-search__clear:focus-visible,
+.profile-search__clear:active:not(:disabled) {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
 
 .profile-content {
   min-height: calc(100% - 228px);
@@ -1833,7 +2013,7 @@ a:focus-visible {
   position: relative;
   z-index: 5;
   display: flex;
-  width: 304px;
+  width: max-content;
   height: 40px;
   align-items: center;
   gap: 4px;
@@ -1846,12 +2026,13 @@ a:focus-visible {
 .mode-tabs__indicator {
   position: absolute;
   top: 50%;
-  left: 4px;
+  left: 0;
   width: 80px;
   height: 32px;
   margin-top: -16px;
   border-radius: var(--radius-base);
   background: var(--state-selected);
+  pointer-events: none;
 }
 
 .mode-tabs button {
@@ -1873,15 +2054,6 @@ a:focus-visible {
   transition: color var(--motion-standard), background-color var(--motion-standard);
 }
 
-.mode-tabs button:nth-of-type(1) {
-  width: 80px;
-}
-
-.mode-tabs button:nth-of-type(2),
-.mode-tabs button:nth-of-type(3) {
-  width: 104px;
-}
-
 .mode-tabs button.is-active {
   color: var(--text-brand);
 }
@@ -1889,6 +2061,12 @@ a:focus-visible {
 .mode-tabs button:not(.is-active):hover {
   color: var(--text-secondary);
   background: var(--state-hover);
+}
+
+.mode-tabs button > span {
+  width: max-content;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .glass-motion {
@@ -2276,6 +2454,10 @@ a:focus-visible {
   font-size: 12px;
   font-weight: 400;
   line-height: 16px;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .composer__footer {
@@ -2307,7 +2489,7 @@ a:focus-visible {
 }
 
 .composer-select--profile {
-  min-width: 136px;
+  min-width: 0;
   max-width: 240px;
 }
 
@@ -2333,6 +2515,16 @@ a:focus-visible {
   min-width: 0;
   flex: 1 1 auto;
   text-overflow: ellipsis;
+}
+
+.composer-select--profile > span {
+  width: max-content;
+  flex: 0 1 auto;
+  text-align: left;
+}
+
+.composer-select--profile > .figma-icon {
+  flex: 0 0 auto;
 }
 
 .composer-select__chevron {
@@ -2458,6 +2650,13 @@ a:focus-visible {
 
 .quick-start__title {
   gap: 4px;
+  white-space: nowrap;
+}
+
+.quick-start__hint > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -2615,6 +2814,8 @@ a:focus-visible {
 .profile-list { gap: 8px; padding-bottom: 40px; }
 
 .profile-card {
+  position: relative;
+  z-index: 0;
   display: block;
   min-height: 0;
   padding: 24px;
@@ -2623,6 +2824,10 @@ a:focus-visible {
   color: var(--text-primary);
   background: var(--surface-default);
   transition: background-color var(--motion-standard), border-color var(--motion-standard), box-shadow var(--motion-standard);
+}
+
+.profile-card.is-menu-open {
+  z-index: 30;
 }
 
 .profile-card:hover {
@@ -2848,8 +3053,8 @@ a:focus-visible {
 .profile-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin: 8px 0 24px; padding: 0 8px; }
 .profile-detail-header > div:last-child { display: flex; align-items: center; gap: 8px; padding-top: 8px; }
 .profile-detail-more { position: relative; display: inline-flex; }
-.profile-detail-menu { position: absolute; z-index: 20; top: 40px; right: 0; display: grid; width: 144px; gap: 4px; padding: 8px; border: 1px solid var(--border-weak); border-radius: var(--radius-l); background: var(--surface-default); box-shadow: var(--shadow-m); animation: profile-menu-enter var(--motion-standard) both; }
-.profile-detail-menu button { height: 32px; padding: 0 8px; border-radius: var(--radius-base); color: var(--text-secondary); background: transparent; font-size: 14px; line-height: 20px; text-align: left; }
+.profile-detail-menu { position: absolute; z-index: 40; top: 40px; right: 0; display: grid; box-sizing: border-box; width: max-content; min-width: 160px; max-width: min(280px, calc(100vw - 32px)); gap: 4px; padding: 8px; border: 1px solid var(--border-weak); border-radius: var(--radius-l); background: var(--surface-default); box-shadow: var(--shadow-m); animation: profile-menu-enter var(--motion-standard) both; }
+.profile-detail-menu button { display: flex; width: 100%; height: 32px; align-items: center; gap: 8px; padding: 0 8px; border-radius: var(--radius-base); color: var(--text-secondary); background: transparent; font-size: 14px; line-height: 20px; text-align: left; white-space: nowrap; }
 .profile-detail-menu button:hover { background: var(--state-hover); }
 .profile-detail-menu button.is-danger { color: var(--status-danger); }
 .profile-action-modal { box-sizing: border-box; width: min(400px, 100%); padding: 24px; border: 1px solid var(--border-weak); border-radius: var(--radius-xl); color: var(--text-primary); background: var(--surface-default); box-shadow: var(--shadow-xl); animation: profile-modal-enter var(--motion-standard) both; }

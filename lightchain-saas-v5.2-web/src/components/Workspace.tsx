@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { quickStartCards } from "../data/workspace";
 import { assetUrl } from "../utils/assets";
@@ -7,6 +7,7 @@ import { ArchiveHeaderMotion } from "./GlassMotion";
 import { IconControl } from "./IconControl";
 import { QuickStartCard } from "./QuickStartCard";
 import { primaryPageEntrance, primaryPageEntranceItem, primaryPageEntranceMediaItem } from "../utils/pageMotion";
+import { useI18n } from "../i18n";
 
 const tabs = ["选品测款", "新品方向探索", "客户提案生成"];
 const composerPlaceholders = [
@@ -14,12 +15,6 @@ const composerPlaceholders = [
   "描述下一季的市场,人群,品类和经营目标...",
   "输入客户需求,或上传brief、邮件和会议纪要...",
 ];
-const tabMetrics = [
-  { x: 0, width: 80 },
-  { x: 84, width: 104 },
-  { x: 192, width: 104 },
-];
-
 type ProfileOption = { id: number; name: string };
 type ProjectOption = { id: number; name: string };
 type Attachment = { id: string; name: string; kind: "file" | "image"; previewUrl?: string };
@@ -47,7 +42,9 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
   onSelectedProjectChange?: (project: ProjectOption | null) => void;
   onCreateTask?: (task: { title: string; projectId: number | null }) => void;
 }) {
+  const { locale, t } = useI18n();
   const [activeTab, setActiveTab] = useState(0);
+  const [tabIndicator, setTabIndicator] = useState({ x: 4, width: 80 });
   const [quickStartOpen, setQuickStartOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
@@ -60,6 +57,8 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const attachmentUrlsRef = useRef(new Set<string>());
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const tabButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const reduceMotion = useReducedMotion();
   const quickStartExpandTransition = reduceMotion
     ? { duration: 0 }
@@ -70,6 +69,26 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
   const quickStartLayoutTransition = quickStartOpen
     ? quickStartExpandTransition
     : quickStartCollapseTransition;
+
+  useLayoutEffect(() => {
+    const tabList = tabsRef.current;
+    const activeButton = tabButtonRefs.current[activeTab];
+    if (!tabList || !activeButton) return;
+
+    const syncIndicator = () => {
+      const button = tabButtonRefs.current[activeTab];
+      if (!button) return;
+      setTabIndicator({ x: button.offsetLeft, width: button.offsetWidth });
+    };
+
+    syncIndicator();
+    const observer = new ResizeObserver(syncIndicator);
+    observer.observe(tabList);
+    tabButtonRefs.current.forEach((button) => {
+      if (button) observer.observe(button);
+    });
+    return () => observer.disconnect();
+  }, [activeTab, locale]);
 
   useEffect(() => () => {
     attachmentUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -160,14 +179,14 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
       >
         <motion.section className="workspace-header" data-node-id="163:984" variants={primaryPageEntranceMediaItem}>
           <div className="workspace-copy">
-            <h1>今天想从哪里开始？</h1>
-            <p>选择一个业务场景，描述你的目标，Agent 会带你完成后续步骤。</p>
+            <h1>{t("今天想从哪里开始？")}</h1>
+            <p>{t("选择一个业务场景，描述你的目标，Agent 会带你完成后续步骤。")}</p>
           </div>
 
-          <div className="mode-tabs" role="tablist" aria-label="业务场景">
+          <div className="mode-tabs" role="tablist" aria-label={t("业务场景")} ref={tabsRef}>
             <motion.span
               className="mode-tabs__indicator"
-              animate={tabMetrics[activeTab]}
+              animate={tabIndicator}
               transition={{ duration: 0.2, ease: "easeOut" }}
             />
             {tabs.map((tab, index) => (
@@ -177,9 +196,10 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
                 aria-selected={activeTab === index}
                 className={activeTab === index ? "is-active" : ""}
                 onClick={() => setActiveTab(index)}
+                ref={(node) => { tabButtonRefs.current[index] = node; }}
                 key={tab}
               >
-                {tab}
+                <span>{t(tab)}</span>
               </button>
             ))}
           </div>
@@ -187,7 +207,7 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
           <ArchiveHeaderMotion theme={theme} />
         </motion.section>
 
-        <motion.section className="composer" aria-label="新建任务" data-node-id="140:6883" variants={primaryPageEntranceItem}>
+        <motion.section className="composer" aria-label={t("新建任务")} data-node-id="140:6883" variants={primaryPageEntranceItem}>
           <div className={`composer__input ${attachments.length ? "has-attachments" : ""}`} data-node-id="457:95352">
             <div className="composer__content">
               <AnimatePresence initial={false}>
@@ -215,7 +235,7 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
                           <img className="composer-attachment-chip__file" src={assetUrl("assets/figma-icons/file-pdf.svg")} alt="" />
                         )}
                         <span title={attachment.name}>{attachment.name}</span>
-                        <button type="button" aria-label={`移除${attachment.name}`} onClick={() => removeAttachment(attachment.id)}>
+                        <button type="button" aria-label={`${t("移除附件")}：${attachment.name}`} onClick={() => removeAttachment(attachment.id)}>
                           <FigmaIcon name="close" size={16} />
                         </button>
                       </motion.span>
@@ -235,7 +255,7 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
                       transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }}
                       aria-hidden="true"
                     >
-                      {composerPlaceholders[activeTab]}
+                      {t(composerPlaceholders[activeTab])}
                     </motion.span>
                   )}
                 </AnimatePresence>
@@ -244,14 +264,14 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
                   onChange={(event) => setMessage(event.target.value)}
                   onKeyDown={onComposerKeyDown}
                   placeholder=""
-                  aria-label={composerPlaceholders[activeTab]}
+                  aria-label={t(composerPlaceholders[activeTab])}
                 />
               </div>
             </div>
             <div className="composer-attachment" ref={attachmentMenuRef}>
               <IconControl
                 className="composer-attachment__button"
-                label="添加附件"
+                label={t("添加附件")}
                 tooltipPlacement="top"
                 selected={attachmentMenuOpen}
                 aria-haspopup="menu"
@@ -269,7 +289,7 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
                   <motion.div
                     className="composer-attachment-menu"
                     role="menu"
-                    aria-label="添加附件"
+                    aria-label={t("添加附件")}
                     data-node-id="453:94648"
                     initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -278,11 +298,11 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
                   >
                     <button type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); fileInputRef.current?.click(); }}>
                       <FigmaIcon name="add-file" size={16} />
-                      <span>文件</span>
+                      <span>{t("文件")}</span>
                     </button>
                     <button type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); imageInputRef.current?.click(); }}>
                       <FigmaIcon name="add-image" size={16} />
-                      <span>图片</span>
+                      <span>{t("图片")}</span>
                     </button>
                   </motion.div>
                 )}
@@ -290,10 +310,10 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
               <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple onChange={(event) => addAttachments(event, "file")} />
               <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple onChange={(event) => addAttachments(event, "image")} />
             </div>
-            <div className="composer__send-hint">Enter 发送 · Shift + Enter 换行</div>
+            <div className="composer__send-hint" title={t("Enter 发送 · Shift + Enter 换行")}>{t("Enter 发送 · Shift + Enter 换行")}</div>
             <IconControl
               className="composer__send"
-              label="发送"
+              label={t("发送")}
               tooltipPlacement="top"
               disabled={!message.trim()}
               onClick={send}
@@ -315,7 +335,7 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
                 }}
               >
                 <FigmaIcon name="company-info" size={16} />
-                <span title={selectedProfile?.name}>{selectedProfile?.name ?? "业务偏好档案"}</span>
+                <span title={selectedProfile?.name ?? t("业务偏好档案")}>{selectedProfile?.name ?? t("业务偏好档案")}</span>
                 <FigmaIcon name="chevron-right" size={16} className="composer-select__chevron" />
               </button>
               <AnimatePresence>
@@ -323,14 +343,14 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
                   <motion.div
                     className="composer-profile-menu"
                     role="listbox"
-                    aria-label="选择业务偏好档案"
+                    aria-label={t("选择业务偏好档案")}
                     data-node-id="453:93991"
                     initial={reduceMotion ? false : { opacity: 0, y: -6, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.98 }}
                     transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
                   >
-                    <span className="composer-profile-menu__label">选择业务偏好档案</span>
+                    <span className="composer-profile-menu__label">{t("选择业务偏好档案")}</span>
                     <div className="composer-profile-menu__options">
                       {profileOptions.map((profile) => {
                         const selected = selectedProfile?.id === profile.id;
@@ -369,7 +389,7 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
                 }}
               >
                 <FigmaIcon name="project" size={16} />
-                <span title={selectedProject?.name}>{selectedProject?.name ?? "选择项目"}</span>
+                <span title={selectedProject?.name ?? t("选择项目")}>{selectedProject?.name ?? t("选择项目")}</span>
                 <FigmaIcon name="chevron-right" size={16} className="composer-select__chevron" />
               </button>
               <AnimatePresence>
@@ -377,13 +397,13 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
                   <motion.div
                     className="composer-profile-menu composer-project-menu"
                     role="listbox"
-                    aria-label="选择项目"
+                    aria-label={t("选择项目")}
                     initial={reduceMotion ? false : { opacity: 0, y: -6, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.98 }}
                     transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
                   >
-                    <span className="composer-profile-menu__label">选择项目</span>
+                    <span className="composer-profile-menu__label">{t("选择项目")}</span>
                     <div className="composer-profile-menu__options composer-project-menu__options">
                       {projectOptions.map((project) => {
                         const selected = selectedProject?.id === project.id;
@@ -427,14 +447,14 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
               transition={quickStartLayoutTransition}
             >
               <FigmaIcon name="idea" size={20} />
-              <strong>快速开始</strong>
+              <strong>{t("快速开始")}</strong>
             </motion.span>
             <motion.span
               className="quick-start__hint"
               layout="position"
               transition={quickStartLayoutTransition}
             >
-              不知道从何开始？试试这些模板
+              <span title={t("不知道从何开始？试试这些模板")}>{t("不知道从何开始？试试这些模板")}</span>
               <FigmaIcon
                 name="chevron-down"
                 size={16}
@@ -459,9 +479,9 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
               >
                 {quickStartCards.map((card) => (
                   <QuickStartCard
-                    title={card.title}
-                    description={card.description}
-                    image={card.image}
+                    title={t(card.title)}
+                    description={t(card.description)}
+                    images={card.images}
                     key={card.title}
                   />
                 ))}

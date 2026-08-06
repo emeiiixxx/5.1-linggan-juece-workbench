@@ -24,22 +24,38 @@ export const quickStartCards = [
   {
     title: "面料套版",
     description: "面料·指定版式快速设计",
-    image: assetUrl("assets/figma-icons/quick-image-a.png"),
+    images: [
+      assetUrl("assets/quick-start/fabric-template-2.jpg"),
+      assetUrl("assets/quick-start/fabric-template-3.jpg"),
+      assetUrl("assets/quick-start/fabric-template-1.jpg"),
+    ],
   },
   {
-    title: "转线稿图",
-    description: "批量转换，秒速生成线稿",
-    image: assetUrl("assets/figma-icons/quick-image-b.png"),
+    title: "单款裂变",
+    description: "单款延展，快速生成系列设计",
+    images: [
+      assetUrl("assets/quick-start/single-style-2.jpg"),
+      assetUrl("assets/quick-start/single-style-3.jpg"),
+      assetUrl("assets/quick-start/single-style-1.jpg"),
+    ],
   },
   {
-    title: "款式融合",
-    description: "融合特征，焕新呈现",
-    image: assetUrl("assets/figma-icons/quick-image-c.png"),
+    title: "多款融合",
+    description: "融合多款特征，焕新呈现",
+    images: [
+      assetUrl("assets/quick-start/multi-style-2.jpg"),
+      assetUrl("assets/quick-start/multi-style-3.jpg"),
+      assetUrl("assets/quick-start/multi-style-1.jpg"),
+    ],
   },
   {
     title: "印花设计",
     description: "基于参考图或内容生成印花图案",
-    image: assetUrl("assets/figma-icons/quick-image-a.png"),
+    images: [
+      assetUrl("assets/quick-start/print-design-2.jpg"),
+      assetUrl("assets/quick-start/print-design-3.jpg"),
+      assetUrl("assets/quick-start/print-design-1.jpg"),
+    ],
   },
 ];
 
