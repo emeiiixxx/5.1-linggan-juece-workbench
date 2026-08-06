@@ -1,0 +1,127 @@
+:root {
+  color-scheme: dark;
+
+  /* Lightchain SaaS v5.1 Beta · Semantic Tokens · Dark */
+  --brand-primary: #0bc1b8;
+  --brand-primary-hover: #20d0c4;
+  --brand-primary-disabled: #0d6261;
+  --brand-gradient: linear-gradient(90deg, #71f4d3 0%, #b69bf7 100%);
+  --brand-secondary: #505c5e;
+  --status-danger: #ff4c4c;
+  --status-danger-hover: #ff6464;
+
+  --background-default: #171b1c;
+  --background-secondary: #262a2b;
+  --background-canvas: #0a0b0b;
+
+  --surface-default: #262a2b;
+  --surface-secondary: #303536;
+  --surface-floating: rgb(0 0 0 / 60%);
+  --surface-floating-strong: rgb(0 0 0 / 75%);
+
+  --control-fill-default: #262a2b;
+  --control-fill-hover: #353a3b;
+  --control-fill-focus: #171b1c;
+  --control-fill-disabled: #434a4c;
+  --control-fill-back: #171b1c;
+
+  --state-default: rgb(255 255 255 / 5%);
+  --state-hover: rgb(255 255 255 / 10%);
+  --state-selected: rgb(255 255 255 / 15%);
+  --state-selected-brand: #20d0c4;
+
+  --text-primary: #ffffff;
+  --text-secondary: #e3e8e8;
+  --text-tertiary: #aab8b6;
+  --text-brand: #20d0c4;
+  --text-placeholder: #7b8a88;
+  --text-disabled: rgb(255 255 255 / 30%);
+  --text-on-brand-black: #111817;
+  --text-on-brand-disabled: rgb(0 0 0 / 50%);
+  --text-on-brand-white: #ffffff;
+
+  --border-weak: rgb(255 255 255 / 10%);
+  --border-medium: #798080;
+  --border-brand: #0bc1b8;
+  --border-strong: rgb(255 255 255 / 20%);
+
+  --overlay-scrim: rgb(0 0 0 / 75%);
+  --overlay-weak: rgb(0 0 0 / 20%);
+
+  /* Repository aliases retained for the existing page while components migrate. */
+  --brand-strong: var(--brand-primary-hover);
+  --topbar-fill: var(--surface-floating-strong);
+  --surface-hover: var(--control-fill-hover);
+  --sidebar-surface: var(--surface-default);
+  --control-fill: var(--control-fill-back);
+  --control-active: var(--state-selected);
+
+  --shadow-s: 0 2px 4px 0 var(--overlay-weak);
+  --shadow-m: 0 6px 14px -2px var(--overlay-weak);
+  --shadow-l: 0 12px 28px -4px var(--overlay-weak);
+  --shadow-xl: 0 20px 48px -8px var(--overlay-weak);
+  --shadow-soft: var(--shadow-l);
+
+  --motion-standard: 200ms ease-out;
+  --motion-pressed: 100ms ease-out;
+
+  --radius-s: 4px;
+  --radius-m: 6px;
+  --radius-base: 8px;
+  --radius-l: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-max: 999px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Lightchain SaaS v5.1 Beta · Semantic Tokens · Light */
+  --brand-primary: #70ebde;
+  --brand-primary-hover: #20d0c4;
+  --brand-primary-disabled: #a7fcf0;
+  --brand-secondary: #e6e9ea;
+  --status-danger: #ff4c4c;
+  --status-danger-hover: #ff6464;
+
+  --background-default: #f4f5f5;
+  --background-secondary: #ffffff;
+  --background-canvas: #f4f5f5;
+
+  --surface-default: #ffffff;
+  --surface-secondary: #f9fafa;
+  --surface-floating: rgb(0 0 0 / 60%);
+  --surface-floating-strong: rgb(0 0 0 / 75%);
+
+  --control-fill-default: #ffffff;
+  --control-fill-hover: #f4f5f5;
+  --control-fill-focus: #f9fafa;
+  --control-fill-disabled: #e4e7e5;
+  --control-fill-back: #171b1c;
+
+  --state-default: rgb(0 0 0 / 3%);
+  --state-hover: rgb(0 0 0 / 8%);
+  --state-selected: #ffffff;
+  --state-selected-brand: #70ebde;
+
+  --text-primary: #111817;
+  --text-secondary: #2f3b3a;
+  --text-tertiary: #52615f;
+  --text-brand: #022f31;
+  --text-placeholder: #7b8a88;
+  --text-disabled: rgb(0 0 0 / 20%);
+  --text-on-brand-black: #111817;
+  --text-on-brand-disabled: rgb(0 0 0 / 20%);
+  --text-on-brand-white: #ffffff;
+
+  --border-weak: rgb(0 0 0 / 5%);
+  --border-medium: #d5d7d7;
+  --border-brand: #20d0c4;
+  --border-strong: rgb(0 0 0 / 8%);
+
+  --overlay-scrim: rgb(0 0 0 / 75%);
+  --overlay-weak: rgb(0 0 0 / 5%);
+
+  --topbar-fill: #fafafa;
+}
