@@ -8,6 +8,7 @@ import { IconControl } from "./IconControl";
 import { QuickStartCard } from "./QuickStartCard";
 import { primaryPageEntrance, primaryPageEntranceItem, primaryPageEntranceMediaItem } from "../utils/pageMotion";
 import { useI18n } from "../i18n";
+import { ConversationWorkspace } from "./ConversationWorkspace";
 
 const tabs = ["选品测款", "新品方向探索", "客户提案生成"];
 const composerPlaceholders = [
@@ -34,13 +35,15 @@ const projectOptions: ProjectOption[] = [
   { id: 5, name: "Untitled" },
 ];
 
-export function Workspace({ theme, selectedProfile, onSelectedProfileChange, selectedProject, onSelectedProjectChange, onCreateTask }: {
+export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, onSelectedProfileChange, selectedProject, onSelectedProjectChange, onCreateTask }: {
   theme: "dark" | "light";
+  activeTask?: { id: number; prompt: string; profileName?: string } | null;
+  newTaskKey?: number;
   selectedProfile?: ProfileOption | null;
   onSelectedProfileChange?: (profile: ProfileOption | null) => void;
   selectedProject?: ProjectOption | null;
   onSelectedProjectChange?: (project: ProjectOption | null) => void;
-  onCreateTask?: (task: { title: string; projectId: number | null }) => void;
+  onCreateTask?: (task: { title: string; projectId: number | null; prompt: string }) => void;
 }) {
   const { locale, t } = useI18n();
   const [activeTab, setActiveTab] = useState(0);
@@ -100,6 +103,22 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
   }, []);
 
   useEffect(() => {
+    setMessage("");
+    setAttachments((current) => {
+      current.forEach((attachment) => {
+        if (attachment.previewUrl) {
+          URL.revokeObjectURL(attachment.previewUrl);
+          attachmentUrlsRef.current.delete(attachment.previewUrl);
+        }
+      });
+      return [];
+    });
+    setAttachmentMenuOpen(false);
+    setProfileMenuOpen(false);
+    setProjectMenuOpen(false);
+  }, [newTaskKey]);
+
+  useEffect(() => {
     if (!profileMenuOpen && !projectMenuOpen && !attachmentMenuOpen) return;
     const dismissSelectMenus = (event: PointerEvent) => {
       const target = event.target as Node;
@@ -126,7 +145,7 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
     const taskMessage = message.trim();
     if (!taskMessage) return;
     const title = Array.from(taskMessage).slice(0, 10).join("");
-    onCreateTask?.({ title, projectId: selectedProject?.id ?? null });
+    onCreateTask?.({ title, projectId: selectedProject?.id ?? null, prompt: taskMessage });
     attachments.forEach((attachment) => {
       if (attachment.previewUrl) {
         URL.revokeObjectURL(attachment.previewUrl);
@@ -173,7 +192,16 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
   };
 
   return (
-    <main className="workspace-region">
+    <AnimatePresence mode="wait" initial={false}>
+    {activeTask ? (
+      <ConversationWorkspace key={`conversation-${activeTask.id}`} prompt={activeTask.prompt} profileName={activeTask.profileName} />
+    ) : (
+    <motion.main
+      className="workspace-region"
+      key="workspace-home"
+      exit={reduceMotion ? undefined : { opacity: 0, y: -12, scale: 0.99 }}
+      transition={{ duration: reduceMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }}
+    >
       <motion.div
         className="workspace-shell"
         data-node-id="140:6876"
@@ -494,6 +522,8 @@ export function Workspace({ theme, selectedProfile, onSelectedProfileChange, sel
           </AnimatePresence>
         </motion.section>
       </motion.div>
-    </main>
+    </motion.main>
+    )}
+    </AnimatePresence>
   );
 }

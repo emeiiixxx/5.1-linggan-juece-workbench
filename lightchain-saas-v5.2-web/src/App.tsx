@@ -8,7 +8,14 @@ import { I18nProvider } from "./i18n";
 type Theme = "dark" | "light";
 type SelectedProfile = { id: number; name: string };
 type SelectedProject = { id: number; name: string };
-type CreatedTask = { id: number; title: string; projectId: number | null };
+type TaskRecord = {
+  id: number;
+  title: string;
+  projectId: number | null;
+  prompt: string;
+  profileName?: string;
+  status: "running";
+};
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>("dark");
@@ -16,7 +23,10 @@ export default function App() {
   const [activeView, setActiveView] = useState<"workspace" | "preferences">("workspace");
   const [selectedProfile, setSelectedProfile] = useState<SelectedProfile | null>(null);
   const [selectedProject, setSelectedProject] = useState<SelectedProject | null>(null);
-  const [createdTask, setCreatedTask] = useState<CreatedTask | null>(null);
+  const [taskRecords, setTaskRecords] = useState<TaskRecord[]>([]);
+  const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
+  const [newTaskKey, setNewTaskKey] = useState(0);
+  const activeTask = taskRecords.find((task) => task.id === activeTaskId) ?? null;
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -35,30 +45,62 @@ export default function App() {
           expanded={sidebarExpanded}
           onToggle={() => setSidebarExpanded((value) => !value)}
           activeView={activeView}
-          onOpenWorkspace={() => setActiveView("workspace")}
+          onOpenWorkspace={() => {
+            setActiveView("workspace");
+            setActiveTaskId(null);
+            setNewTaskKey((value) => value + 1);
+          }}
           onOpenPreferences={() => setActiveView("preferences")}
           onCreateTaskInProject={(project) => {
             setSelectedProject(project);
+            setActiveTaskId(null);
+            setNewTaskKey((value) => value + 1);
             setActiveView("workspace");
           }}
-          createdTask={createdTask}
+          createdTask={taskRecords[0] ?? null}
+          onOpenTask={(taskId) => {
+            setActiveTaskId(taskId);
+            setActiveView("workspace");
+          }}
+          onDeleteTask={(taskId) => {
+            setTaskRecords((current) => current.filter((task) => task.id !== taskId));
+            if (activeTaskId === taskId) {
+              setActiveTaskId(null);
+              setActiveView("workspace");
+              setNewTaskKey((value) => value + 1);
+            }
+          }}
         />
         {activeView === "preferences" ? (
           <BusinessProfile
             onCreateTask={(profile) => {
               setSelectedProfile({ id: profile.id, name: profile.name });
+              setActiveTaskId(null);
+              setNewTaskKey((value) => value + 1);
               setActiveView("workspace");
             }}
           />
         ) : (
           <Workspace
             theme={theme}
+            activeTask={activeTask}
+            newTaskKey={newTaskKey}
             selectedProfile={selectedProfile}
             onSelectedProfileChange={setSelectedProfile}
             selectedProject={selectedProject}
             onSelectedProjectChange={setSelectedProject}
-            onCreateTask={({ title, projectId }) => {
-              setCreatedTask({ id: Date.now(), title, projectId });
+            onCreateTask={({ title, projectId, prompt }) => {
+              const id = Date.now();
+              const task: TaskRecord = {
+                id,
+                title,
+                projectId,
+                prompt,
+                profileName: selectedProfile?.name,
+                status: "running",
+              };
+              setTaskRecords((current) => [task, ...current]);
+              setActiveTaskId(id);
             }}
           />
         )}

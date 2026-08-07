@@ -149,6 +149,57 @@ function TagList({ values, limit = 4 }: { values: string[]; limit?: number }) {
   );
 }
 
+function AdaptiveTagList({ values }: { values: string[] }) {
+  const { locale, t } = useI18n();
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [visibleCount, setVisibleCount] = useState(values.length);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const measure = measureRef.current;
+    if (!container || !measure) return;
+
+    const updateVisibleCount = () => {
+      const children = Array.from(measure.children) as HTMLElement[];
+      const tagWidths = children.slice(0, values.length).map((child) => child.getBoundingClientRect().width);
+      const overflowWidths = children.slice(values.length).map((child) => child.getBoundingClientRect().width);
+      const availableWidth = container.clientWidth;
+      let nextCount = values.length;
+
+      for (let count = values.length; count >= 0; count -= 1) {
+        const tagsWidth = tagWidths.slice(0, count).reduce((total, width) => total + width, 0);
+        const gapCount = count > 0 ? count - 1 : 0;
+        const overflowSpace = count < values.length ? (overflowWidths[count] ?? 0) + (count > 0 ? 4 : 0) : 0;
+        if (tagsWidth + gapCount * 4 + overflowSpace <= availableWidth) {
+          nextCount = count;
+          break;
+        }
+      }
+
+      setVisibleCount(nextCount);
+    };
+
+    updateVisibleCount();
+    const observer = new ResizeObserver(updateVisibleCount);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [locale, values]);
+
+  if (!values.length) return <span className="profile-detail__empty">{t("未填写")}</span>;
+
+  return (
+    <span className="profile-tag-list" ref={containerRef}>
+      {values.slice(0, visibleCount).map((value) => <span className="profile-tag" title={t(value)} key={value}>{t(value)}</span>)}
+      {visibleCount < values.length && <span className="profile-tag">+{values.length - visibleCount}</span>}
+      <span className="profile-tag-list__measure" ref={measureRef} aria-hidden="true">
+        {values.map((value) => <span className="profile-tag" key={value}>{t(value)}</span>)}
+        {values.map((_, index) => <span className="profile-tag" key={`overflow-${index}`}>+{values.length - index}</span>)}
+      </span>
+    </span>
+  );
+}
+
 function AdaptiveSelectTags({ values, onChange }: { values: string[]; onChange: (values: string[]) => void }) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -531,7 +582,7 @@ function ProfileCard({ profile, onDetail, onCreateTask, onRename, onDuplicate, o
       </header>
       <div className="profile-card__body">
         <div>
-          <TagList values={profile.category} limit={1} />
+          <AdaptiveTagList values={profile.category} />
           <p>{profile.price}</p>
           <p title={localizedList(profile.countries)}>{localizedList(profile.countries)}</p>
           <p title={localizedList(profile.ages)}>{localizedList(profile.ages)}</p>

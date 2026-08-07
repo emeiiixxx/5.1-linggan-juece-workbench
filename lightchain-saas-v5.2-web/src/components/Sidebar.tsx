@@ -12,6 +12,7 @@ import { projectGroups, recentItems, taskItems } from "../data/workspace";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
 import { useI18n } from "../i18n";
+import { assetUrl } from "../utils/assets";
 
 type SidebarProps = {
   expanded: boolean;
@@ -21,6 +22,8 @@ type SidebarProps = {
   onOpenPreferences?: () => void;
   onCreateTaskInProject?: (project: { id: number; name: string }) => void;
   createdTask?: { id: number; title: string; projectId: number | null } | null;
+  onOpenTask?: (taskId: number) => void;
+  onDeleteTask?: (taskId: number) => void;
 };
 
 type ActionTarget =
@@ -57,11 +60,14 @@ export function Sidebar({
   onOpenPreferences,
   onCreateTaskInProject,
   createdTask,
+  onOpenTask,
+  onDeleteTask,
 }: SidebarProps) {
   const { t } = useI18n();
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [tasksExpanded, setTasksExpanded] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [collapsedMenu, setCollapsedMenu] = useState<"projects" | "tasks" | null>(null);
   const [groups, setGroups] = useState(() =>
     projectGroups.map((group, groupIndex) => ({
@@ -83,12 +89,26 @@ export function Sidebar({
   const actionMenuRef = useRef<HTMLDivElement>(null);
   const actionMenuAnchorRef = useRef<HTMLButtonElement | null>(null);
   const actionMenuStateRef = useRef<ActionMenuState | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const collapsedMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastCreatedTaskIdRef = useRef<number | null>(null);
+  const createdTaskIdsRef = useRef(new Map<string, number>());
+  const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
+  const visibleRecentItems = recentItems
+    .filter(([title, meta]) =>
+      !normalizedSearchQuery || `${title} ${meta}`.toLocaleLowerCase().includes(normalizedSearchQuery),
+    )
+    .slice(0, 5);
 
   useEffect(() => {
     if (!createdTask || lastCreatedTaskIdRef.current === createdTask.id) return;
+    const taskKey = `${createdTask.projectId ?? "task"}:${createdTask.title}`;
+    if (createdTaskIdsRef.current.get(taskKey) === createdTask.id) {
+      lastCreatedTaskIdRef.current = createdTask.id;
+      return;
+    }
     lastCreatedTaskIdRef.current = createdTask.id;
+    createdTaskIdsRef.current.set(taskKey, createdTask.id);
 
     if (createdTask.projectId === null) {
       setTasks((current) => [createdTask.title, ...current]);
@@ -109,6 +129,16 @@ export function Sidebar({
     setProjectsExpanded(true);
     setSelectedRow({ kind: "item", groupIndex, itemIndex: 0 });
   }, [createdTask]);
+
+  const openNewTask = () => {
+    setSelectedRow(null);
+    onOpenWorkspace?.();
+  };
+
+  const openSavedTask = (projectId: number | null, title: string) => {
+    const taskId = createdTaskIdsRef.current.get(`${projectId ?? "task"}:${title}`);
+    if (taskId !== undefined) onOpenTask?.(taskId);
+  };
 
   const openCollapsedMenu = (menu: "projects" | "tasks") => {
     if (collapsedMenuCloseTimerRef.current) {
@@ -272,6 +302,13 @@ export function Sidebar({
 
     if (target.kind === "task") {
       const taskIndexToRename = target.taskIndex;
+      const previousLabel = tasks[taskIndexToRename];
+      const previousKey = previousLabel ? `task:${previousLabel}` : null;
+      const taskId = previousKey ? createdTaskIdsRef.current.get(previousKey) : undefined;
+      if (previousKey && taskId !== undefined) {
+        createdTaskIdsRef.current.delete(previousKey);
+        createdTaskIdsRef.current.set(`task:${nextLabel}`, taskId);
+      }
       setTasks((current) =>
         current.map((task, taskIndex) =>
           taskIndex === taskIndexToRename ? nextLabel : task,
@@ -279,6 +316,17 @@ export function Sidebar({
       );
       setDialog(null);
       return;
+    }
+
+    if (target.kind === "item") {
+      const group = groups[target.groupIndex];
+      const previousLabel = group?.items[target.itemIndex];
+      const previousKey = group && previousLabel ? `${group.id}:${previousLabel}` : null;
+      const taskId = previousKey ? createdTaskIdsRef.current.get(previousKey) : undefined;
+      if (previousKey && taskId !== undefined) {
+        createdTaskIdsRef.current.delete(previousKey);
+        createdTaskIdsRef.current.set(`${group.id}:${nextLabel}`, taskId);
+      }
     }
 
     setGroups((current) =>
@@ -305,12 +353,26 @@ export function Sidebar({
 
     if (target.kind === "task") {
       const taskIndexToDelete = target.taskIndex;
+      const taskTitle = tasks[taskIndexToDelete];
+      const taskKey = taskTitle ? `task:${taskTitle}` : null;
+      const taskId = taskKey ? createdTaskIdsRef.current.get(taskKey) : undefined;
+      if (taskKey) createdTaskIdsRef.current.delete(taskKey);
+      if (taskId !== undefined) onDeleteTask?.(taskId);
       setTasks((current) =>
         current.filter((_, taskIndex) => taskIndex !== taskIndexToDelete),
       );
       setSelectedRow(null);
       setDialog(null);
       return;
+    }
+
+    if (target.kind === "item") {
+      const group = groups[target.groupIndex];
+      const taskTitle = group?.items[target.itemIndex];
+      const taskKey = group && taskTitle ? `${group.id}:${taskTitle}` : null;
+      const taskId = taskKey ? createdTaskIdsRef.current.get(taskKey) : undefined;
+      if (taskKey) createdTaskIdsRef.current.delete(taskKey);
+      if (taskId !== undefined) onDeleteTask?.(taskId);
     }
 
     setGroups((current) => {
@@ -423,7 +485,7 @@ export function Sidebar({
                 variant="bare"
                 label={t("返回首页")}
                 tooltipPlacement="bottom"
-                onClick={onOpenWorkspace}
+                onClick={openNewTask}
               >
                 <FigmaIcon name="chevron-left" size={16} />
               </IconControl>
@@ -447,7 +509,7 @@ export function Sidebar({
             <button
               type="button"
               className={activeView === "workspace" ? "is-selected" : ""}
-              onClick={onOpenWorkspace}
+              onClick={openNewTask}
             >
               <FigmaIcon name="new-task" size={20} />
               <span title={t("新建任务")}>{t("新建任务")}</span>
@@ -600,7 +662,10 @@ export function Sidebar({
                         type="button"
                         tabIndex={group.expanded ? 0 : -1}
                         aria-current={isSelected ? "page" : undefined}
-                        onClick={() => setSelectedRow({ kind: "item", groupIndex, itemIndex })}
+                        onClick={() => {
+                          setSelectedRow({ kind: "item", groupIndex, itemIndex });
+                          openSavedTask(group.id, item);
+                        }}
                       >
                         <span className="tree-row__selection-indicator" aria-hidden="true">
                           {isSelected && <span className="system-dot" />}
@@ -680,7 +745,10 @@ export function Sidebar({
                       className="task-row"
                       type="button"
                       aria-current={isSelected ? "page" : undefined}
-                      onClick={() => setSelectedRow({ kind: "task", taskIndex: index })}
+                      onClick={() => {
+                        setSelectedRow({ kind: "task", taskIndex: index });
+                        openSavedTask(null, item);
+                      }}
                     >
                       <span className="tree-row__selection-indicator" aria-hidden="true">
                         <span className={`system-dot task-row__selection-dot ${isSelected ? "is-visible" : ""}`} />
@@ -717,7 +785,7 @@ export function Sidebar({
           </IconControl>
         </div>
         <div className="sidebar__collapsed-secondary">
-          <IconControl label={t("新建任务")} tooltipPlacement="right">
+          <IconControl label={t("新建任务")} tooltipPlacement="right" onClick={openNewTask}>
             <FigmaIcon name="new-task" size={20} />
           </IconControl>
           <IconControl label={t("企业偏好档案")} tooltipPlacement="right">
@@ -861,9 +929,10 @@ export function Sidebar({
                               type="button"
                               role="menuitem"
                               aria-current={isSelected ? "page" : undefined}
-                              onClick={() =>
-                                setSelectedRow({ kind: "item", groupIndex, itemIndex })
-                              }
+                              onClick={() => {
+                                setSelectedRow({ kind: "item", groupIndex, itemIndex });
+                                openSavedTask(group.id, item);
+                              }}
                             >
                               <span className="tree-row__selection-indicator" aria-hidden="true">
                                 {isSelected && <span className="system-dot" />}
@@ -947,7 +1016,10 @@ export function Sidebar({
                       type="button"
                       role="menuitem"
                       aria-current={isSelected ? "page" : undefined}
-                      onClick={() => setSelectedRow({ kind: "task", taskIndex: index })}
+                      onClick={() => {
+                        setSelectedRow({ kind: "task", taskIndex: index });
+                        openSavedTask(null, item);
+                      }}
                     >
                       <span className="tree-row__selection-indicator" aria-hidden="true">
                         <span className={`system-dot task-row__selection-dot ${isSelected ? "is-visible" : ""}`} />
@@ -989,6 +1061,12 @@ export function Sidebar({
               className="search-popover"
               role="dialog"
               aria-label={t("搜索历史任务或项目")}
+              onPointerDown={(event) => {
+                const target = event.target;
+                if (target instanceof Element && !target.closest("input, button, a")) {
+                  searchInputRef.current?.blur();
+                }
+              }}
               variants={{
                 closed: { x: -400, opacity: 0 },
                 open: { x: 0, opacity: 1 },
@@ -997,24 +1075,59 @@ export function Sidebar({
             >
               <div className="search-popover__field">
                 <FigmaIcon name="search" size={20} />
-                <input autoFocus placeholder={t("搜索历史任务或项目")} />
+                <input
+                  ref={searchInputRef}
+                  autoFocus
+                  value={searchQuery}
+                  placeholder={t("搜索历史任务或项目")}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+                {searchQuery && (
+                  <IconControl
+                    size="small"
+                    label={t("清空搜索")}
+                    tooltipPlacement="top"
+                    onClick={() => setSearchQuery("")}
+                  >
+                    <FigmaIcon name="clear" size={16} />
+                  </IconControl>
+                )}
+                <span className="search-popover__field-divider" aria-hidden="true" />
                 <IconControl
                   size="small"
                   label={t("关闭搜索")}
-                  tooltipPlacement="left"
+                  tooltipPlacement="top"
                   onClick={() => setSearchOpen(false)}
                 >
                   <FigmaIcon name="close" size={16} />
                 </IconControl>
               </div>
-              <p className="search-popover__label">{t("最近编辑")}</p>
-              <div className="search-popover__list">
-                {recentItems.map(([title, meta], index) => (
-                  <button type="button" key={`${title}-${index}`}>
-                    <strong>{title}</strong>
-                    <span>{meta}</span>
-                  </button>
-                ))}
+              <div className="search-popover__results">
+                <p className="search-popover__label">{t(searchQuery ? "搜索结果" : "最近编辑")}</p>
+                {visibleRecentItems.length > 0 ? (
+                  <div className="search-popover__list" aria-live="polite">
+                    {visibleRecentItems.map(([title, meta], index) => (
+                      <button
+                        type="button"
+                        key={`${title}-${index}`}
+                        onClick={() => setSearchOpen(false)}
+                      >
+                        <strong>{title}</strong>
+                        <span>{meta}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="search-popover__empty" aria-live="polite">
+                    <div className="search-popover__empty-message">
+                      <img src={assetUrl("assets/business-profile/EmptyIcon.png")} alt="" />
+                      <div>
+                        <strong>{t("暂无匹配结果")}</strong>
+                        <span>{t("尝试换个关键词输入重新试试")}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>

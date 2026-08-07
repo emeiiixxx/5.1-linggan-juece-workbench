@@ -8,6 +8,9 @@ type FigmaIconProps = {
 };
 
 const ICON_ROOT = assetUrl("assets/figma-icons");
+const ICON_ASSETS: Record<string, string> = {
+  dot: "demand-dot.svg",
+};
 
 const ART_INSETS: Record<string, string> = {
   "add-file": "9.38% 25% 9.38% 21.88%",
@@ -20,8 +23,10 @@ const ART_INSETS: Record<string, string> = {
   "chevron-left": "25% 37.5%",
   "chevron-right": "25% 37.5%",
   check: "0",
+  clear: "6.25%",
   copy: "12.5% 12.5% 12.5% 18.75%",
   delete: "12.5%",
+  dot: "37.5%",
   close: "13.54%",
   "company-info": "14.92% 12.5% 12.5%",
   "customer-support": "9.38% 7.81%",
@@ -43,7 +48,7 @@ const ART_INSETS: Record<string, string> = {
 };
 
 export function FigmaIcon({ name, size = 20, className = "" }: FigmaIconProps) {
-  const asset = `${ICON_ROOT}/${name}.svg`;
+  const asset = `${ICON_ROOT}/${ICON_ASSETS[name] ?? `${name}.svg`}`;
   const frameStyle = {
     width: size,
     height: size,

@@ -1,0 +1,14 @@
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g clip-path="url(#loading-clip)" data-figma-skip-parse="true">
+    <g transform="matrix(0.006 0 0 0.006 8 8)">
+      <foreignObject x="-1000" y="-1000" width="2000" height="2000">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="background:conic-gradient(from 90deg,rgba(121, 128, 128, 1) 0deg,rgba(121, 128, 128, 0) 360deg);height:100%;width:100%;opacity:1"></div>
+      </foreignObject>
+    </g>
+  </g>
+  <defs>
+    <clipPath id="loading-clip">
+      <path fill-rule="evenodd" clip-rule="evenodd" d="M8 2C11.3137 2 14 4.68629 14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2ZM8 4C5.79086 4 4 5.79086 4 8C4 10.2091 5.79086 12 8 12C10.2091 12 12 10.2091 12 8C12 5.79086 10.2091 4 8 4Z"/>
+    </clipPath>
+  </defs>
+</svg>
