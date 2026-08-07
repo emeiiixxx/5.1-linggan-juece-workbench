@@ -1,7 +1,9 @@
-import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
+import { IconControl } from "./IconControl";
+import { useAutoGrowTextarea } from "../hooks/useAutoGrowTextarea";
 
 type StepStatus = "complete" | "loading" | "pending";
 type AnalysisPhase = "parsing" | "complete";
@@ -89,6 +91,11 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   const [profileVisible, setProfileVisible] = useState(false);
   const [analysisVisible, setAnalysisVisible] = useState(false);
   const [followUp, setFollowUp] = useState("");
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
+  const attachmentMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const { textareaRef: followUpRef, height: followUpComposerHeight } = useAutoGrowTextarea(followUp, 144);
   const reduceMotion = useReducedMotion();
   const analysisComplete = analysisPhase === "complete";
 
@@ -111,6 +118,22 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
       window.clearTimeout(completionTimer);
     };
   }, [reduceMotion]);
+
+  useEffect(() => {
+    if (!attachmentMenuOpen) return;
+    const dismissAttachmentMenu = (event: PointerEvent) => {
+      if (!attachmentMenuRef.current?.contains(event.target as Node)) setAttachmentMenuOpen(false);
+    };
+    const dismissAttachmentMenuOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setAttachmentMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", dismissAttachmentMenu);
+    document.addEventListener("keydown", dismissAttachmentMenuOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismissAttachmentMenu);
+      document.removeEventListener("keydown", dismissAttachmentMenuOnEscape);
+    };
+  }, [attachmentMenuOpen]);
 
   const submitFollowUp = () => {
     if (!followUp.trim()) return;
@@ -328,50 +351,80 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
 
         <div className="conversation-bottom-fade" aria-hidden="true" />
         <motion.section
-          className="conversation-composer"
+          className="conversation-composer composer__input"
           aria-label="继续对话"
+          style={{ height: followUpComposerHeight }}
           initial={reduceMotion ? false : { opacity: 0, y: 18, x: "-50%" }}
           animate={{ opacity: 1, y: 0, x: "-50%" }}
           transition={{ duration: reduceMotion ? 0 : 0.46, delay: reduceMotion ? 0 : 0.42, ease: revealEase }}
         >
-          <textarea value={followUp} onChange={(event) => setFollowUp(event.target.value)} onKeyDown={onFollowUpKeyDown} placeholder="补充条件或继续提问..." aria-label="补充条件或继续提问" />
-          <button type="button" className="conversation-composer__add" aria-label="添加附件"><FigmaIcon name="plus" size={20} /></button>
+          <textarea ref={followUpRef} value={followUp} onChange={(event) => setFollowUp(event.target.value)} onKeyDown={onFollowUpKeyDown} placeholder="补充条件或继续提问..." aria-label="补充条件或继续提问" />
+          <div className="composer-attachment" ref={attachmentMenuRef}>
+            <IconControl
+              className="composer-attachment__button"
+              label="添加附件"
+              tooltipPlacement="top"
+              selected={attachmentMenuOpen}
+              aria-haspopup="menu"
+              aria-expanded={attachmentMenuOpen}
+              onClick={() => setAttachmentMenuOpen((open) => !open)}
+            >
+              <FigmaIcon name="plus" size={20} />
+            </IconControl>
+            <AnimatePresence>
+              {attachmentMenuOpen && (
+                <motion.div
+                  className="composer-attachment-menu"
+                  role="menu"
+                  aria-label="添加附件"
+                  initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+                >
+                  <button type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); fileInputRef.current?.click(); }}>
+                    <FigmaIcon name="add-file" size={16} />
+                    <span>文件</span>
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); imageInputRef.current?.click(); }}>
+                    <FigmaIcon name="add-image" size={16} />
+                    <span>图片</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple />
+            <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple />
+          </div>
           <span>Enter 发送 · Shift + Enter 换行</span>
-          <button type="button" className="conversation-composer__send" disabled={!followUp.trim()} onClick={submitFollowUp} aria-label="发送"><FigmaIcon name="arrow-up" size={20} /></button>
+          <IconControl className="composer__send conversation-composer__send" label="发送" tooltipPlacement="top" disabled={!followUp.trim()} onClick={submitFollowUp}><FigmaIcon name="arrow-up" size={24} /></IconControl>
         </motion.section>
       </section>
 
-      {detailPanelOpen ? (
-        <motion.aside
-          className="task-detail-panel"
-          aria-label="任务概览"
-          initial={reduceMotion ? false : { opacity: 0, x: 18 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.44, delay: reduceMotion ? 0 : 0.3, ease: revealEase }}
-        >
-          <header>
-            <strong>概览</strong>
-            <button type="button" onClick={() => setDetailPanelOpen(false)} aria-label="收起概览"><FigmaIcon name="expand-window" size={20} /></button>
-          </header>
-          <section>
-            <h2>待办</h2>
-            <div className="task-detail-list">
-              {taskDetailSteps.map((step, index) => (
-                <motion.div initial={reduceMotion ? false : { opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : 0.52 + index * 0.1, ease: revealEase }} key={step}>
-                  <StatusIcon status={index === 0 ? (analysisComplete ? "complete" : "loading") : "pending"} />
-                  <span>{step}</span>
-                </motion.div>
-              ))}
-            </div>
-          </section>
-          <section>
-            <h2>任务产物</h2>
-            <div className="task-detail-row"><FigmaIcon name="add-file" size={16} /><span>{analysisComplete ? "等待搜集行业资料完成…" : "等待需求解析完成…"}</span></div>
-          </section>
-        </motion.aside>
-      ) : (
+      <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>
+        <div className="task-detail-panel" aria-label="任务概览">
+              <header>
+                <strong>概览</strong>
+                <button type="button" onClick={() => setDetailPanelOpen(false)} aria-label="收起概览"><FigmaIcon name="expand-window" size={20} /></button>
+              </header>
+              <section>
+                <h2>待办</h2>
+                <div className="task-detail-list">
+                  {taskDetailSteps.map((step, index) => (
+                    <motion.div initial={reduceMotion ? false : { opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : 0.52 + index * 0.1, ease: revealEase }} key={step}>
+                      <StatusIcon status={index === 0 ? (analysisComplete ? "complete" : "loading") : "pending"} />
+                      <span>{step}</span>
+                    </motion.div>
+                  ))}
+                </div>
+              </section>
+              <section>
+                <h2>任务产物</h2>
+                <div className="task-detail-row"><FigmaIcon name="add-file" size={16} /><span>{analysisComplete ? "等待搜集行业资料完成…" : "等待需求解析完成…"}</span></div>
+              </section>
+        </div>
         <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
-      )}
+      </aside>
     </motion.main>
   );
 }

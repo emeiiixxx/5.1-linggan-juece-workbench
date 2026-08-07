@@ -2290,6 +2290,7 @@ a:focus-visible {
   display: flex;
   width: 720px;
   height: 208px;
+  max-height: 368px;
   flex: 0 0 auto;
   flex-direction: column;
   overflow: visible;
@@ -2302,6 +2303,7 @@ a:focus-visible {
   position: relative;
   width: 720px;
   height: 160px;
+  max-height: 320px;
   flex: 0 0 auto;
   border: 1px solid var(--border-weak);
   border-radius: var(--radius-2xl);
@@ -2347,7 +2349,9 @@ a:focus-visible {
   width: 100%;
   height: 100%;
   resize: none;
-  padding: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 4px 16px 4px 4px;
   border: 0;
   outline: 0;
   color: var(--text-primary);
@@ -3236,9 +3240,15 @@ a:focus-visible {
 
 /* Conversation workspace · Figma nodes 390:20798 / 393:24803 */
 .workspace-region--conversation {
-  display: flex;
+  display: grid;
   height: 100%;
   overflow: hidden;
+  grid-template-columns: minmax(0, 1fr) 64px;
+  transition: grid-template-columns var(--motion-standard);
+}
+
+.workspace-region--conversation.has-detail-panel {
+  grid-template-columns: minmax(0, 1fr) 328px;
 }
 
 .conversation-stage {
@@ -3747,23 +3757,28 @@ a:focus-visible {
 
 .conversation-composer {
   position: absolute;
-  bottom: 8px;
+  bottom: 16px;
   left: 50%;
   z-index: 4;
   width: min(720px, calc(100% - 48px));
-  height: 128px;
-  border: 1px solid var(--border-weak);
-  border-radius: var(--radius-2xl);
-  background: var(--control-fill-default);
+  height: 144px;
+  max-height: 320px;
   box-shadow: var(--shadow-s);
   transform: translateX(-50%);
 }
 
 .conversation-composer textarea {
-  width: 100%;
-  height: 80px;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 52px;
+  left: 12px;
+  width: auto;
+  height: auto;
   resize: none;
-  padding: 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 4px 16px 4px 4px;
   border: 0;
   outline: 0;
   color: var(--text-primary);
@@ -3776,49 +3791,52 @@ a:focus-visible {
   color: var(--text-placeholder);
 }
 
-.conversation-composer__add,
 .conversation-composer__send {
   position: absolute;
   bottom: 12px;
   display: flex;
-  width: 32px;
-  height: 32px;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-base);
-}
-
-.conversation-composer__add {
-  left: 12px;
-  color: var(--text-tertiary);
-  background: transparent;
+  border-radius: var(--radius-max);
 }
 
 .conversation-composer__send {
   right: 12px;
+  width: 40px;
+  height: 40px;
   color: var(--text-on-brand-black);
   background: var(--brand-primary);
 }
 
 .conversation-composer__send:disabled {
-  color: var(--text-disabled);
-  background: var(--control-fill-disabled);
+  color: var(--text-on-brand-disabled);
+  background: var(--brand-primary-disabled);
+  opacity: 0.65;
 }
 
 .conversation-composer > span {
   position: absolute;
-  right: 52px;
-  bottom: 18px;
+  right: 64px;
+  bottom: 20px;
   color: var(--text-disabled);
   font-size: 12px;
-  line-height: 20px;
+  line-height: 16px;
+}
+
+.task-detail-rail {
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 
 .task-detail-panel {
-  width: 328px;
-  height: calc(100% - 24px);
-  margin: 12px 12px 12px 0;
-  flex: 0 0 328px;
+  position: absolute;
+  z-index: 1;
+  inset: 12px;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;
   padding: 16px;
@@ -3826,6 +3844,15 @@ a:focus-visible {
   border-radius: var(--radius-xl);
   background: var(--surface-default);
   scrollbar-width: none;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--motion-standard), visibility var(--motion-standard);
+}
+
+.task-detail-rail.is-collapsed .task-detail-panel {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .task-detail-panel::-webkit-scrollbar { display: none; }
@@ -3912,10 +3939,20 @@ a:focus-visible {
   color: var(--text-secondary);
   background: var(--surface-default);
   box-shadow: var(--shadow-s);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--motion-standard), visibility var(--motion-standard), background-color var(--motion-standard);
+}
+
+.task-detail-rail.is-collapsed .task-detail-restore {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 @media (max-width: 1360px) {
-  .task-detail-panel { width: 288px; flex-basis: 288px; }
+  .workspace-region--conversation.has-detail-panel { grid-template-columns: minmax(0, 1fr) 288px; }
   .conversation-feed { width: min(600px, calc(100% - 32px)); }
   .conversation-composer { width: min(640px, calc(100% - 32px)); }
 }

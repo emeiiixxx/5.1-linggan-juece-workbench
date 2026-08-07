@@ -9,6 +9,7 @@ import { QuickStartCard } from "./QuickStartCard";
 import { primaryPageEntrance, primaryPageEntranceItem, primaryPageEntranceMediaItem } from "../utils/pageMotion";
 import { useI18n } from "../i18n";
 import { ConversationWorkspace } from "./ConversationWorkspace";
+import { useAutoGrowTextarea } from "../hooks/useAutoGrowTextarea";
 
 const tabs = ["选品测款", "新品方向探索", "客户提案生成"];
 const composerPlaceholders = [
@@ -54,6 +55,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [message, setMessage] = useState("");
+  const { textareaRef: composerTextareaRef, height: composerInputHeight } = useAutoGrowTextarea(message, 160);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
@@ -239,8 +241,8 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
           <ArchiveHeaderMotion theme={theme} />
         </motion.section>
 
-        <motion.section className="composer" aria-label={t("新建任务")} data-node-id="140:6883" variants={primaryPageEntranceItem}>
-          <div className={`composer__input ${attachments.length ? "has-attachments" : ""}`} data-node-id="457:95352">
+        <motion.section className="composer" aria-label={t("新建任务")} data-node-id="140:6883" variants={primaryPageEntranceItem} style={{ height: composerInputHeight + 48 }}>
+          <div className={`composer__input ${attachments.length ? "has-attachments" : ""}`} data-node-id="457:95352" style={{ height: composerInputHeight }}>
             <div className="composer__content">
               <AnimatePresence initial={false}>
                 {attachments.length > 0 && (
@@ -292,6 +294,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                   )}
                 </AnimatePresence>
                 <textarea
+                  ref={composerTextareaRef}
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
                   onKeyDown={onComposerKeyDown}
