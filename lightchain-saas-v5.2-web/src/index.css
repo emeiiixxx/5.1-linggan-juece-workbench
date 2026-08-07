@@ -3768,13 +3768,9 @@ a:focus-visible {
 }
 
 .conversation-composer textarea {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  bottom: 52px;
-  left: 12px;
-  width: auto;
-  height: auto;
+  display: block;
+  width: 100%;
+  height: 100%;
   resize: none;
   overflow-x: hidden;
   overflow-y: auto;

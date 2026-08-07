@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
@@ -7,6 +7,7 @@ import { useAutoGrowTextarea } from "../hooks/useAutoGrowTextarea";
 
 type StepStatus = "complete" | "loading" | "pending";
 type AnalysisPhase = "parsing" | "complete";
+type Attachment = { id: string; name: string; kind: "file" | "image"; previewUrl?: string };
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
 const taskDetailSteps = ["需求解析任务", "搜集行业资料", "整理报告结构"];
@@ -92,10 +93,17 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   const [analysisVisible, setAnalysisVisible] = useState(false);
   const [followUp, setFollowUp] = useState("");
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const { textareaRef: followUpRef, height: followUpComposerHeight } = useAutoGrowTextarea(followUp, 144);
+  const attachmentUrlsRef = useRef(new Set<string>());
+  const { textareaRef: followUpRef, height: followUpComposerHeight } = useAutoGrowTextarea(
+    followUp,
+    144,
+    320,
+    64 + (attachments.length ? 36 : 0),
+  );
   const reduceMotion = useReducedMotion();
   const analysisComplete = analysisPhase === "complete";
 
@@ -135,9 +143,53 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
     };
   }, [attachmentMenuOpen]);
 
+  useEffect(() => () => {
+    attachmentUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    attachmentUrlsRef.current.clear();
+  }, []);
+
+  const addAttachments = (event: ChangeEvent<HTMLInputElement>, kind: Attachment["kind"]) => {
+    const files = Array.from(event.currentTarget.files ?? []);
+    if (!files.length) return;
+    const created = files.map((file, index) => {
+      const previewUrl = kind === "image" ? URL.createObjectURL(file) : undefined;
+      if (previewUrl) attachmentUrlsRef.current.add(previewUrl);
+      return {
+        id: `${file.name}-${file.lastModified}-${Date.now()}-${index}`,
+        name: file.name,
+        kind,
+        previewUrl,
+      } satisfies Attachment;
+    });
+    setAttachments((current) => [...current, ...created]);
+    event.currentTarget.value = "";
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((current) => current.filter((attachment) => {
+      if (attachment.id !== id) return true;
+      if (attachment.previewUrl) {
+        URL.revokeObjectURL(attachment.previewUrl);
+        attachmentUrlsRef.current.delete(attachment.previewUrl);
+      }
+      return false;
+    }));
+  };
+
+  const clearAttachments = () => {
+    attachments.forEach((attachment) => {
+      if (attachment.previewUrl) {
+        URL.revokeObjectURL(attachment.previewUrl);
+        attachmentUrlsRef.current.delete(attachment.previewUrl);
+      }
+    });
+    setAttachments([]);
+  };
+
   const submitFollowUp = () => {
     if (!followUp.trim()) return;
     setFollowUp("");
+    clearAttachments();
   };
 
   const onFollowUpKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
@@ -358,7 +410,44 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
           animate={{ opacity: 1, y: 0, x: "-50%" }}
           transition={{ duration: reduceMotion ? 0 : 0.46, delay: reduceMotion ? 0 : 0.42, ease: revealEase }}
         >
-          <textarea ref={followUpRef} value={followUp} onChange={(event) => setFollowUp(event.target.value)} onKeyDown={onFollowUpKeyDown} placeholder="补充条件或继续提问..." aria-label="补充条件或继续提问" />
+          <div className="composer__content">
+            <AnimatePresence initial={false}>
+              {attachments.length > 0 && (
+                <motion.div
+                  className="composer-attachment-list"
+                  initial={reduceMotion ? false : { opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+                >
+                  {attachments.map((attachment) => (
+                    <motion.span
+                      className="composer-attachment-chip"
+                      layout
+                      initial={reduceMotion ? false : { opacity: 0, scale: 0.94 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.94 }}
+                      transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }}
+                      key={attachment.id}
+                    >
+                      {attachment.previewUrl ? (
+                        <img className="composer-attachment-chip__thumbnail" src={attachment.previewUrl} alt="" />
+                      ) : (
+                        <img className="composer-attachment-chip__file" src={assetUrl("assets/figma-icons/file-pdf.svg")} alt="" />
+                      )}
+                      <span title={attachment.name}>{attachment.name}</span>
+                      <button type="button" aria-label={`移除附件：${attachment.name}`} onClick={() => removeAttachment(attachment.id)}>
+                        <FigmaIcon name="close" size={16} />
+                      </button>
+                    </motion.span>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <div className="composer__text-wrap">
+              <textarea ref={followUpRef} value={followUp} onChange={(event) => setFollowUp(event.target.value)} onKeyDown={onFollowUpKeyDown} placeholder="补充条件或继续提问..." aria-label="补充条件或继续提问" />
+            </div>
+          </div>
           <div className="composer-attachment" ref={attachmentMenuRef}>
             <IconControl
               className="composer-attachment__button"
@@ -393,8 +482,8 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                 </motion.div>
               )}
             </AnimatePresence>
-            <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple />
-            <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple />
+            <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple onChange={(event) => addAttachments(event, "file")} />
+            <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple onChange={(event) => addAttachments(event, "image")} />
           </div>
           <span>Enter 发送 · Shift + Enter 换行</span>
           <IconControl className="composer__send conversation-composer__send" label="发送" tooltipPlacement="top" disabled={!followUp.trim()} onClick={submitFollowUp}><FigmaIcon name="arrow-up" size={24} /></IconControl>
