@@ -1,5 +1,7 @@
 node_modules/
 dist/
+.next/
+.wrangler/
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts

@@ -1,8 +1,23 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import vinext from "vinext";
+import { sites } from "./build/sites-vite-plugin";
 
-export default defineConfig(({ mode }) => ({
-  plugins: [react(), tailwindcss()],
-  base: mode === "production" ? "/5.1-linggan-juece-workbench/" : "/",
-}));
+export default defineConfig(async () => {
+  const { cloudflare } = await import("@cloudflare/vite-plugin");
+
+  return {
+    plugins: [
+      vinext(),
+      tailwindcss(),
+      sites(),
+      cloudflare({
+        viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
+        config: {
+          main: "./worker/index.ts",
+          compatibility_flags: ["nodejs_compat"],
+        },
+      }),
+    ],
+  };
+});
