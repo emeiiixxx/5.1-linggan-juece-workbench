@@ -2733,7 +2733,7 @@ a:focus-visible {
   width: 720px;
   flex: 0 0 auto;
   overflow: hidden;
-  padding-top: 40px;
+  padding-top: 56px;
 }
 
 .quick-start__toggle,
@@ -2787,7 +2787,6 @@ a:focus-visible {
   grid-template-columns: repeat(2, 352px);
   gap: 8px;
   overflow: hidden;
-  padding-top: 16px;
 }
 
 .quick-card {
