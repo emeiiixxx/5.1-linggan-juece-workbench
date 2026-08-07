@@ -3497,6 +3497,37 @@ a:focus-visible {
   outline-offset: 2px;
 }
 
+.conversation-analysis-title {
+  display: inline-block;
+}
+
+.conversation-analysis-title.is-loading {
+  color: transparent;
+  background: linear-gradient(
+    100deg,
+    var(--text-placeholder) 0%,
+    var(--text-placeholder) 34%,
+    var(--text-tertiary) 42%,
+    var(--text-secondary) 48%,
+    var(--text-primary) 50%,
+    var(--text-secondary) 52%,
+    var(--text-tertiary) 58%,
+    var(--text-placeholder) 66%,
+    var(--text-placeholder) 100%
+  );
+  background-clip: text;
+  background-position: 122% 0;
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: conversation-analysis-shimmer 1.8s linear infinite;
+}
+
+@keyframes conversation-analysis-shimmer {
+  0%, 8% { background-position: 122% 0; }
+  86%, 100% { background-position: -22% 0; }
+}
+
 .conversation-analysis-disclosure {
   display: inline-flex;
   width: 16px;
@@ -3893,4 +3924,11 @@ a:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .conversation-loading-asset,
   .conversation-analysis-spinner { animation: none; }
+
+  .conversation-analysis-title.is-loading {
+    color: var(--text-tertiary);
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    animation: none;
+  }
 }

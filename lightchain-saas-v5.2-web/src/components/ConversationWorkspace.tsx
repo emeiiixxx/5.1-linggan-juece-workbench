@@ -8,7 +8,9 @@ type AnalysisPhase = "parsing" | "complete";
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
 const taskDetailSteps = ["需求解析任务", "搜集行业资料", "整理报告结构"];
-const analysisTaskRevealDelay = 0.92;
+const profileRevealDelay = 620;
+const analysisRevealDelay = 1520;
+const analysisTaskRevealDelay = 0.44;
 const analysisLoadingDuration = 3000;
 const conversationBlockReveal = {
   hidden: { opacity: 0, y: 10, scale: 0.988 },
@@ -84,17 +86,31 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [analysisExpanded, setAnalysisExpanded] = useState(true);
   const [analysisPhase, setAnalysisPhase] = useState<AnalysisPhase>("parsing");
+  const [profileVisible, setProfileVisible] = useState(false);
+  const [analysisVisible, setAnalysisVisible] = useState(false);
   const [followUp, setFollowUp] = useState("");
   const reduceMotion = useReducedMotion();
   const analysisComplete = analysisPhase === "complete";
 
   useEffect(() => {
+    const profileTimer = window.setTimeout(
+      () => setProfileVisible(true),
+      reduceMotion ? 0 : profileRevealDelay,
+    );
+    const analysisTimer = window.setTimeout(
+      () => setAnalysisVisible(true),
+      reduceMotion ? 0 : analysisRevealDelay,
+    );
     const completionTimer = window.setTimeout(
       () => setAnalysisPhase("complete"),
-      analysisTaskRevealDelay * 1000 + analysisLoadingDuration,
+      (reduceMotion ? 0 : analysisRevealDelay) + analysisTaskRevealDelay * 1000 + analysisLoadingDuration,
     );
-    return () => window.clearTimeout(completionTimer);
-  }, []);
+    return () => {
+      window.clearTimeout(profileTimer);
+      window.clearTimeout(analysisTimer);
+      window.clearTimeout(completionTimer);
+    };
+  }, [reduceMotion]);
 
   const submitFollowUp = () => {
     if (!followUp.trim()) return;
@@ -130,35 +146,41 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
               <img className="conversation-avatar" src={assetUrl("assets/figma-icons/avatar.png")} alt="用户头像" />
             </motion.article>
 
-            <motion.article
-              className="conversation-message conversation-message--assistant conversation-profile-read"
-              initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.14, ease: revealEase }}
-              data-node-id="476:103926"
-            >
-              <p className="conversation-profile-read__label">
-                <StreamingText delay={0.16}>已读取到有应用业务偏好档案</StreamingText>
-              </p>
-              <motion.div
-                className="conversation-profile-card"
-                initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.985 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: reduceMotion ? 0 : 0.38, delay: reduceMotion ? 0 : 0.42, ease: revealEase }}
-              >
-                <strong>{profileName ?? "灭霸毁灭宇宙回忆录"}</strong>
-                <span>品类：女装　价格段：JPY 8,000–18,000　国家：日本　年龄段：25-34岁、35-44岁</span>
-              </motion.div>
-            </motion.article>
+            <AnimatePresence initial={false}>
+              {profileVisible ? (
+                <motion.article
+                  className="conversation-message conversation-message--assistant conversation-profile-read"
+                  initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.3, ease: revealEase }}
+                  data-node-id="476:103926"
+                >
+                  <p className="conversation-profile-read__label">
+                    <StreamingText delay={0.04}>已读取到有应用业务偏好档案</StreamingText>
+                  </p>
+                  <motion.div
+                    className="conversation-profile-card"
+                    initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.985 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.38, delay: reduceMotion ? 0 : 0.3, ease: revealEase }}
+                  >
+                    <strong>{profileName ?? "灭霸毁灭宇宙回忆录"}</strong>
+                    <span>品类：女装　价格段：JPY 8,000–18,000　国家：日本　年龄段：25-34岁、35-44岁</span>
+                  </motion.div>
+                </motion.article>
+              ) : null}
+            </AnimatePresence>
 
+            <AnimatePresence initial={false}>
+            {analysisVisible ? (
             <motion.article
               className="conversation-message conversation-message--assistant conversation-analysis"
               initial={reduceMotion ? false : { opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: reduceMotion ? 0 : 0.38, delay: reduceMotion ? 0 : 0.62, ease: revealEase }}
+              transition={{ duration: reduceMotion ? 0 : 0.38, ease: revealEase }}
               data-node-id="476:103930"
             >
-              <p><StreamingText delay={0.68}>下面开始本次需求解析，完成后将给出需求理解。</StreamingText></p>
+              <p><StreamingText delay={0.04}>下面开始本次需求解析，完成后将给出需求理解。</StreamingText></p>
               <motion.div
                 className="conversation-analysis-task"
                 initial={reduceMotion ? false : "hidden"}
@@ -197,7 +219,9 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                       </motion.span>
                     )}
                   </AnimatePresence>
-                  <span>需求解析任务</span>
+                  <span className={`conversation-analysis-title ${analysisComplete ? "" : "is-loading"}`}>
+                    需求解析任务
+                  </span>
                   <motion.span
                     className="conversation-analysis-disclosure"
                     animate={{ rotate: analysisExpanded ? 90 : 0 }}
@@ -250,6 +274,8 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                 </AnimatePresence>
               </motion.div>
             </motion.article>
+            ) : null}
+            </AnimatePresence>
 
             <AnimatePresence>
               {analysisComplete ? (
