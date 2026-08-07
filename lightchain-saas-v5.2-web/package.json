@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:sites": "tsc -b && vite build --mode sites && npm run sites:worker",
+    "build:sites": "tsc -b && vite build --mode sites --outDir dist/client && npm run sites:worker",
     "sites:worker": "mkdir -p dist/server && cp worker/index.js dist/server/index.js",
     "preview": "vite preview"
   },
