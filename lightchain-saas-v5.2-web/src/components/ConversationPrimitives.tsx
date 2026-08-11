@@ -105,7 +105,10 @@ export function ConversationFileCard({
   );
 }
 
-type ConversationUserMessageProps = HTMLMotionProps<"article"> & { entrance?: boolean };
+type ConversationUserMessageProps = Omit<HTMLMotionProps<"article">, "children"> & {
+  children: ReactNode;
+  entrance?: boolean;
+};
 
 export function ConversationUserMessage({
   children,

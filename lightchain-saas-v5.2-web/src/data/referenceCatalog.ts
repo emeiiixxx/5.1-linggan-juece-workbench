@@ -42,7 +42,7 @@ export const candidateReferenceImages = candidateCategories.flatMap((category, c
 ).flat();
 
 const candidateById = new Map(candidateReferenceImages.map((candidate) => [candidate.id, candidate]));
-const directionById = new Map(trendDirections.map((direction) => [direction.id, direction]));
+const directionById = new Map<string, (typeof trendDirections)[number]>(trendDirections.map((direction) => [direction.id, direction]));
 
 export const getCandidateReference = (candidateId: string) => candidateById.get(candidateId);
 export const selectCandidateReferences = (candidateIds: string[]) => candidateIds.flatMap((candidateId) => {

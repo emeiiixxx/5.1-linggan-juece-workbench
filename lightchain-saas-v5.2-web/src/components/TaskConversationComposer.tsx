@@ -49,7 +49,9 @@ export function TaskConversationComposer({
     const conversationStage = composerRef.current?.closest<HTMLElement>(".conversation-stage");
     if (!conversationStage) return;
     conversationStage.style.setProperty("--conversation-composer-clearance", `${height + 48}px`);
-    return () => conversationStage.style.removeProperty("--conversation-composer-clearance");
+    return () => {
+      conversationStage.style.removeProperty("--conversation-composer-clearance");
+    };
   }, [height]);
 
   useEffect(() => {
