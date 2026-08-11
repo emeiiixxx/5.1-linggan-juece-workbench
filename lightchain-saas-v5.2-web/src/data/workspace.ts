@@ -31,8 +31,8 @@ export const quickStartCards = [
     ],
   },
   {
-    title: "单款裂变",
-    description: "单款延展，快速生成系列设计",
+    title: "转线稿图",
+    description: "批量转换，秒速生成线稿",
     images: [
       assetUrl("assets/quick-start/single-style-2.jpg"),
       assetUrl("assets/quick-start/single-style-3.jpg"),
@@ -40,8 +40,8 @@ export const quickStartCards = [
     ],
   },
   {
-    title: "多款融合",
-    description: "融合多款特征，焕新呈现",
+    title: "款式融合",
+    description: "融合特征，焕新呈现",
     images: [
       assetUrl("assets/quick-start/multi-style-2.jpg"),
       assetUrl("assets/quick-start/multi-style-3.jpg"),

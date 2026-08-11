@@ -16,8 +16,8 @@ type IconControlProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   label: string;
   children: ReactNode;
   selected?: boolean;
-  size?: "xsmall" | "small" | "medium";
-  variant?: "ghost" | "bare";
+  size?: "xsmall" | "small" | "medium" | "large";
+  variant?: "ghost" | "bare" | "tonal";
   tooltipPlacement?: TooltipPlacement;
   showTooltip?: boolean;
 };

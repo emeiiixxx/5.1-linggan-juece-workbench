@@ -9,13 +9,15 @@ import { QuickStartCard } from "./QuickStartCard";
 import { primaryPageEntrance, primaryPageEntranceItem, primaryPageEntranceMediaItem } from "../utils/pageMotion";
 import { useI18n } from "../i18n";
 import { ConversationWorkspace } from "./ConversationWorkspace";
+import { ClothingConversationWorkspace } from "./ClothingConversationWorkspace";
 import { useAutoGrowTextarea } from "../hooks/useAutoGrowTextarea";
 
-const tabs = ["选品测款", "新品方向探索", "客户提案生成"];
+const tabs = ["新品企划", "客户提案", "服装设计", "图案设计"];
 const composerPlaceholders = [
-  "描述你想调研的市场、品类或款式方向...",
   "描述下一季的市场,人群,品类和经营目标...",
   "输入客户需求,或上传brief、邮件和会议纪要...",
+  "描述想要设计的款式，或上传参考图片...",
+  "描述想要生成的图案风格、元素和应用场景...",
 ];
 type ProfileOption = { id: number; name: string };
 type ProjectOption = { id: number; name: string };
@@ -38,13 +40,13 @@ const projectOptions: ProjectOption[] = [
 
 export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, onSelectedProfileChange, selectedProject, onSelectedProjectChange, onCreateTask }: {
   theme: "dark" | "light";
-  activeTask?: { id: number; prompt: string; profileName?: string } | null;
+  activeTask?: { id: number; prompt: string; profileName?: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "default" | "apparel" } | null;
   newTaskKey?: number;
   selectedProfile?: ProfileOption | null;
   onSelectedProfileChange?: (profile: ProfileOption | null) => void;
   selectedProject?: ProjectOption | null;
   onSelectedProjectChange?: (project: ProjectOption | null) => void;
-  onCreateTask?: (task: { title: string; projectId: number | null; prompt: string }) => void;
+  onCreateTask?: (task: { title: string; projectId: number | null; prompt: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "default" | "apparel" }) => void;
 }) {
   const { locale, t } = useI18n();
   const [activeTab, setActiveTab] = useState(0);
@@ -147,8 +149,17 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
     const taskMessage = message.trim();
     if (!taskMessage) return;
     const title = Array.from(taskMessage).slice(0, 10).join("");
-    onCreateTask?.({ title, projectId: selectedProject?.id ?? null, prompt: taskMessage });
-    attachments.forEach((attachment) => {
+    const taskAttachments = activeTab === 2
+      ? attachments.map(({ name, previewUrl }) => ({ name, previewUrl }))
+      : undefined;
+    onCreateTask?.({
+      title,
+      projectId: selectedProject?.id ?? null,
+      prompt: taskMessage,
+      attachments: taskAttachments,
+      workflow: activeTab === 2 ? "apparel" : "default",
+    });
+    if (activeTab !== 2) attachments.forEach((attachment) => {
       if (attachment.previewUrl) {
         URL.revokeObjectURL(attachment.previewUrl);
         attachmentUrlsRef.current.delete(attachment.previewUrl);
@@ -196,7 +207,11 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   return (
     <AnimatePresence mode="wait" initial={false}>
     {activeTask ? (
-      <ConversationWorkspace key={`conversation-${activeTask.id}`} prompt={activeTask.prompt} profileName={activeTask.profileName} />
+      activeTask.workflow === "apparel" ? (
+        <ClothingConversationWorkspace key={`apparel-conversation-${activeTask.id}`} prompt={activeTask.prompt} attachments={activeTask.attachments} />
+      ) : (
+        <ConversationWorkspace key={`conversation-${activeTask.id}`} prompt={activeTask.prompt} profileName={activeTask.profileName} />
+      )
     ) : (
     <motion.main
       className="workspace-region"

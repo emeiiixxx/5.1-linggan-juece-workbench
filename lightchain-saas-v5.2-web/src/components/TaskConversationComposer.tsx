@@ -1,0 +1,256 @@
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useAutoGrowTextarea } from "../hooks/useAutoGrowTextarea";
+import { assetUrl } from "../utils/assets";
+import { FigmaIcon } from "./FigmaIcon";
+import { IconControl } from "./IconControl";
+
+type ComposerAttachment = {
+  id: string;
+  name: string;
+  kind: "file" | "image";
+  previewUrl?: string;
+};
+
+type TaskConversationComposerProps = {
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  placeholder: string;
+  ariaLabel: string;
+  disabled?: boolean;
+  className?: string;
+  motionDelay?: number;
+};
+
+const revealEase = [0.22, 1, 0.36, 1] as const;
+
+export function TaskConversationComposer({
+  value,
+  onChange,
+  onSubmit,
+  placeholder,
+  ariaLabel,
+  disabled = false,
+  className = "",
+  motionDelay = 0,
+}: TaskConversationComposerProps) {
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
+  const attachmentMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLElement>(null);
+  const attachmentUrlsRef = useRef(new Set<string>());
+  const reduceMotion = useReducedMotion();
+  const { textareaRef, height } = useAutoGrowTextarea(value, 144, 320, 64 + (attachments.length ? 36 : 0));
+
+  useEffect(() => {
+    const conversationStage = composerRef.current?.closest<HTMLElement>(".conversation-stage");
+    if (!conversationStage) return;
+    conversationStage.style.setProperty("--conversation-composer-clearance", `${height + 48}px`);
+    return () => conversationStage.style.removeProperty("--conversation-composer-clearance");
+  }, [height]);
+
+  useEffect(() => {
+    const conversationStage = composerRef.current?.closest<HTMLElement>(".conversation-stage");
+    const conversationScroll = conversationStage?.querySelector<HTMLElement>(".conversation-scroll");
+    const conversationFeed = conversationStage?.querySelector<HTMLElement>(".conversation-feed");
+    if (!conversationScroll || !conversationFeed) return;
+
+    let followLatest = conversationScroll.scrollHeight - conversationScroll.scrollTop - conversationScroll.clientHeight <= 48;
+    let frame = 0;
+    const updateFollowState = () => {
+      followLatest = conversationScroll.scrollHeight - conversationScroll.scrollTop - conversationScroll.clientHeight <= 48;
+    };
+    const keepLatestVisible = () => {
+      if (!followLatest) return;
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        conversationScroll.scrollTop = conversationScroll.scrollHeight;
+      });
+    };
+    const resizeObserver = new ResizeObserver(keepLatestVisible);
+
+    conversationScroll.addEventListener("scroll", updateFollowState, { passive: true });
+    resizeObserver.observe(conversationFeed);
+    keepLatestVisible();
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      conversationScroll.removeEventListener("scroll", updateFollowState);
+      resizeObserver.disconnect();
+    };
+  }, [height]);
+
+  useEffect(() => {
+    if (!attachmentMenuOpen) return;
+    const dismissMenu = (event: PointerEvent) => {
+      if (!attachmentMenuRef.current?.contains(event.target as Node)) setAttachmentMenuOpen(false);
+    };
+    const dismissMenuOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setAttachmentMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", dismissMenu);
+    document.addEventListener("keydown", dismissMenuOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismissMenu);
+      document.removeEventListener("keydown", dismissMenuOnEscape);
+    };
+  }, [attachmentMenuOpen]);
+
+  useEffect(() => () => {
+    attachmentUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    attachmentUrlsRef.current.clear();
+  }, []);
+
+  const addAttachments = (event: ChangeEvent<HTMLInputElement>, kind: ComposerAttachment["kind"]) => {
+    const files = Array.from(event.currentTarget.files ?? []);
+    if (!files.length) return;
+    const created = files.map((file, index) => {
+      const previewUrl = kind === "image" ? URL.createObjectURL(file) : undefined;
+      if (previewUrl) attachmentUrlsRef.current.add(previewUrl);
+      return {
+        id: `${file.name}-${file.lastModified}-${Date.now()}-${index}`,
+        name: file.name,
+        kind,
+        previewUrl,
+      } satisfies ComposerAttachment;
+    });
+    setAttachments((current) => [...current, ...created]);
+    event.currentTarget.value = "";
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((current) => current.filter((attachment) => {
+      if (attachment.id !== id) return true;
+      if (attachment.previewUrl) {
+        URL.revokeObjectURL(attachment.previewUrl);
+        attachmentUrlsRef.current.delete(attachment.previewUrl);
+      }
+      return false;
+    }));
+  };
+
+  const clearAttachments = () => {
+    attachments.forEach((attachment) => {
+      if (attachment.previewUrl) {
+        URL.revokeObjectURL(attachment.previewUrl);
+        attachmentUrlsRef.current.delete(attachment.previewUrl);
+      }
+    });
+    setAttachments([]);
+  };
+
+  const submit = () => {
+    if (disabled || !value.trim()) return;
+    onSubmit();
+    clearAttachments();
+  };
+
+  return (
+    <motion.section
+      ref={composerRef}
+      className={`conversation-composer composer__input ${className}`}
+      aria-label={ariaLabel}
+      style={{ height }}
+      initial={reduceMotion ? false : { opacity: 0, y: 18, x: "-50%" }}
+      animate={{ opacity: 1, y: 0, x: "-50%" }}
+      transition={{ duration: reduceMotion ? 0 : 0.46, delay: reduceMotion ? 0 : motionDelay, ease: revealEase }}
+    >
+      <div className="composer__content">
+        <AnimatePresence initial={false}>
+          {attachments.length > 0 && (
+            <motion.div
+              className="composer-attachment-list"
+              initial={reduceMotion ? false : { opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+            >
+              {attachments.map((attachment) => (
+                <motion.span
+                  className="composer-attachment-chip"
+                  layout
+                  initial={reduceMotion ? false : { opacity: 0, scale: 0.94 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.94 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }}
+                  key={attachment.id}
+                >
+                  {attachment.previewUrl ? (
+                    <img className="composer-attachment-chip__thumbnail" src={attachment.previewUrl} alt="" />
+                  ) : (
+                    <img className="composer-attachment-chip__file" src={assetUrl("assets/figma-icons/file-pdf.svg")} alt="" />
+                  )}
+                  <span title={attachment.name}>{attachment.name}</span>
+                  <button type="button" aria-label={`移除附件：${attachment.name}`} onClick={() => removeAttachment(attachment.id)}>
+                    <FigmaIcon name="close" size={16} />
+                  </button>
+                </motion.span>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <div className="composer__text-wrap">
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                submit();
+              }
+            }}
+            placeholder={placeholder}
+            aria-label={placeholder}
+            disabled={disabled}
+          />
+        </div>
+      </div>
+      <div className="composer-attachment" ref={attachmentMenuRef}>
+        <IconControl
+          className="composer-attachment__button"
+          label="添加附件"
+          tooltipPlacement="top"
+          selected={attachmentMenuOpen}
+          disabled={disabled}
+          aria-haspopup="menu"
+          aria-expanded={attachmentMenuOpen}
+          onClick={() => setAttachmentMenuOpen((open) => !open)}
+        >
+          <FigmaIcon name="plus" size={20} />
+        </IconControl>
+        <AnimatePresence>
+          {attachmentMenuOpen && (
+            <motion.div
+              className="composer-attachment-menu"
+              role="menu"
+              aria-label="添加附件"
+              initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }}
+              transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+            >
+              <button type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); fileInputRef.current?.click(); }}>
+                <FigmaIcon name="add-file" size={16} />
+                <span>文件</span>
+              </button>
+              <button type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); imageInputRef.current?.click(); }}>
+                <FigmaIcon name="add-image" size={16} />
+                <span>图片</span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple onChange={(event) => addAttachments(event, "file")} />
+        <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple onChange={(event) => addAttachments(event, "image")} />
+      </div>
+      <span>Enter 发送 · Shift + Enter 换行</span>
+      <IconControl className="composer__send conversation-composer__send" label="发送" tooltipPlacement="top" disabled={disabled || !value.trim()} onClick={submit}>
+        <FigmaIcon name="arrow-up" size={24} />
+      </IconControl>
+    </motion.section>
+  );
+}

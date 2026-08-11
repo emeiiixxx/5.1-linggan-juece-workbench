@@ -13,6 +13,7 @@ const ICON_ASSETS: Record<string, string> = {
 };
 
 const ART_INSETS: Record<string, string> = {
+  add: "14.06%",
   "add-file": "9.38% 25% 9.38% 21.88%",
   "add-image": "12.5% 6.25% 12.5% 12.5%",
   "add-project": "12.5% 6.25% 12.5% 9.38%",
@@ -33,6 +34,8 @@ const ART_INSETS: Record<string, string> = {
   "customer-support": "9.38% 7.81%",
   "expand-window": "12.5%",
   global: "9.38%",
+  "heart-filled": "15.63% 9.47% 14.32%",
+  "heart-outline": "15.63% 9.47% 14.32%",
   "help-center": "6.25% 6.25% 6.88%",
   idea: "6.25% 18.75%",
   like: "9.38% 10.36% 9.38% 9.38%",
@@ -48,6 +51,7 @@ const ART_INSETS: Record<string, string> = {
   reset: "13.54%",
   task: "6.25%",
   trash: "6.25% 12.5% 9.38%",
+  "view-full-image": "12.5%",
 };
 
 export function FigmaIcon({ name, size = 20, className = "" }: FigmaIconProps) {

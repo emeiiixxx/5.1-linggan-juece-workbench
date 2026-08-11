@@ -14,6 +14,8 @@ type TaskRecord = {
   projectId: number | null;
   prompt: string;
   profileName?: string;
+  attachments?: { name: string; previewUrl?: string }[];
+  workflow: "default" | "apparel";
   status: "running";
 };
 
@@ -89,7 +91,7 @@ export default function App() {
             onSelectedProfileChange={setSelectedProfile}
             selectedProject={selectedProject}
             onSelectedProjectChange={setSelectedProject}
-            onCreateTask={({ title, projectId, prompt }) => {
+            onCreateTask={({ title, projectId, prompt, workflow, attachments }) => {
               const id = Date.now();
               const task: TaskRecord = {
                 id,
@@ -97,6 +99,8 @@ export default function App() {
                 projectId,
                 prompt,
                 profileName: selectedProfile?.name,
+                attachments,
+                workflow,
                 status: "running",
               };
               setTaskRecords((current) => [task, ...current]);
