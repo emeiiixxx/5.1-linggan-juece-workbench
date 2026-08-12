@@ -6,6 +6,7 @@ import { CircleCheckbox, ImageActionBar, ImageLightbox, ImageSelection } from ".
 import { Button } from "./Button";
 import { ConversationStatusIcon as ApparelStatusIcon, ConversationUserMessage as UserMessage, TaskDisclosure, type ConversationStepStatus as StepState } from "./ConversationPrimitives";
 import { TaskConversationComposer } from "./TaskConversationComposer";
+import { useGsapEntrance } from "../motion/gsap";
 
 type ApparelStage =
   | "analyzing"
@@ -83,10 +84,11 @@ function LoadingTask({ title, lines }: { title: string; lines: string[] }) {
 }
 
 function AssistantMessage({ children, className = "" }: { children: ReactNode; className?: string }) {
+  const messageRef = useGsapEntrance<HTMLArticleElement>();
   return (
-    <motion.article className={`conversation-message conversation-message--assistant apparel-assistant-message ${className}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.34, ease: revealEase }}>
+    <article className={`conversation-message conversation-message--assistant apparel-assistant-message ${className}`} ref={messageRef}>
       {children}
-    </motion.article>
+    </article>
   );
 }
 

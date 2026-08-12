@@ -4,6 +4,7 @@ import { TopBar } from "./components/TopBar";
 import { Workspace } from "./components/Workspace";
 import { BusinessProfile } from "./components/BusinessProfile";
 import { I18nProvider } from "./i18n";
+import { useGsapStaggerEntrance } from "./motion/gsap";
 
 type Theme = "dark" | "light";
 type SelectedProfile = { id: number; name: string };
@@ -20,6 +21,7 @@ type TaskRecord = {
 };
 
 export default function App() {
+  const appShellRef = useGsapStaggerEntrance<HTMLDivElement>(".topbar, .sidebar", { y: -8 });
   const [theme, setTheme] = useState<Theme>("dark");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [activeView, setActiveView] = useState<"workspace" | "preferences">("workspace");
@@ -37,7 +39,7 @@ export default function App() {
 
   return (
     <I18nProvider>
-    <div className="app-shell">
+    <div className="app-shell" ref={appShellRef}>
       <TopBar
         theme={theme}
         onToggleTheme={() => setTheme((value) => (value === "dark" ? "light" : "dark"))}

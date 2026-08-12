@@ -37,13 +37,15 @@ export function IconControl({
   onMouseEnter,
   onMouseLeave,
   onClick,
+  autoFocus,
   ...props
 }: IconControlProps) {
   const tooltipId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const hoverTimerRef = useRef<number | null>(null);
   const hoveredRef = useRef(false);
-  const focusedRef = useRef(false);
+  const focusTooltipRef = useRef(false);
+  const suppressInitialAutoFocusTooltipRef = useRef(Boolean(autoFocus));
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ left: 0, top: 0 });
   const describedBy = [ariaDescribedBy, showTooltip ? tooltipId : undefined]
@@ -103,19 +105,21 @@ export function IconControl({
   const handleMouseLeave: ButtonHTMLAttributes<HTMLButtonElement>["onMouseLeave"] = (event) => {
     hoveredRef.current = false;
     clearHoverTimer();
-    if (!focusedRef.current) setTooltipOpen(false);
+    if (!focusTooltipRef.current) setTooltipOpen(false);
     onMouseLeave?.(event);
   };
 
   const handleFocus: ButtonHTMLAttributes<HTMLButtonElement>["onFocus"] = (event) => {
-    focusedRef.current = true;
     clearHoverTimer();
-    if (showTooltip) setTooltipOpen(true);
+    const suppressAutoFocusTooltip = suppressInitialAutoFocusTooltipRef.current;
+    suppressInitialAutoFocusTooltipRef.current = false;
+    focusTooltipRef.current = !suppressAutoFocusTooltip && event.currentTarget.matches(":focus-visible");
+    if (showTooltip && focusTooltipRef.current) setTooltipOpen(true);
     onFocus?.(event);
   };
 
   const handleBlur: ButtonHTMLAttributes<HTMLButtonElement>["onBlur"] = (event) => {
-    focusedRef.current = false;
+    focusTooltipRef.current = false;
     if (!hoveredRef.current) setTooltipOpen(false);
     onBlur?.(event);
   };
@@ -135,6 +139,7 @@ export function IconControl({
         aria-label={label}
         aria-describedby={describedBy || undefined}
         aria-pressed={selected === undefined ? undefined : selected}
+        autoFocus={autoFocus}
         onBlur={handleBlur}
         onFocus={handleFocus}
         onMouseEnter={handleMouseEnter}

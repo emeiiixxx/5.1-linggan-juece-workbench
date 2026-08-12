@@ -1,0 +1,156 @@
+export type FashionProposalDirection = {
+  id: string;
+  title: string;
+  description: string;
+  recommendation: string;
+  signal: string;
+  cue: string;
+  imageUrl: string;
+};
+
+export type FashionProposalReference = {
+  code: string;
+  title: string;
+  category: string;
+  imageUrl: string;
+};
+
+export type FashionProposalHtmlOptions = {
+  kind: "research" | "package";
+  directions: FashionProposalDirection[];
+  references: FashionProposalReference[];
+  categoryCount: number;
+  directionLabel: string;
+};
+
+const sourceCatalog = [
+  { name: "TikTok Shop US", detail: "公开商品与价格样本", url: "https://shop.tiktok.com/us" },
+  { name: "BELK", detail: "品牌及零售公开商品样本", url: "https://www.belk.com/" },
+  { name: "ZOZOTOWN", detail: "日本女装零售供给观察", url: "https://zozo.jp/" },
+  { name: "Rakuten Fashion", detail: "日本电商供给与品牌分布", url: "https://brandavenue.rakuten.co.jp/" },
+] as const;
+
+const escapeHtml = (value: string) => value
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;")
+  .replaceAll("'", "&#039;");
+
+const sourceFor = (title: string) => {
+  const normalizedTitle = title.toLowerCase();
+  return sourceCatalog.find((source) => normalizedTitle.includes(source.name.toLowerCase())) ?? sourceCatalog[0];
+};
+
+const tagMarkup = (tags: string[]) => `<div class="tag-list">${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>`;
+
+export function buildFashionProposalHtml({ kind, directions, references, categoryCount, directionLabel }: FashionProposalHtmlOptions) {
+  const isPackage = kind === "package";
+  const title = isPackage ? "客户方向参考包" : "客户需求调研与视觉方向";
+  const deck = isPackage
+    ? "把客户已确认的图像整理为可讨论、可追溯的视觉语言。"
+    : "日本女装市场的小样本扫描，聚焦可执行的视觉方向与证据边界。";
+  const heroImage = references[0]?.imageUrl ?? directions[0]?.imageUrl ?? "";
+  const sampleCount = isPackage ? references.length : directions.length;
+
+  const directionMarkup = directions.map((direction, index) => `
+    <article class="direction direction--${index + 1}" data-reveal>
+      <figure class="visual-frame direction__media" data-visual><img loading="lazy" decoding="async" src="${escapeHtml(direction.imageUrl)}" alt="${escapeHtml(direction.title)}参考图"></figure>
+      <div class="direction__copy">
+        <div class="direction__index">${String(index + 1).padStart(2, "0")}</div>
+        <div>
+          <span class="signal">${escapeHtml(direction.signal)}</span>
+          <h3>${escapeHtml(direction.title)}</h3>
+          <p>${escapeHtml(direction.description)}</p>
+          ${tagMarkup([direction.cue, direction.recommendation])}
+        </div>
+      </div>
+    </article>`).join("");
+
+  const referenceMarkup = references.map((reference) => {
+    const source = sourceFor(reference.title);
+    return `
+      <article class="reference" data-reveal>
+        <figure class="visual-frame reference__media" data-visual><img loading="lazy" decoding="async" src="${escapeHtml(reference.imageUrl)}" alt="${escapeHtml(reference.code)} ${escapeHtml(reference.category)}"></figure>
+        <div class="reference__copy">
+          <div class="reference__heading"><h3>${escapeHtml(reference.code)}</h3><span>${escapeHtml(reference.category)}</span></div>
+          <p>${escapeHtml(reference.title)}</p>
+          ${tagMarkup(["日本女装", reference.category, "来源可追溯"])}
+          <a class="source-link" href="${source.url}" target="_blank" rel="noreferrer">${source.name}<span aria-hidden="true">↗</span></a>
+        </div>
+      </article>`;
+  }).join("");
+
+  const sourceMarkup = sourceCatalog.map((source) => `
+    <a class="source-row" href="${source.url}" target="_blank" rel="noreferrer">
+      <strong>${source.name}</strong><span>${source.detail}</span><b aria-hidden="true">↗</b>
+    </a>`).join("");
+
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>${title}</title>
+  <style>
+    :root{--ink:#151918;--muted:#68716f;--line:#dfe3e1;--paper:#f7f8f7;--surface:#eef1ef;--accent:#087a72;--radius:2px;color-scheme:light}
+    *{box-sizing:border-box}
+    html{scroll-behavior:auto}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:"Helvetica Neue","Noto Sans SC","PingFang SC",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+    a{color:inherit}.report{min-width:0;overflow:hidden}
+    .topbar{position:fixed;z-index:20;inset:0 0 auto;display:flex;height:58px;align-items:center;justify-content:space-between;padding:0 clamp(20px,3.5vw,56px);border-bottom:1px solid var(--line);background:rgb(247 248 247/.92);backdrop-filter:blur(16px)}
+    .brand{font-size:11px;font-weight:700;letter-spacing:.2em}.topbar__meta{color:var(--muted);font-size:11px}
+    .hero{min-height:100dvh;padding:90px clamp(20px,3.5vw,56px) 48px}.hero__heading{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:end;margin-bottom:36px}.hero__copy{min-width:0}.kicker{display:block;margin-bottom:18px;color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.16em}.hero h1{max-width:100%;margin:0;font-size:clamp(48px,7vw,108px);font-weight:750;line-height:.92;letter-spacing:-.065em;white-space:nowrap}.hero__deck{max-width:560px;margin:0;color:var(--muted);font-size:15px;line-height:1.75;text-wrap:balance}.hero__media{height:min(62dvh,720px);margin:0;background:var(--surface)}
+    .visual-frame{overflow:hidden;background:var(--surface)}.visual-frame img{display:block;width:100%;height:100%;object-fit:cover}
+    .hero__foot{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.42fr);gap:32px;margin-top:22px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;line-height:1.7}.hero__foot strong{color:var(--ink);font-weight:600}
+    .section{padding:clamp(72px,9vw,140px) clamp(20px,3.5vw,56px);border-top:1px solid var(--line)}.section-header{max-width:760px;margin-bottom:clamp(44px,6vw,80px)}.section-header h2{margin:0;font-size:clamp(38px,5vw,74px);font-weight:740;line-height:1.02;letter-spacing:-.05em}.section-header p{max-width:620px;margin:22px 0 0;color:var(--muted);font-size:15px;line-height:1.75}
+    .evidence{padding-top:68px;padding-bottom:68px}.evidence__intro{display:grid;grid-template-columns:minmax(0,.85fr) minmax(320px,1.15fr);gap:48px;align-items:end}.evidence h2{max-width:560px;margin:0;font-size:clamp(36px,4.4vw,64px);line-height:1.04;letter-spacing:-.045em}.evidence p{max-width:620px;margin:0;color:var(--muted);font-size:14px;line-height:1.75}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:56px;border-top:1px solid var(--line)}.metric{padding:24px 0 0}.metric+.metric{padding-left:24px;border-left:1px solid var(--line)}.metric strong{display:block;font-size:clamp(42px,6vw,82px);font-weight:720;line-height:1;letter-spacing:-.05em}.metric span{display:block;margin-top:10px;color:var(--muted);font-size:12px}
+    .direction-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(48px,6vw,88px) clamp(18px,2.4vw,36px)}.direction{min-width:0}.direction__media{height:clamp(420px,48vw,720px);margin:0}.direction__copy{display:grid;grid-template-columns:36px minmax(0,1fr);gap:14px;padding-top:18px}.direction__index{padding-top:3px;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}.signal{color:var(--accent);font-size:11px;font-weight:650}.direction h3{margin:8px 0 12px;font-size:clamp(28px,3vw,46px);font-weight:720;line-height:1.06;letter-spacing:-.04em}.direction p{max-width:560px;margin:0;color:var(--muted);font-size:14px;line-height:1.7}
+    .tag-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}.tag-list span{padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);color:var(--muted);font-size:10px;line-height:1.35}
+    .references{background:#fbfcfb}.reference-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(48px,5vw,76px) clamp(16px,2vw,28px);align-items:start}.reference{min-width:0}.reference__media{aspect-ratio:4/5;margin:0}.reference__copy{padding-top:14px}.reference__heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.reference h3{margin:0;font-size:18px;font-weight:700;letter-spacing:-.025em}.reference__heading span,.reference__copy p{color:var(--muted);font-size:11px}.reference__heading span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.reference__copy p{min-height:34px;margin:8px 0 0;line-height:1.55}.source-link{display:inline-flex;gap:7px;margin-top:14px;color:var(--ink);font-size:11px;font-weight:650;text-decoration:none}.source-link:hover{color:var(--accent)}
+    .method{display:grid;grid-template-columns:minmax(0,.72fr) minmax(420px,1.28fr);gap:clamp(48px,8vw,120px);align-items:start}.method__copy h2{margin:0;font-size:clamp(38px,5vw,70px);font-weight:740;line-height:1.04;letter-spacing:-.05em}.method__copy p{max-width:520px;margin:24px 0 0;color:var(--muted);font-size:14px;line-height:1.78}.source-list{border-top:1px solid var(--line)}.source-row{display:grid;grid-template-columns:minmax(130px,.75fr) 1.25fr auto;gap:20px;padding:22px 0;border-bottom:1px solid var(--line);text-decoration:none}.source-row strong{font-size:13px}.source-row span{color:var(--muted);font-size:12px}.source-row b{font-weight:400}.source-row:hover strong,.source-row:hover b{color:var(--accent)}
+    .footer{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;padding:42px clamp(20px,3.5vw,56px) 56px;border-top:1px solid var(--line);color:var(--muted);font-size:10px}.footer strong{color:var(--ink);letter-spacing:.18em}
+    [data-reveal],[data-visual] img{will-change:transform,opacity}
+    @media(max-width:1024px){.reference-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media(max-width:820px){.topbar__meta{display:none}.hero{padding-top:88px}.hero__heading,.hero__foot,.evidence__intro,.method{grid-template-columns:1fr}.hero h1{font-size:clamp(42px,12vw,66px);white-space:normal}.hero__media{height:58dvh}.hero__foot{gap:10px}.metrics{grid-template-columns:1fr}.metric+.metric{padding-left:0;border-left:0}.direction-list,.reference-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.direction__media{height:56dvh}.source-row{grid-template-columns:1fr auto}.source-row span{grid-column:1/2}.footer{align-items:flex-start;flex-direction:column}}
+    @media(max-width:560px){.direction-list,.reference-grid{grid-template-columns:1fr}.reference__copy p{min-height:0}}
+    @media(prefers-reduced-motion:reduce){[data-reveal],[data-visual] img{will-change:auto!important;transform:none!important;opacity:1!important;visibility:visible!important}}
+  </style>
+  <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/ScrollTrigger.min.js"></script>
+</head>
+<body>
+  <main class="report">
+    <nav class="topbar"><strong class="brand">LIGHTCHAIN</strong><span class="topbar__meta">Japan / Womenswear / 2026.08</span></nav>
+    <header class="hero">
+      <div class="hero__heading"><div class="hero__copy"><span class="kicker">CLIENT DIRECTION PROPOSAL</span><h1>${title}</h1></div><p class="hero__deck">${deck}</p></div>
+      <figure class="visual-frame hero__media"><img src="${escapeHtml(heroImage)}" alt="${title}封面视觉"></figure>
+      <div class="hero__foot"><span><strong>方向依据</strong> ${escapeHtml(directionLabel)}</span><span>公开渠道样本与客户已选素材均保留来源边界。</span></div>
+    </header>
+    <section class="section evidence">
+      <div class="evidence__intro" data-reveal><h2>先说明为什么，<br>再呈现选什么。</h2><p>数字只描述本次工作样本，不将社媒互动、电商陈列或品牌采用直接等同于销量。</p></div>
+      <div class="metrics" data-reveal><div class="metric"><strong>${sampleCount}</strong><span>${isPackage ? "客户已选参考图" : "候选视觉方向"}</span></div><div class="metric"><strong>${directions.length}</strong><span>已确认及待评估方向</span></div><div class="metric"><strong>${isPackage ? categoryCount : sourceCatalog.length}</strong><span>${isPackage ? "素材类型" : "公开来源类型"}</span></div></div>
+    </section>
+    ${directionMarkup ? `<section class="section"><div class="section-header" data-reveal><h2>方向需要能被执行。</h2><p>每个方向同时保留市场信号、造型语言与下一步验证建议。</p></div><div class="direction-list">${directionMarkup}</div></section>` : ""}
+    ${referenceMarkup ? `<section class="section references"><div class="section-header" data-reveal><h2>客户已选素材。</h2><p>图像、标题、设计标签和原始来源一起保留，避免在提案传递中失真。</p></div><div class="reference-grid">${referenceMarkup}</div></section>` : ""}
+    <section class="section method"><div class="method__copy" data-reveal><h2>证据可追溯，<br>结论才可讨论。</h2><p>以下链接是本原型用于说明证据结构的公开渠道入口。正式项目应继续记录具体商品页、采集时间、授权状态与样本口径。</p></div><div class="source-list" data-reveal>${sourceMarkup}</div></section>
+    <footer class="footer"><strong>LIGHTCHAIN</strong><span>CLIENT WORKING DOCUMENT / SOURCE BOUNDARIES RETAINED</span></footer>
+  </main>
+  <script>
+    window.addEventListener("load",function(){
+      if(!window.gsap||!window.ScrollTrigger||window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+      gsap.registerPlugin(ScrollTrigger);
+      gsap.from(".topbar",{autoAlpha:0,y:-8,duration:.45,ease:"power3.out",clearProps:"opacity,visibility,transform"});
+      gsap.from(".hero__heading > *",{autoAlpha:0,y:16,duration:.62,stagger:.07,ease:"power3.out",delay:.08,clearProps:"opacity,visibility,transform"});
+      gsap.from(".hero__media",{autoAlpha:0,scale:.992,duration:.78,ease:"power3.out",delay:.16,clearProps:"opacity,visibility,transform"});
+      gsap.from(".hero__media img",{scale:1.025,duration:1.05,ease:"power2.out",delay:.16,clearProps:"transform"});
+      gsap.set("[data-reveal]",{autoAlpha:0,y:18});
+      ScrollTrigger.batch("[data-reveal]",{start:"top 88%",once:true,interval:.08,batchMax:4,onEnter:function(items){gsap.to(items,{autoAlpha:1,y:0,duration:.58,stagger:.06,ease:"power3.out",overwrite:true,clearProps:"opacity,visibility,transform,willChange"})}});
+      ScrollTrigger.batch("[data-visual]",{start:"top 90%",once:true,interval:.08,batchMax:4,onEnter:function(frames){frames.forEach(function(frame){var image=frame.querySelector("img");if(image)gsap.fromTo(image,{autoAlpha:.86,scale:1.025},{autoAlpha:1,scale:1,duration:.72,ease:"power3.out",overwrite:true,clearProps:"opacity,visibility,transform,willChange"})})}});
+      requestAnimationFrame(function(){ScrollTrigger.refresh()});
+    });
+  </script>
+</body>
+</html>`;
+}

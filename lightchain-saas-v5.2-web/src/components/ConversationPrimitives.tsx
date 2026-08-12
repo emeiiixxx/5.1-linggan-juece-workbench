@@ -1,6 +1,7 @@
-import { type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion, type HTMLMotionProps } from "motion/react";
 import { assetUrl } from "../utils/assets";
+import { gsap, gsapMotion, useGSAP } from "../motion/gsap";
 import { FigmaIcon } from "./FigmaIcon";
 
 export type ConversationStepStatus = "complete" | "loading" | "pending";
@@ -49,8 +50,61 @@ export function TaskDisclosure({
   children: ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const detailsRef = useRef<HTMLDivElement>(null);
+  const disclosureRef = useRef<HTMLSpanElement>(null);
+  const initializedRef = useRef(false);
+
+  useGSAP(() => {
+    const details = detailsRef.current;
+    const disclosure = disclosureRef.current;
+    if (!details || !disclosure) return;
+    gsap.killTweensOf([details, disclosure]);
+
+    if (reduceMotion || !initializedRef.current) {
+      gsap.set(details, { height: expanded ? "auto" : 0, autoAlpha: expanded ? 1 : 0 });
+      gsap.set(disclosure, { rotation: expanded ? 90 : 0 });
+      initializedRef.current = true;
+      return;
+    }
+
+    gsap.to(disclosure, {
+      rotation: expanded ? 90 : 0,
+      duration: gsapMotion.fast,
+      ease: gsapMotion.ease,
+      overwrite: "auto",
+    });
+
+    if (expanded) {
+      const startHeight = details.getBoundingClientRect().height;
+      gsap.set(details, { height: "auto", autoAlpha: 1 });
+      const targetHeight = details.scrollHeight;
+      gsap.fromTo(
+        details,
+        { height: startHeight, autoAlpha: startHeight > 0 ? 1 : 0 },
+        {
+          height: targetHeight,
+          autoAlpha: 1,
+          duration: gsapMotion.duration,
+          ease: gsapMotion.ease,
+          overwrite: "auto",
+          onComplete: () => { gsap.set(details, { height: "auto", clearProps: "visibility" }); },
+        },
+      );
+      return;
+    }
+
+    gsap.to(details, {
+      height: 0,
+      autoAlpha: 0,
+      duration: gsapMotion.duration,
+      ease: gsapMotion.easeInOut,
+      overwrite: "auto",
+    });
+  }, { scope: rootRef, dependencies: [expanded, reduceMotion] });
+
   return (
-    <div className="conversation-analysis-task">
+    <div className="conversation-analysis-task" ref={rootRef}>
       <button type="button" className="conversation-analysis-trigger" aria-expanded={expanded} aria-controls={controlsId} onClick={onToggle}>
         <AnimatePresence initial={false} mode="wait">
           {complete ? (
@@ -64,13 +118,13 @@ export function TaskDisclosure({
           )}
         </AnimatePresence>
         <span className={`conversation-analysis-title ${complete ? "" : "is-loading"}`}>{title}</span>
-        <motion.span className="conversation-analysis-disclosure" animate={{ rotate: expanded ? 90 : 0 }} transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}>
+        <span className="conversation-analysis-disclosure" ref={disclosureRef}>
           <FigmaIcon name="chevron-right" size={16} />
-        </motion.span>
+        </span>
       </button>
-      <motion.div id={controlsId} className="conversation-analysis-details" initial={false} animate={{ height: expanded ? "auto" : 0, opacity: expanded ? 1 : 0 }} aria-hidden={!expanded} style={{ pointerEvents: expanded ? "auto" : "none" }} transition={{ duration: reduceMotion ? 0 : 0.3, ease: revealEase }}>
+      <div id={controlsId} className="conversation-analysis-details" ref={detailsRef} aria-hidden={!expanded} style={{ pointerEvents: expanded ? "auto" : "none" }}>
         {children}
-      </motion.div>
+      </div>
     </div>
   );
 }

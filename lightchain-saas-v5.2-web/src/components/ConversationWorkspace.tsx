@@ -9,6 +9,7 @@ import { CandidateImageLightbox, MasonryImageSelection } from "./ImageSelection"
 import { TaskConversationComposer } from "./TaskConversationComposer";
 import { AnalysisStepIcon, ConversationFileCard, ConversationFormTitle, ConversationStatusIcon as StatusIcon, ConversationUserMessage, TaskDisclosure } from "./ConversationPrimitives";
 import { candidateCategories, candidatePageCount, candidateReferenceImages, formatCandidateSelection, formatTrendDirectionSelection, getCandidateCategoryLabel, getCandidateReference, getReferencePackageData, trendDirections, trendReportDetails, type CandidateCategoryId } from "../data/referenceCatalog";
+import { buildFashionProposalHtml } from "../report/fashionProposalHtml";
 
 type AnalysisPhase = "parsing" | "complete";
 type ResearchMarket = "中国" | "日本" | "北美" | "欧洲";
@@ -83,30 +84,37 @@ function StreamingText({ children, delay = 0 }: { children: string; delay?: numb
 
 function buildCustomerDirectionPackageHtml(selectedDirectionIds: string[], selectedCandidateIds: string[]) {
   const { selectedReferences, selectedDirections, directionLabel, categoryCount } = getReferencePackageData(selectedDirectionIds, selectedCandidateIds);
-  const referenceMarkup = selectedReferences.map((reference, index) => {
-    const categoryLabel = getCandidateCategoryLabel(reference.categoryId);
-    const imageUrl = new URL(assetUrl(reference.src), window.location.href).href;
-    return `<article class="reference-card"><img src="${imageUrl}" alt="${reference.code} ${categoryLabel}"><div class="reference-body"><span class="reference-index">REFERENCE ${String(index + 1).padStart(2, "0")}</span><h2>${reference.code} · ${categoryLabel}</h2><p class="reference-source">${reference.title}</p><p>该素材用于表达「${categoryLabel}」的视觉语气，并作为客户方向沟通、廓形判断与细节取舍的共同参考。</p><div class="reference-tags"><span>日本女装</span><span>${categoryLabel}</span><span>2026年8月</span><span>来源可追溯</span></div></div></article>`;
-  }).join("");
-
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>客户方向参考包</title><style>
-  :root{color-scheme:light;--ink:#161917;--muted:#68706b;--line:#d9ded9;--paper:#f4f2ec;--accent:#00bdb2}*{box-sizing:border-box}body{margin:0;background:#e8e8e3;color:var(--ink);font-family:"Noto Sans SC","PingFang SC",sans-serif}.page{width:100%;background:var(--paper)}.cover{min-height:680px;padding:72px;display:grid;grid-template-columns:1.4fr .6fr;grid-template-rows:auto 1fr auto;gap:40px;border-bottom:1px solid var(--line)}.eyebrow{grid-column:1/-1;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase}.cover-copy{grid-column:1/-1;align-self:center}.cover h1{margin:0 0 24px;font-size:68px;font-weight:700;line-height:1.08;letter-spacing:-.045em;white-space:nowrap}.cover p{max-width:680px;margin:0;color:var(--muted);font-size:18px;line-height:1.8}.cover-meta{grid-column:2;justify-self:end;align-self:end;padding-left:18px;border-left:2px solid var(--accent)}.cover-meta strong,.cover-meta span{display:block}.cover-meta strong{font-size:24px;font-weight:700}.cover-meta span{margin-top:8px;color:var(--muted);font-size:11px}.summary{padding:72px;border-bottom:1px solid var(--line)}.section-label{display:flex;justify-content:space-between;margin-bottom:36px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}.summary-grid{display:grid;grid-template-columns:.75fr 1.25fr;gap:72px}.summary h2{margin:0;font-size:36px;line-height:1.35}.summary p{margin:0;font-size:18px;line-height:1.9}.metrics{display:grid;grid-template-columns:repeat(3,1fr);margin-top:56px;border-top:1px solid var(--ink)}.metric{padding:20px 0;border-bottom:1px solid var(--line)}.metric+.metric{padding-left:24px;border-left:1px solid var(--line)}.metric strong,.metric span{display:block}.metric strong{font-size:32px}.metric span{color:var(--muted);font-size:12px}.references{padding:72px}.reference-card{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.1fr);gap:48px;align-items:center;padding:0 0 48px;margin-bottom:48px;border-bottom:1px solid var(--line)}.reference-card>img{display:block;width:100%;aspect-ratio:4/5;object-fit:contain;background:#ebece8}.reference-index{color:#008f88;font-size:11px;font-weight:700;letter-spacing:.14em}.reference-body h2{margin:12px 0 8px;font-size:30px;line-height:1.3}.reference-source{margin:0 0 24px!important;color:var(--muted);font-size:13px!important}.reference-body p{margin:0;font-size:16px;line-height:1.8}.reference-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:28px}.reference-tags span{padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:11px}.footer{display:flex;justify-content:space-between;padding:40px 72px 56px;color:var(--muted);font-size:11px}.footer strong{color:var(--ink);letter-spacing:.12em}@media(max-width:760px){.cover,.summary,.references{padding:36px}.cover{min-height:600px;grid-template-columns:1fr}.cover h1{font-size:44px;white-space:normal}.cover-meta{grid-column:1;justify-self:start}.summary-grid,.reference-card{grid-template-columns:1fr;gap:24px}.metrics{grid-template-columns:1fr}.metric+.metric{padding-left:0;border-left:0}.footer{padding:32px 36px}}
-  </style></head><body><main class="page"><header class="cover"><span class="eyebrow">Lightchain / Client Reference Package</span><div class="cover-copy"><h1>客户方向参考包</h1><p>将客户已选择的视觉素材整理为可直接沟通的方向依据，完整保留标题、说明、标签与来源信息。</p></div><aside class="cover-meta"><strong>Japan / Womenswear</strong><span>2026.08 · ${selectedReferences.length} REFERENCES</span></aside></header><section class="summary"><div class="section-label"><span>01 / Direction Summary</span><span>方向摘要</span></div><div class="summary-grid"><h2>从已选择的图像，建立共同视觉语言。</h2><p>本参考包对应视觉方向：${directionLabel}。所有图片均来自用户在当前任务中确认的素材，不扩展、不替换，也不改变原始选择。</p></div><div class="metrics"><div class="metric"><strong>${selectedReferences.length}</strong><span>已选参考图</span></div><div class="metric"><strong>${selectedDirections.length}</strong><span>已确认方向</span></div><div class="metric"><strong>${categoryCount}</strong><span>素材类型</span></div></div></section><section class="references"><div class="section-label"><span>02 / Selected References</span><span>客户已选素材</span></div>${referenceMarkup}</section><footer class="footer"><strong>LIGHTCHAIN</strong><span>CONFIDENTIAL · CLIENT DIRECTION REFERENCES</span></footer></main></body></html>`;
+  return buildFashionProposalHtml({
+    kind: "package",
+    directions: selectedDirections.map((direction) => ({
+      ...direction,
+      ...trendReportDetails[direction.id],
+      imageUrl: new URL(assetUrl(trendReportDetails[direction.id].image), window.location.href).href,
+    })),
+    references: selectedReferences.map((reference) => ({
+      code: reference.code,
+      title: reference.title,
+      category: getCandidateCategoryLabel(reference.categoryId),
+      imageUrl: new URL(assetUrl(reference.src), window.location.href).href,
+    })),
+    categoryCount,
+    directionLabel,
+  });
 }
 
 function buildTrendReportHtml(kind: TrendPreviewKind, selectedDirectionIds: string[] = [], selectedCandidateIds: string[] = []) {
   if (kind === "package") return buildCustomerDirectionPackageHtml(selectedDirectionIds, selectedCandidateIds);
-  const visibleDirections = trendDirections;
-  const title = "客户需求调研与视觉方向";
-  const deck = "日本女装市场的小样本方向扫描与提案建议。";
-  const directionMarkup = visibleDirections.map((direction) => {
-    const detail = trendReportDetails[direction.id];
-    const imageUrl = new URL(assetUrl(detail.image), window.location.href).href;
-    return `<article class="direction"><div class="direction-no">${direction.id}</div><div class="direction-copy"><span>${detail.signal}</span><h2>${direction.title}</h2><p>${direction.description}</p><small>${detail.cue}</small></div><img src="${imageUrl}" alt="${direction.title}参考图"></article>`;
-  }).join("");
-
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>
-  :root{color-scheme:light;--ink:#161917;--muted:#68706b;--line:#d9ded9;--paper:#f4f2ec;--accent:#00bdb2}*{box-sizing:border-box}body{margin:0;background:#e8e8e3;color:var(--ink);font-family:"Noto Sans SC","PingFang SC",sans-serif}.page{width:100%;margin:0;background:var(--paper)}.cover{min-height:720px;padding:72px;display:grid;grid-template-columns:1.4fr .6fr;grid-template-rows:auto 1fr auto;gap:40px;border-bottom:1px solid var(--line)}.eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase}.cover>div:nth-child(2){grid-column:1/-1;align-self:center}.cover h1{max-width:none;margin:80px 0 24px;font-family:"Noto Sans SC","PingFang SC",sans-serif;font-size:68px;font-weight:700;line-height:1.08;letter-spacing:-.04em;white-space:nowrap}.cover p{max-width:560px;color:var(--muted);font-size:18px;line-height:1.8}.cover-meta{grid-column:2;justify-self:end;align-self:end;border-left:2px solid var(--accent);padding-left:18px}.cover-meta strong,.cover-meta span{display:block}.cover-meta strong{font-family:"Noto Sans SC","PingFang SC",sans-serif;font-size:24px;font-weight:700}.cover-meta span{margin-top:8px;color:var(--muted);font-size:12px}.section{padding:72px;border-bottom:1px solid var(--line)}.section-label{display:flex;justify-content:space-between;margin-bottom:36px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}.lead{display:grid;grid-template-columns:.7fr 1.3fr;gap:72px}.lead h2{margin:0;font-family:"Noto Sans SC","PingFang SC",sans-serif;font-size:36px;font-weight:700}.lead p{margin:0;font-size:18px;line-height:1.9}.metrics{display:grid;grid-template-columns:repeat(3,1fr);margin-top:56px;border-top:1px solid var(--ink)}.metric{padding:20px 0;border-bottom:1px solid var(--line)}.metric+ .metric{padding-left:24px;border-left:1px solid var(--line)}.metric strong{display:block;font-family:"Noto Sans SC","PingFang SC",sans-serif;font-size:32px;font-weight:700}.metric span{color:var(--muted);font-size:12px}.directions{padding:0 72px 72px}.direction{display:grid;grid-template-columns:72px 1fr 260px;gap:32px;align-items:center;padding:36px 0;border-bottom:1px solid var(--line)}.direction-no{font-family:"Noto Sans SC","PingFang SC",sans-serif;font-size:26px;font-weight:700}.direction-copy>span{color:#008f88;font-size:11px;letter-spacing:.12em}.direction h2{margin:8px 0 12px;font-family:"Noto Sans SC","PingFang SC",sans-serif;font-size:30px;font-weight:700}.direction p{margin:0 0 16px;line-height:1.7}.direction small{color:var(--muted)}.direction img{width:260px;height:180px;object-fit:cover;filter:saturate(.78)}.evidence{display:grid;grid-template-columns:1fr 1fr;gap:64px}.evidence h2{margin:0 0 20px;font-family:"Noto Sans SC","PingFang SC",sans-serif;font-size:34px;font-weight:700}.evidence p,.evidence li{color:var(--muted);line-height:1.8}.evidence ul{margin:0;padding-left:18px}.footer{padding:40px 72px 56px;display:flex;justify-content:space-between;color:var(--muted);font-size:11px}.footer strong{color:var(--ink);font-weight:500}@media(max-width:760px){.cover,.section{padding:36px}.cover{min-height:600px;grid-template-columns:1fr}.cover h1{margin-top:48px;font-size:44px;white-space:normal}.cover-meta{grid-column:1;justify-self:start}.lead,.evidence{grid-template-columns:1fr;gap:24px}.directions{padding:0 36px 36px}.direction{grid-template-columns:48px 1fr}.direction img{grid-column:2;width:100%;height:220px}.metrics{grid-template-columns:1fr}.metric+.metric{padding-left:0;border-left:0}.footer{padding:32px 36px}}</style></head><body><main class="page"><header class="cover"><div class="eyebrow">Lightchain / Direction Note 01</div><div><h1>${title}</h1><p>${deck}</p></div><aside class="cover-meta"><strong>Japan / Womenswear</strong><span>2026.08 · CLIENT WORKING DOCUMENT</span></aside></header><section class="section"><div class="section-label"><span>01 / Executive View</span><span>决策摘要</span></div><div class="lead"><h2>从“流行”转向<br>可执行的方向。</h2><p>当前证据更支持轻量松弛通勤与复古学院混搭作为核心方向。柔性结构适合小规模验证，都市轻机能保留为观察方向。判断分别核对电商供给、社媒内容、品牌采用与趋势资料，不将单一来源等同于销量。</p></div><div class="metrics"><div class="metric"><strong>${visibleDirections.length}</strong><span>视觉方向</span></div><div class="metric"><strong>4</strong><span>证据来源类型</span></div><div class="metric"><strong>2</strong><span>优先提案方向</span></div></div></section><section class="section"><div class="section-label"><span>02 / Direction Edit</span><span>方向提案</span></div></section><section class="directions">${directionMarkup}</section><section class="section evidence"><div><div class="section-label"><span>03 / Evidence</span></div><h2>证据边界</h2><p>社媒互动不等于销量；不同电商平台数值未合并。所有方向均保留来源、采集时间与授权状态，便于后续复核。</p></div><div><div class="section-label"><span>04 / Next Decision</span></div><h2>下一步</h2><ul><li>确认 1–2 个客户提案方向</li><li>按方向建立定向视觉参考池</li><li>以客户反馈决定保留、调整或排除</li></ul></div></section><footer class="footer"><strong>LIGHTCHAIN</strong><span>CONFIDENTIAL · FOR DIRECTION ALIGNMENT ONLY</span></footer></main></body></html>`;
+  return buildFashionProposalHtml({
+    kind: "research",
+    directions: trendDirections.map((direction) => ({
+      ...direction,
+      ...trendReportDetails[direction.id],
+      imageUrl: new URL(assetUrl(trendReportDetails[direction.id].image), window.location.href).href,
+    })),
+    references: [],
+    categoryCount: 0,
+    directionLabel: "轻量松弛通勤、复古学院混搭，并保留柔性结构与都市轻机能作为验证方向",
+  });
 }
 
 function downloadTrendAnalysis(format: TrendDownloadFormat) {
@@ -218,157 +226,6 @@ function TrendDirectionSelectionForm({
         </div>
       ) : null}
     </section>
-  );
-}
-
-function CustomerDirectionPackageDocument({
-  selectedDirectionIds,
-  selectedCandidateIds,
-}: {
-  selectedDirectionIds: string[];
-  selectedCandidateIds: string[];
-}) {
-  const { selectedReferences, selectedDirections, directionLabel, categoryCount } = getReferencePackageData(selectedDirectionIds, selectedCandidateIds);
-
-  return (
-    <article className="trend-report-document trend-report-document--reference-package">
-      <header className="trend-report-cover">
-        <span className="trend-report-eyebrow">Lightchain / Client Reference Package</span>
-        <div className="trend-report-cover__title">
-          <h1>客户方向参考包</h1>
-          <p>将客户已选择的视觉素材整理为可直接沟通的方向依据，完整保留标题、说明、标签与来源信息。</p>
-        </div>
-        <aside className="trend-report-cover__meta">
-          <strong>Japan / Womenswear</strong>
-          <span>2026.08 · {selectedReferences.length} REFERENCES</span>
-        </aside>
-      </header>
-
-      <section className="trend-report-section trend-report-reference-summary">
-        <div className="trend-report-section__label"><span>01 / Direction Summary</span><span>方向摘要</span></div>
-        <div className="trend-report-lead">
-          <h2>从已选择的图像，建立共同视觉语言。</h2>
-          <p>本参考包对应视觉方向：{directionLabel}。所有图片均来自用户在当前任务中确认的素材，不扩展、不替换，也不改变原始选择。</p>
-        </div>
-        <div className="trend-report-metrics">
-          <div><strong>{selectedReferences.length}</strong><span>已选参考图</span></div>
-          <div><strong>{selectedDirections.length}</strong><span>已确认方向</span></div>
-          <div><strong>{categoryCount}</strong><span>素材类型</span></div>
-        </div>
-      </section>
-
-      <section className="trend-report-reference-list">
-        <div className="trend-report-section__label"><span>02 / Selected References</span><span>客户已选素材</span></div>
-        {selectedReferences.map((reference, index) => {
-          const categoryLabel = getCandidateCategoryLabel(reference.categoryId);
-          return (
-            <article className="trend-report-reference" key={reference.id}>
-              <img src={assetUrl(reference.src)} alt={`${reference.code} ${categoryLabel}`} />
-              <div className="trend-report-reference__copy">
-                <span>REFERENCE {String(index + 1).padStart(2, "0")}</span>
-                <h2>{reference.code} · {categoryLabel}</h2>
-                <small>{reference.title}</small>
-                <p>该素材用于表达「{categoryLabel}」的视觉语气，并作为客户方向沟通、廓形判断与细节取舍的共同参考。</p>
-                <div className="trend-report-reference__tags" aria-label={`${reference.code} 素材标签`}>
-                  <span>日本女装</span>
-                  <span>{categoryLabel}</span>
-                  <span>2026年8月</span>
-                  <span>来源可追溯</span>
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </section>
-
-      <footer className="trend-report-footer"><strong>LIGHTCHAIN</strong><span>CONFIDENTIAL · CLIENT DIRECTION REFERENCES</span></footer>
-    </article>
-  );
-}
-
-function TrendReportDocument({
-  kind,
-  selectedDirectionIds,
-  selectedCandidateIds,
-}: {
-  kind: TrendPreviewKind;
-  selectedDirectionIds: string[];
-  selectedCandidateIds: string[];
-}) {
-  if (kind === "package") {
-    return <CustomerDirectionPackageDocument selectedDirectionIds={selectedDirectionIds} selectedCandidateIds={selectedCandidateIds} />;
-  }
-  const visibleDirections = trendDirections;
-  const title = "客户需求调研与视觉方向";
-  const description = "日本女装市场的小样本方向扫描与提案建议。";
-
-  return (
-    <article className="trend-report-document">
-      <header className="trend-report-cover">
-        <span className="trend-report-eyebrow">Lightchain / Direction Note 01</span>
-        <div className="trend-report-cover__title">
-          <h1>{title}</h1>
-          <p>{description}</p>
-        </div>
-        <aside className="trend-report-cover__meta">
-          <strong>Japan / Womenswear</strong>
-          <span>2026.08 · CLIENT WORKING DOCUMENT</span>
-        </aside>
-      </header>
-
-      <section className="trend-report-section trend-report-executive">
-        <div className="trend-report-section__label"><span>01 / Executive View</span><span>决策摘要</span></div>
-        <div className="trend-report-lead">
-          <h2>从“流行”转向<br />可执行的方向。</h2>
-          <p>当前证据更支持轻量松弛通勤与复古学院混搭作为核心方向。柔性结构适合小规模验证，都市轻机能保留为观察方向。判断分别核对电商供给、社媒内容、品牌采用与趋势资料，不将单一来源等同于销量。</p>
-        </div>
-        <div className="trend-report-metrics">
-          <div><strong>{visibleDirections.length}</strong><span>视觉方向</span></div>
-          <div><strong>4</strong><span>证据来源类型</span></div>
-          <div><strong>2</strong><span>优先提案方向</span></div>
-        </div>
-      </section>
-
-      <section className="trend-report-section trend-report-section--compact">
-        <div className="trend-report-section__label"><span>02 / Direction Edit</span><span>方向提案</span></div>
-      </section>
-      <section className="trend-report-directions">
-        {visibleDirections.map((direction) => {
-          const detail = trendReportDetails[direction.id];
-          return (
-            <article className="trend-report-direction" key={direction.id}>
-              <span className="trend-report-direction__number">{direction.id}</span>
-              <div className="trend-report-direction__copy">
-                <span>{detail.signal}</span>
-                <h2>{direction.title}</h2>
-                <p>{direction.description}</p>
-                <small>{detail.cue}</small>
-              </div>
-              <img src={assetUrl(detail.image)} alt={`${direction.title}参考图`} />
-            </article>
-          );
-        })}
-      </section>
-
-      <section className="trend-report-section trend-report-evidence">
-        <div>
-          <div className="trend-report-section__label"><span>03 / Evidence</span></div>
-          <h2>证据边界</h2>
-          <p>社媒互动不等于销量；不同电商平台数值未合并。所有方向均保留来源、采集时间与授权状态，便于后续复核。</p>
-        </div>
-        <div>
-          <div className="trend-report-section__label"><span>04 / Next Decision</span></div>
-          <h2>下一步</h2>
-          <ul>
-            <li>确认 1–2 个客户提案方向</li>
-            <li>按方向建立定向视觉参考池</li>
-            <li>以客户反馈决定保留、调整或排除</li>
-          </ul>
-        </div>
-      </section>
-
-      <footer className="trend-report-footer"><strong>LIGHTCHAIN</strong><span>CONFIDENTIAL · FOR DIRECTION ALIGNMENT ONLY</span></footer>
-    </article>
   );
 }
 
@@ -1508,13 +1365,11 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                     </IconControl>
                   </div>
                 </header>
-                <div className="trend-preview-modal__scroll">
-                  <TrendReportDocument
-                    kind={trendPreviewKind}
-                    selectedDirectionIds={selectedTrendIds}
-                    selectedCandidateIds={selectedCandidateIds}
-                  />
-                </div>
+                <iframe
+                  className="trend-preview-modal__frame"
+                  title={trendPreviewKind === "package" ? "客户方向参考包在线预览" : "客户需求调研与视觉方向在线预览"}
+                  srcDoc={buildTrendReportHtml(trendPreviewKind, selectedTrendIds, selectedCandidateIds)}
+                />
               </motion.section>
             </motion.div>
           ) : null}

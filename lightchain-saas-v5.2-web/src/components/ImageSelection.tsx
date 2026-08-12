@@ -1,6 +1,7 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useRef, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { assetUrl } from "../utils/assets";
+import { gsap, gsapMotion, prefersReducedMotion, useGSAP } from "../motion/gsap";
 import { Button } from "./Button";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
@@ -135,6 +136,16 @@ export function MasonryImageSelection({
 }
 
 export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+
+  useGSAP(() => {
+    if (!backdropRef.current || !dialogRef.current || prefersReducedMotion()) return;
+    gsap.timeline()
+      .from(backdropRef.current, { autoAlpha: 0, duration: gsapMotion.fast, ease: "power2.out" })
+      .from(dialogRef.current, { autoAlpha: 0, y: 14, scale: 0.988, duration: gsapMotion.duration, ease: gsapMotion.ease }, "<0.04");
+  }, { scope: backdropRef });
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -146,8 +157,8 @@ export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string;
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="media-lightbox-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="media-lightbox" role="dialog" aria-modal="true" aria-labelledby="media-lightbox-title">
+    <div ref={backdropRef} className="media-lightbox-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section ref={dialogRef} className="media-lightbox" role="dialog" aria-modal="true" aria-labelledby="media-lightbox-title">
         <header className="media-lightbox__header">
           <h2 id="media-lightbox-title">{alt}</h2>
           <IconControl label="关闭大图" variant="ghost" autoFocus onClick={onClose}><FigmaIcon name="close" size={20} /></IconControl>
@@ -205,13 +216,32 @@ export function CandidateImageLightbox({
     Math.max(visibleItems.length - 10, 0),
   );
   const thumbnailItems = visibleItems.slice(thumbnailStart, thumbnailStart + 10);
-  const [tipVisible, setTipVisible] = useState(true);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLElement>(null);
+  const tipRef = useRef<HTMLSpanElement>(null);
 
-  useEffect(() => {
-    setTipVisible(true);
-    const timer = window.setTimeout(() => setTipVisible(false), 3000);
-    return () => window.clearTimeout(timer);
-  }, []);
+  useGSAP(() => {
+    const backdrop = backdropRef.current;
+    const card = cardRef.current;
+    const tip = tipRef.current;
+    if (!backdrop || !card || !tip || prefersReducedMotion()) return;
+    gsap.timeline()
+      .from(backdrop, { autoAlpha: 0, duration: gsapMotion.fast, ease: "power2.out" })
+      .from(".candidate-lightbox__tabs", { autoAlpha: 0, y: -8, duration: gsapMotion.duration, ease: gsapMotion.ease }, "<0.04")
+      .from(card, { autoAlpha: 0, y: 14, scale: 0.988, duration: 0.52, ease: gsapMotion.ease }, "<0.02")
+      .from(".candidate-lightbox__previous, .candidate-lightbox__next", { autoAlpha: 0, scale: 0.9, duration: 0.28, stagger: 0.04, ease: gsapMotion.ease }, "<0.12")
+      .fromTo(tip, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.24, ease: "power2.out" }, "<")
+      .to(tip, { autoAlpha: 0, duration: 0.28, ease: "power2.in", delay: 2.48 });
+  }, { scope: backdropRef });
+
+  useGSAP(() => {
+    if (!cardRef.current || prefersReducedMotion()) return;
+    gsap.fromTo(
+      cardRef.current.querySelectorAll(".candidate-lightbox__media > img, .candidate-lightbox__information > *"),
+      { autoAlpha: 0, x: 10 },
+      { autoAlpha: 1, x: 0, duration: 0.34, stagger: 0.045, ease: gsapMotion.ease, clearProps: "opacity,visibility,transform" },
+    );
+  }, { scope: cardRef, dependencies: [activeItemId], revertOnUpdate: true });
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -244,6 +274,7 @@ export function CandidateImageLightbox({
 
   return createPortal(
     <div
+      ref={backdropRef}
       className="candidate-lightbox-backdrop"
       role="presentation"
       onPointerDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
@@ -267,11 +298,12 @@ export function CandidateImageLightbox({
         ))}
       </div>
 
-      <span className={`candidate-lightbox__tip ${tipVisible ? "is-visible" : ""}`} aria-live="polite">
+      <span ref={tipRef} className="candidate-lightbox__tip" aria-live="polite">
         💡 Tips：支持按键盘 ← → 键切换图片，按 Esc 退出查看大图
       </span>
 
       <section
+        ref={cardRef}
         className={`candidate-lightbox__card ${selected ? "is-selected" : ""}`}
         role="dialog"
         aria-modal="true"

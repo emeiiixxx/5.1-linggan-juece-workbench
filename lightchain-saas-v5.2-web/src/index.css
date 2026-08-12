@@ -475,7 +475,7 @@ a:focus-visible {
 
 .icon-control__tooltip {
   position: fixed;
-  z-index: 1500;
+  z-index: 10000;
   display: flex;
   min-width: max-content;
   height: 24px;
@@ -483,7 +483,7 @@ a:focus-visible {
   justify-content: center;
   padding: 4px 8px;
   border-radius: var(--radius-m);
-  color: #fff;
+  color: var(--text-on-brand-white);
   background: var(--surface-floating-strong);
   box-shadow: var(--shadow-s);
   font-size: 12px;
@@ -2155,11 +2155,14 @@ a:focus-visible {
   position: absolute;
   top: 50%;
   left: 0;
-  width: 80px;
+  z-index: 0;
+  width: 0;
   height: 32px;
   margin-top: -16px;
   border-radius: var(--radius-base);
-  background: var(--state-selected);
+  background: var(--state-selected-tab-sliding);
+  contain: layout paint;
+  will-change: left, width;
   pointer-events: none;
 }
 
@@ -2179,7 +2182,7 @@ a:focus-visible {
   font-weight: 500;
   line-height: 16px;
   white-space: nowrap;
-  transition: color var(--motion-standard), background-color var(--motion-standard);
+  transition: background-color var(--motion-standard);
 }
 
 .mode-tabs button.is-active {
@@ -3437,6 +3440,13 @@ a:focus-visible {
   z-index: 5;
   top: 40px;
   right: 40px;
+  color: var(--text-on-brand-white);
+}
+
+.candidate-lightbox__close:hover,
+.candidate-lightbox__close:focus-visible {
+  color: var(--text-on-brand-white);
+  background: rgb(255 255 255 / 12%);
 }
 
 .candidate-lightbox__tabs {
@@ -5971,6 +5981,16 @@ img.trend-direction-media__slide {
   padding: 0;
   background: #dfe1dd;
   scroll-behavior: smooth;
+}
+
+.trend-preview-modal__frame {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  border: 0;
+  background: #f1f2f0;
 }
 
 .trend-report-document {

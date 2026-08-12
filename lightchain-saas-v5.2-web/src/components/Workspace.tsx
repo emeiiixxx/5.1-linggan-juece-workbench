@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { quickStartCards } from "../data/workspace";
 import { assetUrl } from "../utils/assets";
@@ -11,6 +11,7 @@ import { useI18n } from "../i18n";
 import { ConversationWorkspace } from "./ConversationWorkspace";
 import { ClothingConversationWorkspace } from "./ClothingConversationWorkspace";
 import { useAutoGrowTextarea } from "../hooks/useAutoGrowTextarea";
+import { gsap } from "../motion/gsap";
 
 const tabs = ["新品企划", "客户提案", "服装设计", "图案设计"];
 const composerPlaceholders = [
@@ -50,7 +51,6 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
 }) {
   const { locale, t } = useI18n();
   const [activeTab, setActiveTab] = useState(0);
-  const [tabIndicator, setTabIndicator] = useState({ x: 4, width: 80 });
   const [quickStartOpen, setQuickStartOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
@@ -65,7 +65,11 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const attachmentUrlsRef = useRef(new Set<string>());
   const tabsRef = useRef<HTMLDivElement>(null);
+  const tabIndicatorRef = useRef<HTMLSpanElement>(null);
   const tabButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const indicatorPositionedRef = useRef(false);
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
   const reduceMotion = useReducedMotion();
   const quickStartExpandTransition = reduceMotion
     ? { duration: 0 }
@@ -81,25 +85,50 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
       ? [selectedProject, ...projectOptions]
       : projectOptions;
 
-  useLayoutEffect(() => {
+  const syncTabIndicator = useCallback((animate: boolean) => {
     const tabList = tabsRef.current;
-    const activeButton = tabButtonRefs.current[activeTab];
-    if (!tabList || !activeButton) return;
+    const indicator = tabIndicatorRef.current;
+    const activeButton = tabButtonRefs.current[activeTabRef.current];
+    if (!tabList || !indicator || !activeButton) return;
 
-    const syncIndicator = () => {
-      const button = tabButtonRefs.current[activeTab];
-      if (!button) return;
-      setTabIndicator({ x: button.offsetLeft, width: button.offsetWidth });
+    const target = {
+      left: Math.round(activeButton.offsetLeft),
+      width: Math.round(activeButton.offsetWidth),
     };
 
-    syncIndicator();
-    const observer = new ResizeObserver(syncIndicator);
+    gsap.killTweensOf(indicator);
+    gsap.set(indicator, { clearProps: "transform" });
+    if (!animate || reduceMotion || !indicatorPositionedRef.current) {
+      gsap.set(indicator, target);
+    } else {
+      gsap.to(indicator, {
+        ...target,
+        duration: 0.28,
+        ease: "power2.out",
+        overwrite: true,
+      });
+    }
+    indicatorPositionedRef.current = true;
+  }, [reduceMotion]);
+
+  useLayoutEffect(() => {
+    syncTabIndicator(true);
+  }, [activeTab, locale, syncTabIndicator]);
+
+  useLayoutEffect(() => {
+    const tabList = tabsRef.current;
+    if (!tabList) return;
+    const observer = new ResizeObserver(() => syncTabIndicator(false));
     observer.observe(tabList);
     tabButtonRefs.current.forEach((button) => {
       if (button) observer.observe(button);
     });
     return () => observer.disconnect();
-  }, [activeTab, locale]);
+  }, [locale, syncTabIndicator]);
+
+  useEffect(() => () => {
+    if (tabIndicatorRef.current) gsap.killTweensOf(tabIndicatorRef.current);
+  }, []);
 
   useEffect(() => () => {
     attachmentUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -233,10 +262,10 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
           </div>
 
           <div className="mode-tabs" role="tablist" aria-label={t("业务场景")} ref={tabsRef}>
-            <motion.span
+            <span
+              ref={tabIndicatorRef}
               className="mode-tabs__indicator"
-              animate={tabIndicator}
-              transition={{ duration: 0.2, ease: "easeOut" }}
+              aria-hidden="true"
             />
             {tabs.map((tab, index) => (
               <button
