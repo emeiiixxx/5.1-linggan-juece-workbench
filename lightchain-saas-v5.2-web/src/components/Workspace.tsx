@@ -14,13 +14,18 @@ import { NewProductPlanningWorkspace } from "./NewProductPlanningWorkspace";
 import { useAutoGrowTextarea } from "../hooks/useAutoGrowTextarea";
 import { gsap } from "../motion/gsap";
 
-const tabs = ["新品企划", "客户提案", "服装设计", "图案设计"];
+const tabs = ["新品企划", "客户提案", "灵感设计", "企划案"];
 const composerPlaceholders = [
   "描述下一季的市场,人群,品类和经营目标...",
   "输入客户需求,或上传brief、邮件和会议纪要...",
-  "描述想要设计的款式，或上传参考图片...",
-  "描述想要生成的图案风格、元素和应用场景...",
+  "输入@服装 / 图案可调用不同类型工具。例如：@服装 设计一些外套...",
+  "描述企划案的主题、目标和交付要求...",
 ];
+const inspirationDesignOptions = [
+  { value: "apparel", label: "服装设计", icon: "apparel-design-menu" },
+  { value: "pattern", label: "图案设计", icon: "pattern-material" },
+] as const;
+type InspirationDesignType = typeof inspirationDesignOptions[number]["value"];
 type ProfileOption = { id: number; name: string };
 type ProjectOption = { id: number; name: string };
 type Attachment = { id: string; name: string; kind: "file" | "image"; previewUrl?: string };
@@ -54,6 +59,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   const [activeTab, setActiveTab] = useState(0);
   const [quickStartOpen, setQuickStartOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [inspirationDesignType, setInspirationDesignType] = useState<InspirationDesignType>("apparel");
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -86,6 +92,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
     selectedProject && !projectOptions.some((project) => project.id === selectedProject.id)
       ? [selectedProject, ...projectOptions]
       : projectOptions;
+  const inspirationDesign = inspirationDesignOptions.find((option) => option.value === inspirationDesignType) ?? inspirationDesignOptions[0];
 
   const syncTabIndicator = useCallback((animate: boolean) => {
     const indicator = tabIndicatorRef.current;
@@ -191,7 +198,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
       projectId: selectedProject?.id ?? null,
       prompt: taskMessage,
       attachments: taskAttachments,
-      workflow: activeTab === 0 ? "new-product" : activeTab === 2 ? "apparel" : "default",
+      workflow: activeTab === 0 ? "new-product" : activeTab === 2 && inspirationDesignType === "apparel" ? "apparel" : "default",
     });
     if (activeTab !== 0 && activeTab !== 2) attachments.forEach((attachment) => {
       if (attachment.previewUrl) {
@@ -280,7 +287,12 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                 role="tab"
                 aria-selected={activeTab === index}
                 className={activeTab === index ? "is-active" : ""}
-                onClick={() => setActiveTab(index)}
+                onClick={() => {
+                  setActiveTab(index);
+                  setProfileMenuOpen(false);
+                  setProjectMenuOpen(false);
+                  setAttachmentMenuOpen(false);
+                }}
                 ref={(node) => { tabButtonRefs.current[index] = node; }}
                 key={tab}
               >
@@ -333,14 +345,14 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                   {!message && (
                     <motion.span
                       className="composer__placeholder"
-                      key={activeTab}
+                      key={`${activeTab}-${activeTab === 2 ? inspirationDesignType : "default"}`}
                       initial={reduceMotion ? false : { opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
                       transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }}
                       aria-hidden="true"
                     >
-                      {t(composerPlaceholders[activeTab])}
+                      {t(activeTab === 2 && inspirationDesignType === "pattern" ? "描述想要生成的图案风格、元素和应用场景..." : composerPlaceholders[activeTab])}
                     </motion.span>
                   )}
                 </AnimatePresence>
@@ -350,7 +362,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                   onChange={(event) => setMessage(event.target.value)}
                   onKeyDown={onComposerKeyDown}
                   placeholder=""
-                  aria-label={t(composerPlaceholders[activeTab])}
+                  aria-label={t(activeTab === 2 && inspirationDesignType === "pattern" ? "描述想要生成的图案风格、元素和应用场景..." : composerPlaceholders[activeTab])}
                 />
               </div>
             </div>
@@ -420,25 +432,41 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                   setAttachmentMenuOpen(false);
                 }}
               >
-                <FigmaIcon name="company-info" size={16} />
-                <span title={selectedProfile?.name ?? t("业务偏好档案")}>{selectedProfile?.name ?? t("业务偏好档案")}</span>
+                <FigmaIcon name={activeTab === 2 ? inspirationDesign.icon : "company-info"} size={16} />
+                <span title={activeTab === 2 ? t(inspirationDesign.label) : selectedProfile?.name ?? t("业务偏好档案")}>
+                  {activeTab === 2 ? t(inspirationDesign.label) : selectedProfile?.name ?? t("业务偏好档案")}
+                </span>
                 <FigmaIcon name="chevron-right" size={16} className="composer-select__chevron" />
               </button>
               <AnimatePresence>
                 {profileMenuOpen && (
                   <motion.div
-                    className="composer-profile-menu"
+                    className={`composer-profile-menu ${activeTab === 2 ? "composer-profile-menu--design" : ""}`.trim()}
                     role="listbox"
-                    aria-label={t("选择业务偏好档案")}
+                    aria-label={t(activeTab === 2 ? "选择设计类型" : "选择业务偏好档案")}
                     data-node-id="453:93991"
                     initial={reduceMotion ? false : { opacity: 0, y: -6, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.98 }}
                     transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
                   >
-                    <span className="composer-profile-menu__label">{t("选择业务偏好档案")}</span>
+                    {activeTab !== 2 && <span className="composer-profile-menu__label">{t("选择业务偏好档案")}</span>}
                     <div className="composer-profile-menu__options">
-                      {profileOptions.map((profile) => {
+                      {activeTab === 2 ? inspirationDesignOptions.map((option) => (
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={inspirationDesignType === option.value}
+                          key={option.value}
+                          onClick={() => {
+                            setInspirationDesignType(option.value);
+                            setProfileMenuOpen(false);
+                          }}
+                        >
+                          <FigmaIcon name={option.icon} size={16} />
+                          <span>{t(option.label)}</span>
+                        </button>
+                      )) : profileOptions.map((profile) => {
                         const selected = selectedProfile?.id === profile.id;
                         return (
                           <button

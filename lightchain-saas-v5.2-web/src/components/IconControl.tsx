@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { assetUrl } from "../utils/assets";
 
 type TooltipPlacement = "top" | "right" | "bottom" | "left";
 
@@ -160,6 +161,7 @@ export function IconControl({
           style={tooltipPosition}
         >
           {label}
+          <img className="icon-control__tooltip-arrow" src={assetUrl("assets/figma-icons/tooltip-arrow.svg")} alt="" />
         </span>,
         document.body,
       )}

@@ -1,41 +1,28 @@
-import { useEffect, useRef, useState, type Dispatch, type PointerEvent as ReactPointerEvent, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
 import { Button, QuickReplyButton } from "./Button";
+import { DownloadFormatMenu } from "./DownloadFormatMenu";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
 import { CandidateImageLightbox, MasonryImageSelection } from "./ImageSelection";
 import { TaskConversationComposer } from "./TaskConversationComposer";
 import { ResearchScopeForm } from "./ResearchScopeForm";
-import { AnalysisStepIcon, ConversationFileCard, ConversationFormTitle, ConversationStatusIcon as StatusIcon, ConversationUserMessage, TaskDisclosure } from "./ConversationPrimitives";
+import { AnalysisStepIcon, ConversationFeed, ConversationFileCard, ConversationFormTitle, ConversationStatusIcon as StatusIcon, ConversationTaskCompletion, ConversationUserMessage, TaskArtifactRow, TaskDisclosure } from "./ConversationPrimitives";
 import { candidateCategories, candidatePageCount, candidateReferenceImages, formatCandidateSelection, formatTrendDirectionSelection, getCandidateCategoryLabel, getCandidateReference, getReferencePackageData, trendDirections, trendReportDetails, type CandidateCategoryId } from "../data/referenceCatalog";
 import { buildFashionProposalHtml } from "../report/fashionProposalHtml";
 import { useI18n } from "../i18n";
 import { getLocaleDefaultMarket, getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
 
 type AnalysisPhase = "parsing" | "complete";
+type GenerationDecision = "skip" | "confirm";
 type TrendDownloadFormat = "HTML" | "PPT" | "PDF";
-type TrendPreviewKind = "research" | "package";
-type MessageMetaPosition = { left: number; top: number; side: "assistant" | "user" };
-
-function getMessageMetaPosition(completedBlock: HTMLElement): MessageMetaPosition {
-  const isUserMessage = completedBlock.classList.contains("conversation-message--user");
-  const anchor = isUserMessage
-    ? completedBlock.querySelector<HTMLElement>(".conversation-user-bubble") ?? completedBlock
-    : completedBlock;
-  const rect = anchor.getBoundingClientRect();
-  return {
-    left: isUserMessage ? rect.right - 8 : rect.left + 8,
-    top: rect.bottom + 28 < window.innerHeight ? rect.bottom : rect.top - 28,
-    side: isUserMessage ? "user" : "assistant",
-  };
-}
-
+type TrendPreviewKind = "research" | "package" | "ai-results" | "proposal";
 const evidenceIds = ["EV-PROP-FILE-001", "EV-PROP-ECOM-001", "EV-PROP-SOC-001", "EV-PROP-TRD-001"];
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
-const taskDetailSteps = ["需求解析任务", "搜集行业资料", "整理报告结构"];
+const taskDetailSteps = ["解析客户需求", "搜集行业资料", "整理提案结构"];
 const profileRevealDelay = 120;
 const analysisRevealDelay = 320;
 const analysisTaskRevealDelay = 0.08;
@@ -52,6 +39,12 @@ const quickActionReveal = {
   hidden: { opacity: 0, y: 6 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.24, ease: revealEase } },
 };
+
+const customerAiResultImages = candidateCategories.flatMap((category) =>
+  candidateReferenceImages
+    .filter((candidate) => candidate.categoryId === category.id && candidate.page === 1)
+    .slice(0, 3),
+);
 
 function StreamingText({ children }: { children: string; delay?: number }) {
   return <span className="conversation-streaming-text">{children}</span>;
@@ -79,6 +72,33 @@ function buildCustomerDirectionPackageHtml(selectedDirectionIds: string[], selec
 
 function buildTrendReportHtml(kind: TrendPreviewKind, selectedDirectionIds: string[] = [], selectedCandidateIds: string[] = []) {
   if (kind === "package") return buildCustomerDirectionPackageHtml(selectedDirectionIds, selectedCandidateIds);
+  if (kind === "ai-results" || kind === "proposal") {
+    const selectedResults = customerAiResultImages.filter((item) =>
+      kind === "ai-results" || selectedCandidateIds.includes(item.id),
+    );
+    const selectedDirections = trendDirections.filter((direction) => selectedDirectionIds.includes(direction.id));
+    return buildFashionProposalHtml({
+      kind: "package",
+      title: kind === "proposal" ? "正式客户提案" : "AI 改款结果",
+      deck: kind === "proposal"
+        ? "整合客户需求、市场证据、确认方向、客户反馈与 AI 改款图，形成可直接对外沟通的只读提案。"
+        : "展示已通过完整性检查的服装改款提示词与 AI 概念图，供选图与正式提案确认使用。",
+      kicker: kind === "proposal" ? "FORMAL CLIENT PROPOSAL" : "AI RESTYLING RESULTS",
+      directions: selectedDirections.map((direction) => ({
+        ...direction,
+        ...trendReportDetails[direction.id],
+        imageUrl: new URL(assetUrl(trendReportDetails[direction.id].image), window.location.href).href,
+      })),
+      references: selectedResults.map((reference) => ({
+        code: reference.code,
+        title: reference.title,
+        category: getCandidateCategoryLabel(reference.categoryId),
+        imageUrl: new URL(assetUrl(reference.src), window.location.href).href,
+      })),
+      categoryCount: new Set(selectedResults.map((reference) => reference.categoryId)).size,
+      directionLabel: formatTrendDirectionSelection(selectedDirectionIds) || "已确认视觉方向",
+    });
+  }
   return buildFashionProposalHtml({
     kind: "research",
     directions: trendDirections.map((direction) => ({
@@ -90,6 +110,30 @@ function buildTrendReportHtml(kind: TrendPreviewKind, selectedDirectionIds: stri
     categoryCount: 0,
     directionLabel: "轻量松弛通勤、复古学院混搭，并保留柔性结构与都市轻机能作为验证方向",
   });
+}
+
+function downloadCustomerProposalFile(
+  kind: "ai-results" | "proposal",
+  format: TrendDownloadFormat,
+  selectedDirectionIds: string[],
+  selectedResultIds: string[],
+) {
+  const baseName = kind === "proposal" ? "正式客户提案" : "AI改款结果";
+  const html = buildTrendReportHtml(kind, selectedDirectionIds, selectedResultIds);
+  const mimeType = format === "HTML"
+    ? "text/html;charset=utf-8"
+    : format === "PPT"
+      ? "application/vnd.ms-powerpoint"
+      : "application/pdf";
+  const content = format === "HTML" ? html : `${baseName}\n\n${formatTrendDirectionSelection(selectedDirectionIds)}\n已确认 ${selectedResultIds.length} 张 AI 改款图`;
+  const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${baseName}.${format.toLowerCase()}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function downloadTrendAnalysis(format: TrendDownloadFormat) {
@@ -191,7 +235,7 @@ function TrendDirectionSelectionForm({
                 <small>{direction.recommendation}</small>
               </span>
               <span className="new-product-direction-check" aria-hidden="true">
-                {selected ? <FigmaIcon name="check" size={12} /> : null}
+                {selected ? <FigmaIcon name="check-bold" size={12} /> : null}
               </span>
             </button>
           );
@@ -231,6 +275,19 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
   const [candidateSelectionConfirmed, setCandidateSelectionConfirmed] = useState(false);
   const [customerFeedbackSkipped, setCustomerFeedbackSkipped] = useState(false);
+  const [generationDecision, setGenerationDecision] = useState<GenerationDecision | null>(null);
+  const [customerProposalStage, setCustomerProposalStage] = useState<"idle" | "ai-generating" | "results" | "proposal-generating" | "complete">("idle");
+  const [aiGenerationProgress, setAiGenerationProgress] = useState(0);
+  const [proposalGenerationProgress, setProposalGenerationProgress] = useState(0);
+  const [aiGenerationExpanded, setAiGenerationExpanded] = useState(true);
+  const [proposalGenerationExpanded, setProposalGenerationExpanded] = useState(true);
+  const [selectedAiResultIds, setSelectedAiResultIds] = useState<string[]>([]);
+  const [aiResultsConfirmed, setAiResultsConfirmed] = useState(false);
+  const [aiResultPreviewId, setAiResultPreviewId] = useState<string | null>(null);
+  const [customerRegenerationPhase, setCustomerRegenerationPhase] = useState<"idle" | "queued" | "generating">("idle");
+  const [customerRegenerationTargetIds, setCustomerRegenerationTargetIds] = useState<string[]>([]);
+  const [customerRegeneratedSources, setCustomerRegeneratedSources] = useState<Record<string, string>>({});
+  const [customerRegenerationRound, setCustomerRegenerationRound] = useState(0);
   const [candidatePreviewId, setCandidatePreviewId] = useState<string | null>(null);
   const [activeCandidateCategory, setActiveCandidateCategory] = useState<CandidateCategoryId>(candidateCategories[0].id);
   const [candidatePages, setCandidatePages] = useState<Record<CandidateCategoryId, number>>({
@@ -247,13 +304,12 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   const scopePhaseRef = useRef<HTMLDivElement>(null);
   const confirmedResultsRef = useRef<HTMLDivElement>(null);
   const candidatePoolRef = useRef<HTMLDivElement>(null);
-  const hoveredMessageRef = useRef<HTMLElement | null>(null);
-  const messageMetaHideTimerRef = useRef<number | null>(null);
-  const [messageMetaPosition, setMessageMetaPosition] = useState<MessageMetaPosition | null>(null);
   const reduceMotion = useReducedMotion();
   const analysisComplete = analysisPhase === "complete";
   const trendScanComplete = scopeResultStage >= 3;
   const candidateSearchComplete = candidateSearchStage >= 4;
+  const customerRegenerationBusy = customerRegenerationPhase !== "idle";
+  const customerProposalRunning = customerProposalStage === "ai-generating" || customerProposalStage === "proposal-generating" || customerRegenerationBusy;
 
   useEffect(() => {
     if (reduceMotion) {
@@ -336,28 +392,6 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   }, [reduceMotion, scopeConfirmed]);
 
   useEffect(() => {
-    const reposition = () => {
-      const completedBlock = hoveredMessageRef.current;
-      if (!completedBlock) return;
-      setMessageMetaPosition(getMessageMetaPosition(completedBlock));
-    };
-    const hideWhileScrolling = () => {
-      hoveredMessageRef.current = null;
-      setMessageMetaPosition(null);
-    };
-    window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", hideWhileScrolling, true);
-    return () => {
-      window.removeEventListener("resize", reposition);
-      window.removeEventListener("scroll", hideWhileScrolling, true);
-    };
-  }, []);
-
-  useEffect(() => () => {
-    if (messageMetaHideTimerRef.current !== null) window.clearTimeout(messageMetaHideTimerRef.current);
-  }, []);
-
-  useEffect(() => {
     if (!trendDirectionsConfirmed || !candidateSearchRun) return;
     setCandidateSearchStage(0);
     if (reduceMotion) {
@@ -401,7 +435,78 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
       candidatePoolRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [customerFeedbackSkipped, reduceMotion]);
+  }, [customerFeedbackSkipped, generationDecision, reduceMotion]);
+
+  useEffect(() => {
+    if (customerProposalStage !== "ai-generating") return;
+    if (reduceMotion) {
+      setAiGenerationProgress(4);
+      setCustomerProposalStage("results");
+      return;
+    }
+    const timers = [
+      window.setTimeout(() => setAiGenerationProgress(1), 180),
+      window.setTimeout(() => setAiGenerationProgress(2), 820),
+      window.setTimeout(() => setAiGenerationProgress(3), 1500),
+      window.setTimeout(() => setAiGenerationProgress(4), 2200),
+      window.setTimeout(() => setCustomerProposalStage("results"), 2800),
+    ];
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [customerProposalStage, reduceMotion]);
+
+  useEffect(() => {
+    if (customerProposalStage !== "proposal-generating") return;
+    if (reduceMotion) {
+      setProposalGenerationProgress(4);
+      setCustomerProposalStage("complete");
+      return;
+    }
+    const timers = [
+      window.setTimeout(() => setProposalGenerationProgress(1), 160),
+      window.setTimeout(() => setProposalGenerationProgress(2), 700),
+      window.setTimeout(() => setProposalGenerationProgress(3), 1280),
+      window.setTimeout(() => setProposalGenerationProgress(4), 1880),
+      window.setTimeout(() => setCustomerProposalStage("complete"), 2400),
+    ];
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [customerProposalStage, reduceMotion]);
+
+  useEffect(() => {
+    if (customerRegenerationPhase !== "queued") return;
+    const timer = window.setTimeout(() => setCustomerRegenerationPhase("generating"), reduceMotion ? 0 : 320);
+    return () => window.clearTimeout(timer);
+  }, [customerRegenerationPhase, reduceMotion]);
+
+  useEffect(() => {
+    if (customerRegenerationPhase !== "generating") return;
+    const timer = window.setTimeout(() => {
+      setCustomerRegeneratedSources((current) => {
+        const next = { ...current };
+        customerRegenerationTargetIds.forEach((id, index) => {
+          const original = customerAiResultImages.find((item) => item.id === id)?.src;
+          const currentSource = current[id] ?? original;
+          next[id] = currentSource?.includes("candidate-gallery-look-01")
+            ? "assets/figma-confirmed/candidate-gallery-look-02.png"
+            : "assets/figma-confirmed/candidate-gallery-look-01.png";
+          if (index % 2 === customerRegenerationRound % 2) next[id] = "assets/figma-confirmed/trend-reference-primary.jpg";
+        });
+        return next;
+      });
+      setCustomerRegenerationPhase("idle");
+      setCustomerRegenerationTargetIds([]);
+      setCustomerRegenerationRound((round) => round + 1);
+      setSelectedAiResultIds([]);
+    }, reduceMotion ? 0 : 1700);
+    return () => window.clearTimeout(timer);
+  }, [customerRegenerationPhase, customerRegenerationRound, customerRegenerationTargetIds, reduceMotion]);
+
+  useEffect(() => {
+    if (customerProposalStage === "idle") return;
+    const frame = window.requestAnimationFrame(() => {
+      candidatePoolRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [customerProposalStage, reduceMotion]);
 
   const submitFollowUp = () => {
     const message = followUp.trim();
@@ -450,44 +555,6 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
     setScopeConfirmed(true);
   };
 
-  const showMessageMeta = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const eventTarget = event.target as HTMLElement;
-    const completedBlock = eventTarget.closest<HTMLElement>('[data-message-actions="true"]')
-      ?? eventTarget.closest<HTMLElement>(".conversation-message--user");
-    if (!completedBlock) {
-      if (hoveredMessageRef.current) scheduleMessageMetaHide();
-      return;
-    }
-    if (messageMetaHideTimerRef.current !== null) {
-      window.clearTimeout(messageMetaHideTimerRef.current);
-      messageMetaHideTimerRef.current = null;
-    }
-    if (hoveredMessageRef.current === completedBlock && messageMetaPosition) return;
-    hoveredMessageRef.current = completedBlock;
-    setMessageMetaPosition(getMessageMetaPosition(completedBlock));
-  };
-
-  const scheduleMessageMetaHide = () => {
-    if (messageMetaHideTimerRef.current !== null) return;
-    messageMetaHideTimerRef.current = window.setTimeout(() => {
-      messageMetaHideTimerRef.current = null;
-      hoveredMessageRef.current = null;
-      setMessageMetaPosition(null);
-    }, 220);
-  };
-
-  const keepMessageMetaOpen = () => {
-    if (messageMetaHideTimerRef.current !== null) {
-      window.clearTimeout(messageMetaHideTimerRef.current);
-      messageMetaHideTimerRef.current = null;
-    }
-  };
-
-  const copyHoveredMessage = () => {
-    const text = hoveredMessageRef.current?.innerText.trim();
-    if (text) void navigator.clipboard?.writeText(text);
-  };
-
   const toggleTrendDirection = (directionId: string) => {
     if (trendDirectionsConfirmed) return;
     setSelectedTrendIds((current) => current.includes(directionId)
@@ -509,6 +576,53 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
     setSelectedCandidateIds((current) => current.includes(candidateId)
       ? current.filter((id) => id !== candidateId)
       : [...current, candidateId]);
+  };
+
+  const startCustomerAiGeneration = () => {
+    setGenerationDecision("confirm");
+    setAiGenerationProgress(0);
+    setAiGenerationExpanded(true);
+    setCustomerProposalStage("ai-generating");
+  };
+
+  const toggleAiResult = (resultId: string) => {
+    if (aiResultsConfirmed || customerProposalRunning) return;
+    setSelectedAiResultIds((current) => current.includes(resultId)
+      ? current.filter((id) => id !== resultId)
+      : [...current, resultId]);
+  };
+
+  const generateFormalCustomerProposal = () => {
+    if (!selectedAiResultIds.length || customerProposalRunning) return;
+    setAiResultsConfirmed(true);
+    setProposalGenerationProgress(0);
+    setProposalGenerationExpanded(true);
+    setCustomerProposalStage("proposal-generating");
+  };
+
+  const startCustomerRegeneration = () => {
+    if (!selectedAiResultIds.length || customerRegenerationBusy || aiResultsConfirmed) return;
+    setCustomerRegenerationTargetIds([...selectedAiResultIds]);
+    setCustomerRegenerationPhase("queued");
+  };
+
+  const stopCustomerProposalTask = () => {
+    if (customerRegenerationBusy) {
+      setCustomerRegenerationPhase("idle");
+      setCustomerRegenerationTargetIds([]);
+      return;
+    }
+    if (customerProposalStage === "ai-generating") {
+      setAiGenerationProgress(0);
+      setCustomerProposalStage("idle");
+      setGenerationDecision(null);
+      return;
+    }
+    if (customerProposalStage === "proposal-generating") {
+      setProposalGenerationProgress(0);
+      setCustomerProposalStage("results");
+      setAiResultsConfirmed(false);
+    }
   };
 
   const navigateCandidatePreview = (candidateId: string) => {
@@ -546,6 +660,10 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   const visibleCandidateImages = candidateReferenceImages.filter((candidate) =>
     candidate.categoryId === activeCandidateCategory && candidate.page === activeCandidatePage,
   );
+  const displayedCustomerAiResults = customerAiResultImages.map((item) => ({
+    ...item,
+    src: customerRegeneratedSources[item.id] ?? item.src,
+  }));
   const conversationPlaceholder = !analysisComplete
     ? "Agent 正在解析需求，请稍候..."
     : !scopeFormVisible
@@ -560,7 +678,15 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
             ? "Agent 正在检索候选参考素材，请稍候..."
             : !candidateSelectionConfirmed
               ? "请在上方选择参考素材，或输入补充筛选要求..."
-              : "继续补充条件或提出修改意见...";
+              : customerProposalStage === "ai-generating"
+                ? "Agent 正在生成专业改款提示词与 AI 概念图..."
+                : customerProposalStage === "results"
+                  ? "请选择喜欢的图片，或输入局部修改要求..."
+                  : customerProposalStage === "proposal-generating"
+                    ? "Agent 正在写入正式客户提案，请稍候..."
+                    : customerProposalStage === "complete"
+                      ? "任务已完成，可提出修改意见或追加任务..."
+                      : "继续补充条件或提出修改意见...";
 
   return (
     <motion.main
@@ -572,7 +698,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
     >
       <section className="conversation-stage" aria-label="任务对话">
         <div className="conversation-scroll">
-          <div className="conversation-feed" data-node-id="476:103924" onPointerOver={showMessageMeta} onPointerLeave={scheduleMessageMetaHide}>
+          <ConversationFeed data-node-id="476:103924">
             <ConversationUserMessage
               initial={reduceMotion ? false : { opacity: 0, y: 10, scale: 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -865,7 +991,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                             description="刚刚 · 4个待确认方向 · 分来源展示样本、时间、充分度与缺口"
                           >
                             <button type="button" onClick={() => openTrendPreview("research")}>在线查看</button>
-                            <button type="button" onClick={() => downloadTrendAnalysis("HTML")}>下载</button>
+                            <DownloadFormatMenu onSelect={(format) => downloadTrendAnalysis(format.toUpperCase() as TrendDownloadFormat)} />
                           </ConversationFileCard>
                           <ConversationFileCard
                             icon="excel"
@@ -1127,7 +1253,8 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                                   {!customerFeedbackSkipped ? (
                                     <motion.div className="candidate-reference-handoff__actions" variants={quickActionReveal}>
                                       <Button variant="outline" onClick={() => setCustomerFeedbackSkipped(true)}>
-                                        暂时跳过客户反馈
+                                        <span>暂时跳过客户反馈</span>
+                                        <FigmaIcon name="arrow-right" size={16} />
                                       </Button>
                                     </motion.div>
                                   ) : null}
@@ -1142,6 +1269,204 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                                   暂时跳过客户反馈
                                 </ConversationUserMessage>
                               ) : null}
+                              {candidateSelectionConfirmed && customerFeedbackSkipped ? (
+                                <motion.article
+                                  className="conversation-message conversation-message--assistant candidate-generation-assumptions"
+                                  data-message-actions="true"
+                                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.08, ease: revealEase }}
+                                  data-node-id="620:31947"
+                                >
+                                  <p>
+                                    已暂时跳过客户反馈，以下未指定项将作为待确认假设。<br />
+                                    采用的基础参考款：C05、C06、C07、C03<br />
+                                    必须保留：已确认视觉方向、成熟客群与舒适覆盖度<br />
+                                    必须排除：过度年轻、夸张露肤、第三方标识与直接复刻<br />
+                                    款式修改方向：基于已选锚点做保守、差异与趋势延展三类发散<br />
+                                    计划生成：12 款原型演示概念图<br />
+                                    发散要求：每款至少改变两个有意义的设计轴；颜色替换不单独计为新款<br />
+                                    新增参考图作用：本轮未新增，默认使用已选候选图作为锚点
+                                  </p>
+                                  {!generationDecision ? (
+                                    <div className="candidate-generation-assumptions__actions">
+                                      <Button variant="outline" size="small" onClick={() => setGenerationDecision("skip")}>跳过</Button>
+                                      <Button variant="primary" size="small" onClick={startCustomerAiGeneration}>
+                                        <span>确认并生成</span>
+                                        <FigmaIcon name="arrow-right" size={20} />
+                                      </Button>
+                                    </div>
+                                  ) : null}
+                                </motion.article>
+                              ) : null}
+                              {generationDecision ? (
+                                <ConversationUserMessage
+                                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
+                                >
+                                  {generationDecision === "confirm" ? "确认并生成" : "跳过"}
+                                </ConversationUserMessage>
+                              ) : null}
+                              {generationDecision === "confirm" && customerProposalStage !== "idle" ? (
+                                <motion.article
+                                  className="conversation-message conversation-message--assistant customer-ai-generation-message"
+                                  data-message-actions="true"
+                                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.08, ease: revealEase }}
+                                  data-node-id="620:32088"
+                                >
+                                  <p>改款计划已确认，正在生成专业服装改款提示词与 AI 概念图。</p>
+                                  <TaskDisclosure
+                                    title="AI改款生成"
+                                    expanded={aiGenerationExpanded}
+                                    complete={customerProposalStage !== "ai-generating"}
+                                    controlsId="customer-ai-generation-details"
+                                    onToggle={() => setAiGenerationExpanded((expanded) => !expanded)}
+                                  >
+                                    <div><AnalysisStepIcon complete={aiGenerationProgress >= 1} delay={0.02} /><span>将锚点图、保留/修改/排除元素与企业能力边界结构化</span></div>
+                                    <div><AnalysisStepIcon complete={aiGenerationProgress >= 2} delay={0.1} /><span>检查每款至少两个有意义的设计变化轴</span></div>
+                                    <div><AnalysisStepIcon complete={aiGenerationProgress >= 3} delay={0.18} /><span>通过完整性检查后生成图片，并检查空白、重复与人群偏差</span></div>
+                                    <div><AnalysisStepIcon complete={aiGenerationProgress >= 4} delay={0.26} /><span>将专业改款提示词与 AI 概念图整理为可查看结果</span></div>
+                                  </TaskDisclosure>
+                                </motion.article>
+                              ) : null}
+                              {["results", "proposal-generating", "complete"].includes(customerProposalStage) ? (
+                                <motion.article
+                                  className="conversation-message conversation-message--assistant customer-ai-results-message"
+                                  data-message-actions="true"
+                                  initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: reduceMotion ? 0 : 0.32, ease: revealEase }}
+                                  data-node-id={aiResultsConfirmed ? "620:33330" : selectedAiResultIds.length ? "620:32881" : "620:32330"}
+                                >
+                                  <p>首批 12 张 AI 改款图已完成。已继承客户确认的视觉方向、候选锚点和改款计划，并分别在廓形、比例、结构、花型或细节上形成差异，不以换色充当新款。请选择需要重生成或写入正式提案的图片。</p>
+                                  <ConversationFileCard
+                                    icon="html"
+                                    name="AI改款结果（12张）.html"
+                                    description="刚刚 · 服装改款提示词已在后台通过完整性检查 · AI概念表达"
+                                  >
+                                    <button type="button" onClick={() => openTrendPreview("ai-results")}>在线查看</button>
+                                    <DownloadFormatMenu onSelect={(format) => downloadCustomerProposalFile("ai-results", format.toUpperCase() as TrendDownloadFormat, selectedTrendIds, customerAiResultImages.map((item) => item.id))} />
+                                  </ConversationFileCard>
+                                  <p>请从改款结果中，选择你喜欢的图片</p>
+                                  <section className={`new-product-results-form customer-ai-results-form ${aiResultsConfirmed ? "is-confirmed" : ""}`} aria-label="选择进入正式客户提案的 AI 改款图">
+                                    <ConversationFormTitle
+                                      title="选择进入正式客户提案的 AI 改款图"
+                                      helper="AI 图只作概念表达，不作为市场证据。"
+                                      status={aiResultsConfirmed ? "confirmed" : "pending"}
+                                      statusLabel={aiResultsConfirmed ? "已确认" : "待确认"}
+                                    />
+                                    <div className="customer-ai-result-groups">
+                                      {candidateCategories.map((category) => {
+                                        const groupItems = displayedCustomerAiResults.filter((item) => item.categoryId === category.id);
+                                        return (
+                                          <section className="customer-ai-result-group" key={category.id}>
+                                            <header><span>{category.label}</span><small>· 3 款</small></header>
+                                            <div className="customer-ai-result-grid">
+                                              {groupItems.map((item) => (
+                                                <MasonryImageSelection
+                                                  key={item.id}
+                                                  src={assetUrl(item.src)}
+                                                  alt={`${item.code} ${item.title}`}
+                                                  label={`${item.code} · ${item.title}`}
+                                                  selected={selectedAiResultIds.includes(item.id)}
+                                                  disabled={aiResultsConfirmed || customerProposalRunning}
+                                                  loading={customerRegenerationPhase === "generating" && customerRegenerationTargetIds.includes(item.id)}
+                                                  loadingLabel="生成中..."
+                                                  onSelect={() => toggleAiResult(item.id)}
+                                                  onPreview={() => setAiResultPreviewId(item.id)}
+                                                />
+                                              ))}
+                                            </div>
+                                          </section>
+                                        );
+                                      })}
+                                    </div>
+                                    <div className="new-product-results-actions">
+                                      <span>已选择 <strong>{selectedAiResultIds.length}</strong> 张图片</span>
+                                      {!aiResultsConfirmed ? (
+                                        <>
+                                          <Button
+                                            className="new-product-regenerate-button"
+                                            size="small"
+                                            disabled={!selectedAiResultIds.length || customerRegenerationBusy}
+                                            onClick={startCustomerRegeneration}
+                                          >
+                                            <FigmaIcon name="regenerate-image" size={16} />
+                                            {customerRegenerationBusy ? "重新生成中" : "重新生成"}
+                                          </Button>
+                                          <Button variant="primary" size="small" disabled={!selectedAiResultIds.length || customerProposalRunning} onClick={generateFormalCustomerProposal}>生成提案</Button>
+                                        </>
+                                      ) : null}
+                                    </div>
+                                  </section>
+                                </motion.article>
+                              ) : null}
+                              {customerRegenerationRound > 0 && !customerRegenerationBusy && customerProposalStage === "results" ? (
+                                <motion.article
+                                  className="conversation-message conversation-message--assistant"
+                                  data-message-actions="true"
+                                  initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
+                                >
+                                  <p>已完成局部重新生成，继续在上方表单选择你满意的图片。</p>
+                                </motion.article>
+                              ) : null}
+                              {aiResultsConfirmed ? (
+                                <ConversationUserMessage
+                                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
+                                >
+                                  {customerAiResultImages.filter((item) => selectedAiResultIds.includes(item.id)).map((item) => `${item.code} · ${item.title}`).join("、")}
+                                </ConversationUserMessage>
+                              ) : null}
+                              {["proposal-generating", "complete"].includes(customerProposalStage) ? (
+                                <motion.article
+                                  className="conversation-message conversation-message--assistant customer-proposal-generation-message"
+                                  data-message-actions="true"
+                                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: reduceMotion ? 0 : 0.3, ease: revealEase }}
+                                  data-node-id="620:33742"
+                                  >
+                                  <p>正在将客户需求、市场证据、确认方向、客户反馈和 AI 改款图写入正式客户提案。</p>
+                                  <TaskDisclosure
+                                    title="生成正式客户提案"
+                                    expanded={proposalGenerationExpanded}
+                                    complete={customerProposalStage === "complete"}
+                                    controlsId="formal-customer-proposal-details"
+                                    onToggle={() => setProposalGenerationExpanded((expanded) => !expanded)}
+                                  >
+                                    <div><AnalysisStepIcon complete={proposalGenerationProgress >= 1} delay={0.02} /><span>锁定用户确认的 AI 改款图</span></div>
+                                    <div><AnalysisStepIcon complete={proposalGenerationProgress >= 2} delay={0.1} /><span>关联市场数据、趋势方向、候选来源与客户反馈</span></div>
+                                    <div><AnalysisStepIcon complete={proposalGenerationProgress >= 3} delay={0.18} /><span>生成单一文件语言的只读 HTML</span></div>
+                                    <div><AnalysisStepIcon complete={proposalGenerationProgress >= 4} delay={0.26} /><span>准备 HTML、PPT、PDF 下载文件</span></div>
+                                  </TaskDisclosure>
+                                </motion.article>
+                              ) : null}
+                              {customerProposalStage === "complete" ? (
+                                <motion.article
+                                  className="conversation-message conversation-message--assistant customer-proposal-complete-message"
+                                  data-message-actions="true"
+                                  initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
+                                >
+                                  <ConversationTaskCompletion
+                                    message={<>正式客户提案已完成，已写入 {selectedAiResultIds.length} 张确认后的 AI 改款图，并保留客户需求、市场与趋势依据、视觉方向、参考来源、客户反馈和方案对比。未包含内部 Design Brief、BOM、打样、MOQ、成本、交期或供应链计划。</>}
+                                    suggestions={["基于这份提案生成客户演示稿", "整理确认款的后续开发清单"]}
+                                  >
+                                    <ConversationFileCard icon="html" name="正式客户提案.html" description="刚刚 · 统一HTML查看器 · 可下载HTML/PPT/PDF · 不支持在线编辑">
+                                      <button type="button" onClick={() => openTrendPreview("proposal")}>在线查看</button>
+                                      <DownloadFormatMenu onSelect={(format) => downloadCustomerProposalFile("proposal", format.toUpperCase() as TrendDownloadFormat, selectedTrendIds, selectedAiResultIds)} />
+                                    </ConversationFileCard>
+                                  </ConversationTaskCompletion>
+                                </motion.article>
+                              ) : null}
                           </motion.div>
                         ) : null}
                       </motion.div>
@@ -1150,7 +1475,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                 </motion.div>
               ) : null}
             </AnimatePresence>
-          </div>
+          </ConversationFeed>
         </div>
 
         <div className="conversation-bottom-fade" aria-hidden="true" />
@@ -1165,6 +1490,8 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
             || (scopeConfirmed && !trendScanComplete)
             || (trendDirectionsConfirmed && !candidateSearchComplete)
           }
+          isRunning={customerProposalRunning}
+          onStop={stopCustomerProposalTask}
           motionDelay={0.16}
         />
       </section>
@@ -1180,7 +1507,15 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                 <div className="task-detail-list">
                   {taskDetailSteps.map((step, index) => (
                     <motion.div initial={reduceMotion ? false : { opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : 0.52 + index * 0.1, ease: revealEase }} key={step}>
-                      <StatusIcon status={index === 0 ? (analysisComplete ? "complete" : "loading") : index === 1 ? (scopeConfirmed ? "complete" : "pending") : (trendDirectionsConfirmed ? "complete" : scopeConfirmed ? "loading" : "pending")} />
+                      <StatusIcon status={index === 0
+                        ? (analysisComplete ? "complete" : "loading")
+                        : index === 1
+                          ? (trendScanComplete ? "complete" : scopeConfirmed ? "loading" : "pending")
+                          : customerProposalStage === "complete"
+                            ? "complete"
+                            : customerProposalStage === "proposal-generating"
+                              ? "loading"
+                              : "pending"} />
                       <span>{step}</span>
                     </motion.div>
                   ))}
@@ -1188,39 +1523,27 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
               </section>
               <section>
                 <h2>任务产物</h2>
-                <div className="task-detail-row"><FigmaIcon name="add-file" size={16} /><span>{trendScanComplete ? "趋势方向分析已生成" : scopeConfirmed ? "正在生成趋势方向分析…" : analysisComplete ? "等待搜集行业资料完成…" : "等待需求解析完成…"}</span></div>
+                <TaskArtifactRow kind={customerProposalStage === "results" || customerProposalStage === "ai-generating" ? "image" : "file"}>{
+                  customerProposalStage === "complete"
+                    ? "正式客户提案.html"
+                    : customerProposalStage === "proposal-generating"
+                      ? "正在生成正式客户提案…"
+                      : customerProposalStage === "results"
+                        ? "AI改款结果已生成"
+                        : customerProposalStage === "ai-generating"
+                          ? "正在生成 AI 改款结果…"
+                          : trendScanComplete
+                            ? "趋势方向分析已生成"
+                            : scopeConfirmed
+                              ? "正在生成趋势方向分析…"
+                              : analysisComplete
+                                ? "等待搜集行业资料完成…"
+                                : "等待需求解析完成…"
+                }</TaskArtifactRow>
               </section>
         </div>
         <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
       </aside>
-
-      {messageMetaPosition && typeof document !== "undefined" && createPortal(
-        <div
-          className={`conversation-message-meta conversation-message-meta--floating is-${messageMetaPosition.side}`}
-          style={{ left: messageMetaPosition.left, top: messageMetaPosition.top }}
-          onPointerEnter={keepMessageMetaOpen}
-          onPointerLeave={scheduleMessageMetaHide}
-        >
-          {messageMetaPosition.side === "user" ? (
-            <>
-              <time>10:24</time>
-              <div>
-                <IconControl label="复制消息" variant="bare" size="xsmall" onClick={copyHoveredMessage}><FigmaIcon name="copy" size={16} /></IconControl>
-              </div>
-            </>
-          ) : (
-            <>
-              <div>
-                <IconControl label="复制消息" variant="bare" size="xsmall" onClick={copyHoveredMessage}><FigmaIcon name="copy" size={16} /></IconControl>
-                <IconControl label="赞同消息" variant="bare" size="xsmall"><FigmaIcon name="like" size={16} /></IconControl>
-                <IconControl label="不赞同消息" variant="bare" size="xsmall"><FigmaIcon name="dislike" size={16} /></IconControl>
-              </div>
-              <time>10:24</time>
-            </>
-          )}
-        </div>,
-        document.body,
-      )}
 
       {typeof document !== "undefined" && createPortal(
         <AnimatePresence>
@@ -1246,7 +1569,15 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
               >
                 <header className="trend-preview-modal__header">
                   <div>
-                    <h2 id="trend-preview-title">{trendPreviewKind === "package" ? "客户方向参考包.html" : "客户需求调研与视觉方向.html"}</h2>
+                    <h2 id="trend-preview-title">{
+                      trendPreviewKind === "package"
+                        ? "客户方向参考包.html"
+                        : trendPreviewKind === "ai-results"
+                          ? "AI改款结果（12张）.html"
+                          : trendPreviewKind === "proposal"
+                            ? "正式客户提案.html"
+                            : "客户需求调研与视觉方向.html"
+                    }</h2>
                     <span>AI 生成 · 在线预览</span>
                   </div>
                   <div className="trend-preview-modal__actions">
@@ -1255,7 +1586,9 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                       size="small"
                       onClick={() => trendPreviewKind === "package"
                         ? downloadCustomerDirectionPackage(selectedCandidateIds, selectedTrendIds)
-                        : downloadTrendAnalysis("HTML")}
+                        : trendPreviewKind === "ai-results" || trendPreviewKind === "proposal"
+                          ? downloadCustomerProposalFile(trendPreviewKind, "HTML", selectedTrendIds, trendPreviewKind === "ai-results" ? customerAiResultImages.map((item) => item.id) : selectedAiResultIds)
+                          : downloadTrendAnalysis("HTML")}
                     >
                       下载 HTML
                     </Button>
@@ -1266,7 +1599,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                 </header>
                 <iframe
                   className="trend-preview-modal__frame"
-                  title={trendPreviewKind === "package" ? "客户方向参考包在线预览" : "客户需求调研与视觉方向在线预览"}
+                  title={trendPreviewKind === "package" ? "客户方向参考包在线预览" : trendPreviewKind === "ai-results" ? "AI改款结果在线预览" : trendPreviewKind === "proposal" ? "正式客户提案在线预览" : "客户需求调研与视觉方向在线预览"}
                   srcDoc={buildTrendReportHtml(trendPreviewKind, selectedTrendIds, selectedCandidateIds)}
                 />
               </motion.section>
@@ -1287,6 +1620,24 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
           onNavigate={navigateCandidatePreview}
           onToggleSelection={toggleCandidateReference}
           onClose={() => setCandidatePreviewId(null)}
+        />
+      ) : null}
+      {aiResultPreviewId ? (
+        <CandidateImageLightbox
+          categories={candidateCategories}
+          items={displayedCustomerAiResults}
+          activeCategoryId={getCandidateReference(aiResultPreviewId)?.categoryId ?? candidateCategories[0].id}
+          activeItemId={aiResultPreviewId}
+          selectedIds={selectedAiResultIds}
+          selectionDisabled={aiResultsConfirmed || customerProposalRunning}
+          showCategories={false}
+          onCategoryChange={(categoryId) => {
+            const firstResult = displayedCustomerAiResults.find((item) => item.categoryId === categoryId);
+            if (firstResult) setAiResultPreviewId(firstResult.id);
+          }}
+          onNavigate={setAiResultPreviewId}
+          onToggleSelection={toggleAiResult}
+          onClose={() => setAiResultPreviewId(null)}
         />
       ) : null}
     </motion.main>

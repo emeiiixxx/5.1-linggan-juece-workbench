@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type Dispatch, type ReactN
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
-import { Button, QuickReplyButton, SuggestionButton } from "./Button";
+import { Button, QuickReplyButton } from "./Button";
 import { DownloadFormatMenu, type DownloadFormat } from "./DownloadFormatMenu";
 import {
   CandidateImageLightbox,
@@ -12,10 +12,13 @@ import {
 } from "./ImageSelection";
 import {
   AnalysisStepIcon,
+  ConversationFeed,
   ConversationFileCard,
   ConversationFormTitle,
   ConversationStatusIcon,
+  ConversationTaskCompletion,
   ConversationUserMessage,
+  TaskArtifactRow,
   TaskDisclosure,
   type ConversationStepStatus,
 } from "./ConversationPrimitives";
@@ -210,6 +213,7 @@ function AssistantMessage({ children, className = "" }: { children: ReactNode; c
   return (
     <motion.article
       className={`conversation-message conversation-message--assistant new-product-message ${className}`}
+      data-message-actions="true"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, ease: revealEase }}
@@ -551,7 +555,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     <motion.main className={`workspace-region workspace-region--conversation new-product-workspace ${detailPanelOpen ? "has-detail-panel" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
       <section className="conversation-stage" aria-label="新品企划任务对话">
         <div className="conversation-scroll">
-          <div className="conversation-feed new-product-feed">
+          <ConversationFeed className="new-product-feed">
             <ConversationUserMessage entrance>
               {attachments.length ? (
                 <span className="new-product-user-attachments" aria-label="已上传的参考资料">
@@ -651,7 +655,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                         <button type="button" className={`visual-direction-choice-card ${selected ? "is-selected" : ""}`} aria-pressed={selected} disabled={stage !== "directions"} onClick={() => toggle(direction.id, setSelectedDirections)} key={direction.id}>
                           <img src={assetUrl(direction.src)} alt="" />
                           <span><strong>{direction.title}</strong><span>{direction.description}</span><small>{direction.recommendation}</small></span>
-                          <span className="new-product-direction-check">{selected ? <FigmaIcon name="check" size={12} /> : null}</span>
+                          <span className="new-product-direction-check">{selected ? <FigmaIcon name="check-bold" size={12} /> : null}</span>
                         </button>
                       );
                     })}
@@ -736,7 +740,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                     {stage === "results" ? (
                       <>
                         <Button className="new-product-regenerate-button" disabled={!selectedResults.length || regenerationBusy} onClick={startRegeneration}>
-                          <img src={assetUrl("assets/figma-icons/regenerate-image.svg")} alt="" />
+                          <FigmaIcon name="regenerate-image" size={16} />
                           {t(regenerationBusy ? "重新生成中" : "重新生成")}
                         </Button>
                         <Button variant="primary" disabled={!selectedResults.length || regenerationBusy} onClick={() => setStage("plan-generating")}>{t("生成企划")}</Button>
@@ -770,21 +774,21 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
             {stage === "complete" ? (
               <AssistantMessage>
-                <p>新品企划案已完成，已写入 {selectedResults.length} 张你确认的 AI 款式图，并保留调研依据、视觉方向和商品结构。所有内容只读；需要修改时系统会生成新版本并只重跑受影响步骤。</p>
-                <DownloadableFile
-                  name="新品企划案.html"
-                  description="刚刚 · 商品结构、渠道策略、确认方向与 AI 款式图 · 只读演示版"
-                  html={newProductPlanHtml}
-                  onPreview={() => setReportPreview({ name: "新品企划案.html", html: newProductPlanHtml })}
-                />
-                <div className="conversation-suggestion-list">
-                  <SuggestionButton>推荐后续：分析可持续丹宁面料</SuggestionButton>
-                  <SuggestionButton>基于这份报告制作客户提案</SuggestionButton>
-                </div>
+                <ConversationTaskCompletion
+                  message={<>新品企划案已完成，已写入 {selectedResults.length} 张你确认的 AI 款式图，并保留调研依据、视觉方向和商品结构。所有内容只读；需要修改时系统会生成新版本并只重跑受影响步骤。</>}
+                  suggestions={["推荐后续：分析可持续丹宁面料", "基于这份报告制作客户提案"]}
+                >
+                  <DownloadableFile
+                    name="新品企划案.html"
+                    description="刚刚 · 商品结构、渠道策略、确认方向与 AI 款式图 · 只读演示版"
+                    html={newProductPlanHtml}
+                    onPreview={() => setReportPreview({ name: "新品企划案.html", html: newProductPlanHtml })}
+                  />
+                </ConversationTaskCompletion>
               </AssistantMessage>
             ) : null}
             <div ref={feedEndRef} />
-          </div>
+          </ConversationFeed>
         </div>
 
         <div className="conversation-bottom-fade" aria-hidden="true" />
@@ -800,7 +804,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
           </section>
           <section>
             <h2>任务产物</h2>
-            <div className="task-detail-row"><FigmaIcon name="file-html" size={16} /><span>{stage === "complete" ? "新品企划案.html" : "正在生成新品企划产物…"}</span></div>
+            <TaskArtifactRow kind="file">{stage === "complete" ? "新品企划案.html" : "正在生成新品企划产物…"}</TaskArtifactRow>
           </section>
           <section><h2>参考信息</h2><p className="new-product-reference-copy">电商、社媒、品牌公开站与趋势资料按来源保留，不合并为虚构销量。</p></section>
         </div>

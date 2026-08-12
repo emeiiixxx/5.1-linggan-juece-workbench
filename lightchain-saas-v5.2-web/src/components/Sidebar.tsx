@@ -565,9 +565,6 @@ export function Sidebar({
 
       const sourceProjectId = sourceGroupIndex === null ? null : groups[sourceGroupIndex].id;
       const destinationProjectId = destinationGroupIndex === null ? null : groups[destinationGroupIndex].id;
-      const movedTaskWasSelected = draggedRow.kind === "item"
-        ? selectedRow?.kind === "item" && selectedRow.groupId === sourceProjectId && selectedRow.itemIndex === sourceIndex
-        : selectedRow?.kind === "task" && selectedRow.taskIndex === sourceIndex;
       const sourceKey = `${sourceProjectId ?? "task"}:${movedTask}`;
       const destinationKey = `${destinationProjectId ?? "task"}:${movedTask}`;
       const taskId = createdTaskIdsRef.current.get(sourceKey);
@@ -576,12 +573,24 @@ export function Sidebar({
         createdTaskIdsRef.current.set(destinationKey, taskId);
         if (sourceProjectId !== destinationProjectId) onMoveTask?.(taskId, destinationProjectId);
       }
-      if (movedTaskWasSelected) {
-        setSelectedRow(destinationProjectId === null
-          ? { kind: "task", taskIndex: insertionIndex }
-          : { kind: "item", groupId: destinationProjectId, itemIndex: insertionIndex });
-      } else {
-        setSelectedRow(null);
+
+      if (selectedRow) {
+        const selectedProjectId = selectedRow.kind === "item" ? selectedRow.groupId : null;
+        const selectedIndex = selectedRow.kind === "item" ? selectedRow.itemIndex : selectedRow.taskIndex;
+        const selectedTaskWasMoved = selectedProjectId === sourceProjectId && selectedIndex === sourceIndex;
+
+        if (selectedTaskWasMoved) {
+          setSelectedRow(destinationProjectId === null
+            ? { kind: "task", taskIndex: insertionIndex }
+            : { kind: "item", groupId: destinationProjectId, itemIndex: insertionIndex });
+        } else {
+          let nextSelectedIndex = selectedIndex;
+          if (selectedProjectId === sourceProjectId && selectedIndex > sourceIndex) nextSelectedIndex -= 1;
+          if (selectedProjectId === destinationProjectId && nextSelectedIndex >= insertionIndex) nextSelectedIndex += 1;
+          setSelectedRow(selectedProjectId === null
+            ? { kind: "task", taskIndex: nextSelectedIndex }
+            : { kind: "item", groupId: selectedProjectId, itemIndex: nextSelectedIndex });
+        }
       }
 
       setGroups(nextGroups);

@@ -3,7 +3,7 @@ import { FigmaIcon } from "./FigmaIcon";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
-  variant?: "ghost" | "outline" | "primary";
+  variant?: "ghost" | "outline" | "primary" | "secondary";
   size?: "small" | "medium";
 };
 
@@ -27,5 +27,28 @@ export function SuggestionButton({ children, className = "", ...props }: Omit<Bu
       <span>{children}</span>
       <FigmaIcon name="arrow-down-right" size={16} />
     </Button>
+  );
+}
+
+export function OutlineToggleButton({
+  children,
+  className = "",
+  selected = false,
+  appearance = "outline",
+  type = "button",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  selected?: boolean;
+  appearance?: "outline" | "base";
+}) {
+  return (
+    <button
+      type={type}
+      className={`outline-toggle-button outline-toggle-button--${appearance} ${selected ? "is-selected" : ""} ${className}`.trim()}
+      aria-pressed={selected}
+      {...props}
+    >
+      {children}
+    </button>
   );
 }

@@ -3,8 +3,8 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { CircleCheckbox, ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
-import { Button, QuickReplyButton, SuggestionButton } from "./Button";
-import { AnalysisStepIcon, ConversationStatusIcon as ApparelStatusIcon, ConversationUserMessage as UserMessage, TaskDisclosure, type ConversationStepStatus as StepState } from "./ConversationPrimitives";
+import { Button, QuickReplyButton } from "./Button";
+import { AnalysisStepIcon, ConversationFeed, ConversationFormTitle, ConversationStatusIcon as ApparelStatusIcon, ConversationTaskCompletion, ConversationUserMessage as UserMessage, TaskArtifactRow, TaskDisclosure, type ConversationStepStatus as StepState } from "./ConversationPrimitives";
 import { TaskConversationComposer } from "./TaskConversationComposer";
 import { useGsapEntrance } from "../motion/gsap";
 
@@ -86,7 +86,7 @@ function LoadingTask({ title, lines }: { title: string; lines: string[] }) {
 function AssistantMessage({ children, className = "" }: { children: ReactNode; className?: string }) {
   const messageRef = useGsapEntrance<HTMLElement>();
   return (
-    <article className={`conversation-message conversation-message--assistant apparel-assistant-message ${className}`} ref={messageRef}>
+    <article className={`conversation-message conversation-message--assistant apparel-assistant-message ${className}`} data-message-actions="true" ref={messageRef}>
       {children}
     </article>
   );
@@ -312,7 +312,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
     <motion.main className={`workspace-region workspace-region--conversation apparel-workspace ${detailPanelOpen ? "has-detail-panel" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
       <section className="conversation-stage" aria-label="款式设计任务对话">
         <div className="conversation-scroll">
-          <div className="conversation-feed apparel-conversation-feed">
+          <ConversationFeed className="apparel-conversation-feed">
             {(attachments.length > 0 || prompt.includes("上传")) && (
               <div className="apparel-user-reference-grid">
                 {(attachments.length ? attachments.map((item) => item.previewUrl).filter(Boolean) : userReferences.map(assetUrl)).slice(0, 2).map((src, index) => (
@@ -344,10 +344,11 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
               <AssistantMessage className="conversation-scope-message">
                 <p>已完成初步解析。</p>
                   <div className={`research-scope-form ${briefReply ? "is-readonly" : ""}`} data-node-id="563:34957">
-                    <div className="research-scope-title">
-                      <span className="research-scope-title__icon"><img src={assetUrl("assets/figma-icons/apparel-design.svg")} alt="" /></span>
-                      <strong>为了更精准地规划系列，请确认以下几点：</strong>
-                    </div>
+                    <ConversationFormTitle
+                      title="为了更精准地规划系列，请确认以下几点："
+                      status={briefReply ? "confirmed" : "pending"}
+                      statusLabel={briefReply ? "已确认" : "待确认"}
+                    />
                     <div className="research-scope-fields">
                       <fieldset className="research-scope-field">
                         <legend>出款数量 <span aria-hidden="true">*</span></legend>
@@ -411,17 +412,18 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
               <AssistantMessage>
                 <p>基于你的需求,我规划了以下4个设计方向:</p>
                 <div className={`research-scope-form apparel-direction-form ${stage === "directions" ? "is-editable" : "is-readonly"}`} role="group" aria-label="选择设计方向，支持多选" data-node-id="563:39531">
-                  <div className="research-scope-title">
-                    <span className="research-scope-title__icon"><img src={assetUrl("assets/figma-icons/apparel-design.svg")} alt="" /></span>
-                    <strong>请选择一个或多个方向</strong>
-                  </div>
+                  <ConversationFormTitle
+                    title="选择设计方向，支持多选"
+                    status={stage === "directions" ? "pending" : "confirmed"}
+                    statusLabel={stage === "directions" ? "待确认" : "已确认"}
+                  />
                   <div className="apparel-direction-options">
                     {designDirections.map((direction) => {
                       const selected = selectedDirectionIds.includes(direction.id);
                       return (
                         <button
                           type="button"
-                          className={selected ? "is-selected" : ""}
+                          className={`visual-direction-choice-card ${selected ? "is-selected" : ""}`}
                           aria-pressed={selected}
                           disabled={stage !== "directions"}
                           onClick={() => toggleDirection(direction.id)}
@@ -435,7 +437,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                         </button>
                       );
                     })}
-                    <div className={`apparel-direction-card apparel-direction-card--other ${selectedDirectionIds.includes("OTHER") ? "is-selected" : ""}`}>
+                    <div className={`visual-direction-choice-card apparel-direction-card apparel-direction-card--other ${selectedDirectionIds.includes("OTHER") ? "is-selected" : ""}`}>
                       <span className="apparel-direction-option__copy">
                         <strong>D · 其他</strong>
                         <input
@@ -476,11 +478,12 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
             {stageIndex >= 5 && (
               <AssistantMessage className="conversation-candidate-grid-message">
                 <p>请从候选池中选择你喜欢的参考素材</p>
-                <div className="research-scope-form media-selection-form" data-node-id="558:27525">
-                  <div className="research-scope-title">
-                    <span className="research-scope-title__icon"><img src={assetUrl("assets/figma-icons/apparel-design.svg")} alt="" /></span>
-                    <strong>候选池图片集 · 支持多选</strong>
-                  </div>
+                <div className={`research-scope-form media-selection-form ${stage === "candidates" ? "" : "is-readonly"}`} data-node-id="558:27525">
+                  <ConversationFormTitle
+                    title="候选池图片集 · 支持多选"
+                    status={stage === "candidates" ? "pending" : "confirmed"}
+                    statusLabel={stage === "candidates" ? "待确认" : "已确认"}
+                  />
                   <div className="image-selection-grid" role="group" aria-label="候选池图片集，支持多选">
                     {candidateIds.map((candidateId, index) => {
                       const selected = selectedCandidates.includes(candidateId);
@@ -700,14 +703,11 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                       </figure>
                     ))}
                   </div>
-                  <div className="conversation-suggestion-list">
-                    {resultSuggestions.map((suggestion) => (
-                      <SuggestionButton onClick={() => submitMessage(suggestion)} key={suggestion}>{suggestion}</SuggestionButton>
-                    ))}
-                  </div>
                 </AssistantMessage>
 
-                <AssistantMessage><p>该任务已完成。</p></AssistantMessage>
+                <AssistantMessage className="apparel-result-suggestions">
+                  <ConversationTaskCompletion message="该任务已完成。" suggestions={resultSuggestions} onSuggestion={submitMessage} />
+                </AssistantMessage>
               </>
             )}
             {resultFollowUps.map((message, index) => (
@@ -717,7 +717,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
               </div>
             ))}
             <div ref={feedEndRef} />
-          </div>
+          </ConversationFeed>
         </div>
 
         <div className="conversation-bottom-fade" aria-hidden="true" />
@@ -745,8 +745,8 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
           </section>
           <section>
             <h2>任务产物</h2>
-            <div className="task-detail-row"><FigmaIcon name="file" size={16} /><span>{stageIndex >= 8 ? "经典解构·飞行员皮夹克系列执行书" : "等待生成设计执行书…"}</span></div>
-            {stage === "results" && <div className="task-detail-row"><FigmaIcon name="apparel-design" size={16} /><span>8 款系列设计图</span></div>}
+            <TaskArtifactRow kind="file">{stageIndex >= 8 ? "经典解构·飞行员皮夹克系列执行书" : "等待生成设计执行书…"}</TaskArtifactRow>
+            {stage === "results" && <TaskArtifactRow kind="image">8 款系列设计图</TaskArtifactRow>}
           </section>
           <section>
             <h2>参考信息</h2>

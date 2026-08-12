@@ -30,7 +30,7 @@
 
   --state-default: rgb(255 255 255 / 5%);
   --state-hover: rgb(255 255 255 / 10%);
-  --state-selected: rgb(255 255 255 / 15%);
+  --state-selected: #20d0c4;
   --state-selected-tab-sliding: rgb(255 255 255 / 15%);
   --state-selected-brand: #20d0c4;
 
@@ -111,7 +111,7 @@
 
   --state-default: rgb(0 0 0 / 3%);
   --state-hover: rgb(0 0 0 / 8%);
-  --state-selected: rgb(0 0 0 / 8%);
+  --state-selected: #70ebde;
   --state-selected-tab-sliding: #ffffff;
   --state-selected-brand: #70ebde;
 
