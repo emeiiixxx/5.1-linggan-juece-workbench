@@ -10,6 +10,7 @@ type FigmaIconProps = {
 const ICON_ROOT = assetUrl("assets/figma-icons");
 const ICON_ASSETS: Record<string, string> = {
   dot: "demand-dot.svg",
+  stop: "stop.svg",
 };
 
 const ART_INSETS: Record<string, string> = {
@@ -18,6 +19,7 @@ const ART_INSETS: Record<string, string> = {
   "add-image": "12.5% 6.25% 12.5% 12.5%",
   "add-project": "12.5% 6.25% 12.5% 9.38%",
   "arrow-up": "20.31% 26.56%",
+  "arrow-right": "25% 18.75%",
   "arrow-down-right": "25%",
   "arrow-up-right": "25%",
   "arrow-left": "25% 18.75% 25%",
@@ -48,6 +50,7 @@ const ART_INSETS: Record<string, string> = {
   "points-star": "12.81% 3.54% 9.79% 5.94%",
   project: "12.69% 9.54% 12.68%",
   search: "12.5%",
+  stop: "18.75%",
   reset: "13.54%",
   task: "6.25%",
   trash: "6.25% 12.5% 9.38%",

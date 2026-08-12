@@ -129,11 +129,26 @@ export function TaskDisclosure({
   );
 }
 
-export function ConversationFormTitle({ title, helper }: { title: string; helper?: string }) {
+export function ConversationFormTitle({
+  title,
+  helper,
+  status,
+  statusLabel,
+}: {
+  title: string;
+  helper?: string;
+  status?: "pending" | "confirmed";
+  statusLabel?: string;
+}) {
   return (
     <header className="conversation-form-title">
-      <span><img src={assetUrl("assets/figma-icons/apparel-design.svg")} alt="" /></span>
-      <strong>{title}</strong>
+      <div className="conversation-form-title__row">
+        <div className="conversation-form-title__heading">
+          <span><img src={assetUrl("assets/figma-icons/apparel-design.svg")} alt="" /></span>
+          <strong>{title}</strong>
+        </div>
+        {status ? <span className={`conversation-form-status is-${status}`}>{statusLabel}</span> : null}
+      </div>
       {helper ? <small>{helper}</small> : null}
     </header>
   );

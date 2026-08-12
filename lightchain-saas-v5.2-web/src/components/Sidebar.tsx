@@ -24,6 +24,7 @@ type SidebarProps = {
   createdTask?: { id: number; title: string; projectId: number | null } | null;
   onOpenTask?: (taskId: number) => void;
   onDeleteTask?: (taskId: number) => void;
+  onMoveTask?: (taskId: number, projectId: number | null) => void;
 };
 
 type ActionTarget =
@@ -42,14 +43,19 @@ type DialogState = {
   target: ActionTarget;
 };
 
-type DraggedRow = {
-  groupIndex: number;
-  itemIndex: number;
-  label: string;
-};
+type DraggedRow =
+  | { kind: "group"; groupIndex: number; label: string }
+  | { kind: "item"; groupIndex: number; itemIndex: number; label: string }
+  | { kind: "task"; taskIndex: number; label: string };
+
+type DropTarget =
+  | { kind: "group"; index: number }
+  | { kind: "task"; groupIndex: number | null; index: number };
+
+type DropIndicator = { left: number; top: number; width: number };
 
 type SelectedRow =
-  | { kind: "item"; groupIndex: number; itemIndex: number }
+  | { kind: "item"; groupId: number; itemIndex: number }
   | { kind: "task"; taskIndex: number };
 
 export function Sidebar({
@@ -62,6 +68,7 @@ export function Sidebar({
   createdTask,
   onOpenTask,
   onDeleteTask,
+  onMoveTask,
 }: SidebarProps) {
   const { t } = useI18n();
   const [projectsExpanded, setProjectsExpanded] = useState(true);
@@ -85,7 +92,9 @@ export function Sidebar({
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createProjectValue, setCreateProjectValue] = useState("");
   const [draggedRow, setDraggedRow] = useState<DraggedRow | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ groupIndex: number; index: number } | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
+  const [dropFocusedGroupIndex, setDropFocusedGroupIndex] = useState<number | null>(null);
   const actionMenuRef = useRef<HTMLDivElement>(null);
   const actionMenuAnchorRef = useRef<HTMLButtonElement | null>(null);
   const actionMenuStateRef = useRef<ActionMenuState | null>(null);
@@ -127,7 +136,7 @@ export function Sidebar({
       ),
     );
     setProjectsExpanded(true);
-    setSelectedRow({ kind: "item", groupIndex, itemIndex: 0 });
+    setSelectedRow({ kind: "item", groupId: createdTask.projectId, itemIndex: 0 });
   }, [createdTask]);
 
   const openNewTask = () => {
@@ -225,6 +234,8 @@ export function Sidebar({
       setActionMenu(null);
       setDraggedRow(null);
       setDropTarget(null);
+      setDropIndicator(null);
+      setDropFocusedGroupIndex(null);
     }
   }, [expanded]);
 
@@ -417,7 +428,27 @@ export function Sidebar({
     onCreateTaskInProject?.({ id: project.id, name: project.title });
   };
 
-  const handleDragStart = (
+  const setDragPreview = (event: DragEvent<HTMLDivElement>, label: string) => {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", label);
+    const preview = document.createElement("div");
+    preview.className = "tree-drag-preview";
+    preview.textContent = label;
+    document.body.appendChild(preview);
+    event.dataTransfer.setDragImage(preview, 12, 13);
+    requestAnimationFrame(() => preview.remove());
+    setActionMenu(null);
+  };
+
+  const setIndicatorAt = (rect: DOMRect, edge: "top" | "bottom") => {
+    setDropIndicator({
+      left: rect.left + 7,
+      top: (edge === "top" ? rect.top : rect.bottom) - 1,
+      width: Math.max(24, rect.width - 15),
+    });
+  };
+
+  const handleItemDragStart = (
     event: DragEvent<HTMLDivElement>,
     groupIndex: number,
     itemIndex: number,
@@ -427,51 +458,150 @@ export function Sidebar({
       event.preventDefault();
       return;
     }
-
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", label);
-    const preview = document.createElement("div");
-    preview.className = "tree-drag-preview";
-    preview.textContent = label;
-    document.body.appendChild(preview);
-    event.dataTransfer.setDragImage(preview, 12, 13);
-    requestAnimationFrame(() => preview.remove());
-
-    setActionMenu(null);
-    setDraggedRow({ groupIndex, itemIndex, label });
-    setDropTarget({ groupIndex, index: itemIndex });
+    setDragPreview(event, label);
+    setDraggedRow({ kind: "item", groupIndex, itemIndex, label });
+    setDropTarget({ kind: "task", groupIndex, index: itemIndex });
   };
 
-  const handleDragOver = (
+  const handleLooseTaskDragStart = (
+    event: DragEvent<HTMLDivElement>,
+    taskIndex: number,
+    label: string,
+  ) => {
+    if ((event.target as HTMLElement).closest(".tree-row__actions")) {
+      event.preventDefault();
+      return;
+    }
+    setDragPreview(event, label);
+    setDraggedRow({ kind: "task", taskIndex, label });
+    setDropTarget({ kind: "task", groupIndex: null, index: taskIndex });
+  };
+
+  const handleGroupDragStart = (
     event: DragEvent<HTMLDivElement>,
     groupIndex: number,
+    label: string,
+  ) => {
+    if ((event.target as HTMLElement).closest(".tree-row__actions")) {
+      event.preventDefault();
+      return;
+    }
+    setDragPreview(event, label);
+    setDraggedRow({ kind: "group", groupIndex, label });
+    setDropTarget({ kind: "group", index: groupIndex });
+  };
+
+  const handleGroupDragOver = (
+    event: DragEvent<HTMLDivElement>,
+    groupIndex: number,
+  ) => {
+    if (!draggedRow) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+
+    if (draggedRow.kind === "group") {
+      setDropFocusedGroupIndex(null);
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "move";
+      const before = event.clientY < rect.top + rect.height / 2;
+      setDropTarget({ kind: "group", index: before ? groupIndex : groupIndex + 1 });
+      setIndicatorAt(rect, before ? "top" : "bottom");
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "move";
+    setDropFocusedGroupIndex(groupIndex);
+    setDropTarget({ kind: "task", groupIndex, index: groups[groupIndex].items.length });
+    setIndicatorAt(rect, "bottom");
+  };
+
+  const handleTaskDragOver = (
+    event: DragEvent<HTMLDivElement>,
+    groupIndex: number | null,
     itemIndex: number,
   ) => {
-    if (!draggedRow || draggedRow.groupIndex !== groupIndex) return;
+    if (!draggedRow || draggedRow.kind === "group") return;
     event.preventDefault();
+    event.stopPropagation();
     event.dataTransfer.dropEffect = "move";
+    setDropFocusedGroupIndex(null);
     const rect = event.currentTarget.getBoundingClientRect();
-    const index = event.clientY < rect.top + rect.height / 2 ? itemIndex : itemIndex + 1;
-    setDropTarget({ groupIndex, index });
+    const before = event.clientY < rect.top + rect.height / 2;
+    setDropTarget({ kind: "task", groupIndex, index: before ? itemIndex : itemIndex + 1 });
+    setIndicatorAt(rect, before ? "top" : "bottom");
   };
 
   const finishDrag = () => {
-    if (draggedRow && dropTarget && draggedRow.groupIndex === dropTarget.groupIndex) {
-      setGroups((current) =>
-        current.map((group, groupIndex) => {
-          if (groupIndex !== draggedRow.groupIndex) return group;
-          const items = [...group.items];
-          const [movedItem] = items.splice(draggedRow.itemIndex, 1);
-          const adjustedIndex =
-            dropTarget.index > draggedRow.itemIndex ? dropTarget.index - 1 : dropTarget.index;
-          items.splice(adjustedIndex, 0, movedItem);
-          return { ...group, items };
-        }),
-      );
+    if (!draggedRow || !dropTarget) return;
+
+    if (draggedRow.kind === "group" && dropTarget.kind === "group") {
+      const nextGroups = [...groups];
+      const [movedGroup] = nextGroups.splice(draggedRow.groupIndex, 1);
+      const adjustedIndex = dropTarget.index > draggedRow.groupIndex
+        ? dropTarget.index - 1
+        : dropTarget.index;
+      nextGroups.splice(adjustedIndex, 0, movedGroup);
+      setGroups(nextGroups);
     }
+
+    if (draggedRow.kind !== "group" && dropTarget.kind === "task") {
+      const sourceGroupIndex = draggedRow.kind === "item" ? draggedRow.groupIndex : null;
+      const sourceIndex = draggedRow.kind === "item" ? draggedRow.itemIndex : draggedRow.taskIndex;
+      const destinationGroupIndex = dropTarget.groupIndex;
+      const nextGroups = groups.map((group) => ({ ...group, items: [...group.items] }));
+      const nextTasks = [...tasks];
+      const sourceItems = sourceGroupIndex === null ? nextTasks : nextGroups[sourceGroupIndex].items;
+      const [movedTask] = sourceItems.splice(sourceIndex, 1);
+      const destinationItems = destinationGroupIndex === null ? nextTasks : nextGroups[destinationGroupIndex].items;
+      const sameContainer = sourceGroupIndex === destinationGroupIndex;
+      const adjustedIndex = sameContainer && dropTarget.index > sourceIndex
+        ? dropTarget.index - 1
+        : dropTarget.index;
+      const insertionIndex = Math.min(adjustedIndex, destinationItems.length);
+      destinationItems.splice(insertionIndex, 0, movedTask);
+      if (destinationGroupIndex !== null) nextGroups[destinationGroupIndex].expanded = true;
+
+      const sourceProjectId = sourceGroupIndex === null ? null : groups[sourceGroupIndex].id;
+      const destinationProjectId = destinationGroupIndex === null ? null : groups[destinationGroupIndex].id;
+      const movedTaskWasSelected = draggedRow.kind === "item"
+        ? selectedRow?.kind === "item" && selectedRow.groupId === sourceProjectId && selectedRow.itemIndex === sourceIndex
+        : selectedRow?.kind === "task" && selectedRow.taskIndex === sourceIndex;
+      const sourceKey = `${sourceProjectId ?? "task"}:${movedTask}`;
+      const destinationKey = `${destinationProjectId ?? "task"}:${movedTask}`;
+      const taskId = createdTaskIdsRef.current.get(sourceKey);
+      if (taskId !== undefined) {
+        createdTaskIdsRef.current.delete(sourceKey);
+        createdTaskIdsRef.current.set(destinationKey, taskId);
+        if (sourceProjectId !== destinationProjectId) onMoveTask?.(taskId, destinationProjectId);
+      }
+      if (movedTaskWasSelected) {
+        setSelectedRow(destinationProjectId === null
+          ? { kind: "task", taskIndex: insertionIndex }
+          : { kind: "item", groupId: destinationProjectId, itemIndex: insertionIndex });
+      } else {
+        setSelectedRow(null);
+      }
+
+      setGroups(nextGroups);
+      setTasks(nextTasks);
+    }
+
     setDraggedRow(null);
     setDropTarget(null);
+    setDropIndicator(null);
+    setDropFocusedGroupIndex(null);
   };
+
+  const cancelDrag = () => {
+    setDraggedRow(null);
+    setDropTarget(null);
+    setDropIndicator(null);
+    setDropFocusedGroupIndex(null);
+  };
+
+  const newTaskSelected = activeView === "workspace" && selectedRow === null;
 
   return (
     <>
@@ -508,7 +638,8 @@ export function Sidebar({
           <nav className="sidebar__primary" aria-label={t("工作台入口")}>
             <button
               type="button"
-              className={activeView === "workspace" ? "is-selected" : ""}
+              className={newTaskSelected ? "is-selected" : ""}
+              aria-current={newTaskSelected ? "page" : undefined}
               onClick={openNewTask}
             >
               <FigmaIcon name="new-task" size={20} />
@@ -556,14 +687,37 @@ export function Sidebar({
             <div className={`sidebar-section__content ${projectsExpanded ? "is-open" : ""}`}>
               <div className="sidebar-section__content-inner">
               {groups.map((group, groupIndex) => (
-                <div className="tree-group" key={`${group.title}-${groupIndex}`}>
+                <div className="tree-group" key={group.id}>
                   <div
                     className={`tree-row-shell tree-row-shell--group ${
+                      draggedRow?.kind === "group" && draggedRow.groupIndex === groupIndex
+                        ? "is-dragging"
+                        : ""
+                    } ${
+                      dropFocusedGroupIndex === groupIndex && draggedRow?.kind !== "group"
+                        ? "is-drop-focused"
+                        : ""
+                    } ${
                       actionMenu?.target.kind === "group" &&
                       actionMenu.target.groupIndex === groupIndex
                         ? "is-menu-open"
                         : ""
                     }`}
+                    draggable={projectsExpanded}
+                    onDragStart={(event) => handleGroupDragStart(event, groupIndex, group.title)}
+                    onDragOver={(event) => handleGroupDragOver(event, groupIndex)}
+                    onDragLeave={(event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                        setDropFocusedGroupIndex((current) =>
+                          current === groupIndex ? null : current,
+                        );
+                      }
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      finishDrag();
+                    }}
+                    onDragEnd={cancelDrag}
                   >
                     <button
                       className="tree-row tree-row--group"
@@ -621,13 +775,14 @@ export function Sidebar({
                   {group.items.map((item, itemIndex) => {
                     const isSelected =
                       selectedRow?.kind === "item" &&
-                      selectedRow.groupIndex === groupIndex &&
+                      selectedRow.groupId === group.id &&
                       selectedRow.itemIndex === itemIndex;
 
                     return (
                       <div
                         className={`tree-row-shell tree-row-shell--child ${
-                          draggedRow?.groupIndex === groupIndex &&
+                          draggedRow?.kind === "item" &&
+                          draggedRow.groupIndex === groupIndex &&
                           draggedRow.itemIndex === itemIndex
                             ? "is-dragging"
                             : ""
@@ -640,30 +795,23 @@ export function Sidebar({
                         } ${isSelected ? "is-selected" : ""}`}
                         draggable={group.expanded}
                         onDragStart={(event) =>
-                          handleDragStart(event, groupIndex, itemIndex, item)
+                          handleItemDragStart(event, groupIndex, itemIndex, item)
                         }
-                        onDragOver={(event) => handleDragOver(event, groupIndex, itemIndex)}
+                        onDragOver={(event) => handleTaskDragOver(event, groupIndex, itemIndex)}
                         onDrop={(event) => {
                           event.preventDefault();
                           finishDrag();
                         }}
-                        onDragEnd={() => {
-                          setDraggedRow(null);
-                          setDropTarget(null);
-                        }}
+                        onDragEnd={cancelDrag}
                         key={`${item}-${itemIndex}`}
                       >
-                      {dropTarget?.groupIndex === groupIndex &&
-                        dropTarget.index === itemIndex && (
-                          <span className="tree-drop-indicator tree-drop-indicator--top" />
-                        )}
                       <button
                         className="tree-row tree-row--child"
                         type="button"
                         tabIndex={group.expanded ? 0 : -1}
                         aria-current={isSelected ? "page" : undefined}
                         onClick={() => {
-                          setSelectedRow({ kind: "item", groupIndex, itemIndex });
+                          setSelectedRow({ kind: "item", groupId: group.id, itemIndex });
                           openSavedTask(group.id, item);
                         }}
                       >
@@ -691,11 +839,6 @@ export function Sidebar({
                           <FigmaIcon name="more-horizontal" size={16} />
                         </IconControl>
                       </div>
-                      {dropTarget?.groupIndex === groupIndex &&
-                        dropTarget.index === group.items.length &&
-                        itemIndex === group.items.length - 1 && (
-                          <span className="tree-drop-indicator tree-drop-indicator--bottom" />
-                        )}
                       </div>
                     );
                   })}
@@ -709,7 +852,22 @@ export function Sidebar({
           </section>
 
           <section className="sidebar-section sidebar-section--tasks">
-            <div className="sidebar-section__heading sidebar-section__heading--tasks">
+            <div
+              className="sidebar-section__heading sidebar-section__heading--tasks"
+              onDragOver={(event) => {
+                if (!draggedRow || draggedRow.kind === "group") return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                setDropFocusedGroupIndex(null);
+                const rect = event.currentTarget.getBoundingClientRect();
+                setDropTarget({ kind: "task", groupIndex: null, index: tasks.length });
+                setIndicatorAt(rect, "bottom");
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                finishDrag();
+              }}
+            >
               <button
                 className="sidebar-section__trigger"
                 type="button"
@@ -735,9 +893,21 @@ export function Sidebar({
 
                 return (
                   <div
-                    className={`task-row-shell ${isSelected ? "is-selected" : ""} ${
+                    className={`task-row-shell ${
+                      draggedRow?.kind === "task" && draggedRow.taskIndex === index
+                        ? "is-dragging"
+                        : ""
+                    } ${isSelected ? "is-selected" : ""} ${
                       isMenuOpen ? "is-menu-open" : ""
                     }`}
+                    draggable={tasksExpanded}
+                    onDragStart={(event) => handleLooseTaskDragStart(event, index, item)}
+                    onDragOver={(event) => handleTaskDragOver(event, null, index)}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      finishDrag();
+                    }}
+                    onDragEnd={cancelDrag}
                     key={`${item}-${index}`}
                   >
                     <span className="task-row__selection-surface" aria-hidden="true" />
@@ -820,14 +990,37 @@ export function Sidebar({
               onMouseEnter={() => openCollapsedMenu("projects")}
             >
               {groups.map((group, groupIndex) => (
-                <div className="tree-group" key={`${group.title}-flyout-${groupIndex}`}>
+                <div className="tree-group" key={`flyout-${group.id}`}>
                   <div
                     className={`tree-row-shell tree-row-shell--group ${
+                      draggedRow?.kind === "group" && draggedRow.groupIndex === groupIndex
+                        ? "is-dragging"
+                        : ""
+                    } ${
+                      dropFocusedGroupIndex === groupIndex && draggedRow?.kind !== "group"
+                        ? "is-drop-focused"
+                        : ""
+                    } ${
                       actionMenu?.target.kind === "group" &&
                       actionMenu.target.groupIndex === groupIndex
                         ? "is-menu-open"
                         : ""
                     }`}
+                    draggable
+                    onDragStart={(event) => handleGroupDragStart(event, groupIndex, group.title)}
+                    onDragOver={(event) => handleGroupDragOver(event, groupIndex)}
+                    onDragLeave={(event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                        setDropFocusedGroupIndex((current) =>
+                          current === groupIndex ? null : current,
+                        );
+                      }
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      finishDrag();
+                    }}
+                    onDragEnd={cancelDrag}
                   >
                     <button
                       className="tree-row tree-row--group"
@@ -886,7 +1079,7 @@ export function Sidebar({
                       {group.items.map((item, itemIndex) => {
                         const isSelected =
                           selectedRow?.kind === "item" &&
-                          selectedRow.groupIndex === groupIndex &&
+                          selectedRow.groupId === group.id &&
                           selectedRow.itemIndex === itemIndex;
                         const isMenuOpen =
                           actionMenu?.target.kind === "item" &&
@@ -898,39 +1091,33 @@ export function Sidebar({
                             className={`tree-row-shell tree-row-shell--child ${
                               isSelected ? "is-selected" : ""
                             } ${isMenuOpen ? "is-menu-open" : ""} ${
-                              draggedRow?.groupIndex === groupIndex &&
+                              draggedRow?.kind === "item" &&
+                              draggedRow.groupIndex === groupIndex &&
                               draggedRow.itemIndex === itemIndex
                                 ? "is-dragging"
                                 : ""
                             }`}
                             draggable={group.expanded}
                             onDragStart={(event) =>
-                              handleDragStart(event, groupIndex, itemIndex, item)
+                              handleItemDragStart(event, groupIndex, itemIndex, item)
                             }
                             onDragOver={(event) =>
-                              handleDragOver(event, groupIndex, itemIndex)
+                              handleTaskDragOver(event, groupIndex, itemIndex)
                             }
                             onDrop={(event) => {
                               event.preventDefault();
                               finishDrag();
                             }}
-                            onDragEnd={() => {
-                              setDraggedRow(null);
-                              setDropTarget(null);
-                            }}
+                            onDragEnd={cancelDrag}
                             key={`${item}-flyout-${itemIndex}`}
                           >
-                            {dropTarget?.groupIndex === groupIndex &&
-                              dropTarget.index === itemIndex && (
-                                <span className="tree-drop-indicator tree-drop-indicator--top" />
-                              )}
                             <button
                               className="tree-row tree-row--child"
                               type="button"
                               role="menuitem"
                               aria-current={isSelected ? "page" : undefined}
                               onClick={() => {
-                                setSelectedRow({ kind: "item", groupIndex, itemIndex });
+                                setSelectedRow({ kind: "item", groupId: group.id, itemIndex });
                                 openSavedTask(group.id, item);
                               }}
                             >
@@ -957,11 +1144,6 @@ export function Sidebar({
                                 <FigmaIcon name="more-horizontal" size={16} />
                               </IconControl>
                             </div>
-                            {dropTarget?.groupIndex === groupIndex &&
-                              dropTarget.index === group.items.length &&
-                              itemIndex === group.items.length - 1 && (
-                                <span className="tree-drop-indicator tree-drop-indicator--bottom" />
-                              )}
                           </div>
                         );
                       })}
@@ -995,6 +1177,19 @@ export function Sidebar({
               role="menu"
               aria-label={t("任务")}
               onMouseEnter={() => openCollapsedMenu("tasks")}
+              onDragOver={(event) => {
+                if (!draggedRow || draggedRow.kind === "group") return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                setDropFocusedGroupIndex(null);
+                const rect = event.currentTarget.getBoundingClientRect();
+                setDropTarget({ kind: "task", groupIndex: null, index: tasks.length });
+                setIndicatorAt(rect, "bottom");
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                finishDrag();
+              }}
             >
               {tasks.map((item, index) => {
                 const isSelected =
@@ -1005,9 +1200,21 @@ export function Sidebar({
 
                 return (
                   <div
-                    className={`task-row-shell ${isSelected ? "is-selected" : ""} ${
+                    className={`task-row-shell ${
+                      draggedRow?.kind === "task" && draggedRow.taskIndex === index
+                        ? "is-dragging"
+                        : ""
+                    } ${isSelected ? "is-selected" : ""} ${
                       isMenuOpen ? "is-menu-open" : ""
                     }`}
+                    draggable
+                    onDragStart={(event) => handleLooseTaskDragStart(event, index, item)}
+                    onDragOver={(event) => handleTaskDragOver(event, null, index)}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      finishDrag();
+                    }}
+                    onDragEnd={cancelDrag}
                     key={`${item}-flyout-${index}`}
                   >
                     <span className="task-row__selection-surface" aria-hidden="true" />
@@ -1134,6 +1341,15 @@ export function Sidebar({
         )}
       </AnimatePresence>
     </aside>
+
+    {dropIndicator && draggedRow && typeof document !== "undefined" && createPortal(
+      <span
+        className="sidebar-drop-indicator"
+        aria-hidden="true"
+        style={{ left: dropIndicator.left, top: dropIndicator.top, width: dropIndicator.width }}
+      />,
+      document.body,
+    )}
 
     {actionMenu && typeof document !== "undefined" && createPortal(
       <div

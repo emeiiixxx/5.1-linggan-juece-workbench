@@ -3,8 +3,8 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { CircleCheckbox, ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
-import { Button } from "./Button";
-import { ConversationStatusIcon as ApparelStatusIcon, ConversationUserMessage as UserMessage, TaskDisclosure, type ConversationStepStatus as StepState } from "./ConversationPrimitives";
+import { Button, QuickReplyButton, SuggestionButton } from "./Button";
+import { AnalysisStepIcon, ConversationStatusIcon as ApparelStatusIcon, ConversationUserMessage as UserMessage, TaskDisclosure, type ConversationStepStatus as StepState } from "./ConversationPrimitives";
 import { TaskConversationComposer } from "./TaskConversationComposer";
 import { useGsapEntrance } from "../motion/gsap";
 
@@ -78,7 +78,7 @@ function LoadingTask({ title, lines }: { title: string; lines: string[] }) {
 
   return (
     <TaskDisclosure title={title} expanded={expanded} complete={false} controlsId={controlsId} onToggle={() => setExpanded((open) => !open)}>
-      {lines.map((line) => <div key={line}><FigmaIcon name="dot" size={16} /><span>{line}</span></div>)}
+      {lines.map((line, index) => <div key={line}><AnalysisStepIcon complete={false} delay={index * 0.06} /><span>{line}</span></div>)}
     </TaskDisclosure>
   );
 }
@@ -89,6 +89,20 @@ function AssistantMessage({ children, className = "" }: { children: ReactNode; c
     <article className={`conversation-message conversation-message--assistant apparel-assistant-message ${className}`} ref={messageRef}>
       {children}
     </article>
+  );
+}
+
+function ApparelQuickReply({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.div
+      className="conversation-quick-actions"
+      initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : 0.12, ease: revealEase }}
+    >
+      <QuickReplyButton onClick={onClick}>{children}</QuickReplyButton>
+    </motion.div>
   );
 }
 
@@ -317,11 +331,11 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                 controlsId="apparel-image-analysis-details"
                 onToggle={() => setAnalysisExpanded((expanded) => !expanded)}
               >
-                <div><FigmaIcon name="dot" size={16} /><span>识别参考款式的廓形与结构</span></div>
+                <div><AnalysisStepIcon complete={stage !== "analyzing"} /><span>识别参考款式的廓形与结构</span></div>
                 <p>提取立领、门襟、插肩袖与罗纹收口等版型特征</p>
-                <div><FigmaIcon name="dot" size={16} /><span>提取工艺、辅料与材质要素</span></div>
+                <div><AnalysisStepIcon complete={stage !== "analyzing"} delay={0.06} /><span>提取工艺、辅料与材质要素</span></div>
                 <p>识别皮革质感、金属辅料、车缝和口袋结构</p>
-                <div><FigmaIcon name="dot" size={16} /><span>检查待确认的设计参数</span></div>
+                <div><AnalysisStepIcon complete={stage !== "analyzing"} delay={0.12} /><span>检查待确认的设计参数</span></div>
                 <p>确认出款数量、风格方向、商业定位与改款幅度</p>
               </TaskDisclosure>
             </AssistantMessage>
@@ -504,6 +518,9 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                   <li>需要补充更多图像 → 请告诉我希望补充的方向（如更多毛领细节、更多解构设计或其他）</li>
                 </ul>
                 <p>请回复“满意”或具体补充需求。</p>
+                {stage === "candidate-confirmation" ? (
+                  <ApparelQuickReply onClick={() => submitMessage("满意，请继续")}>满意，请继续</ApparelQuickReply>
+                ) : null}
               </AssistantMessage>
             )}
 
@@ -519,9 +536,9 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                   controlsId="apparel-candidate-analysis-details"
                   onToggle={() => setCandidateAnalysisExpanded((expanded) => !expanded)}
                 >
-                  <div><FigmaIcon name="dot" size={16} /><span>解析廓形、比例与结构特征</span></div>
-                  <div><FigmaIcon name="dot" size={16} /><span>提取工艺、材质与辅料语言</span></div>
-                  <div><FigmaIcon name="dot" size={16} /><span>归纳可复用设计要素与改款边界</span></div>
+                  <div><AnalysisStepIcon complete={stage !== "candidate-analysis"} /><span>解析廓形、比例与结构特征</span></div>
+                  <div><AnalysisStepIcon complete={stage !== "candidate-analysis"} delay={0.06} /><span>提取工艺、材质与辅料语言</span></div>
+                  <div><AnalysisStepIcon complete={stage !== "candidate-analysis"} delay={0.12} /><span>归纳可复用设计要素与改款边界</span></div>
                 </TaskDisclosure>
               </AssistantMessage>
             )}
@@ -571,6 +588,9 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                   <li>公式组合：细节转移、逆向改款、廓形限定等多公式协同</li>
                 </ul>
                 <p>请问这个战略方向是否认可？确认后我将制定每款 SKU 的具体执行细节。如有调整意见，请直接告诉我。</p>
+                {stage === "strategy" ? (
+                  <ApparelQuickReply onClick={() => submitMessage("认可，请继续")}>认可，请继续</ApparelQuickReply>
+                ) : null}
               </AssistantMessage>
             )}
 
@@ -604,7 +624,12 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
             )}
 
             {stageIndex >= 9 && (
-              <AssistantMessage><p>确认无误后，请回复“开始生图”，我将立即按执行矩阵输出 8 款设计。</p></AssistantMessage>
+              <AssistantMessage>
+                <p>确认无误后，请回复“开始生图”，我将立即按执行矩阵输出 8 款设计。</p>
+                {stage === "matrix" ? (
+                  <ApparelQuickReply onClick={() => submitMessage("开始生图")}>开始生图</ApparelQuickReply>
+                ) : null}
+              </AssistantMessage>
             )}
 
             {matrixReply && <UserMessage entrance>{matrixReply}</UserMessage>}
@@ -672,15 +697,12 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                             onDownload={() => downloadResult(sku[0], sku[1])}
                           />
                         </div>
-                        <figcaption>SKU #{sku[0]} · {sku[1]}</figcaption>
                       </figure>
                     ))}
                   </div>
-                  <div className="apparel-result-suggestions">
+                  <div className="conversation-suggestion-list">
                     {resultSuggestions.map((suggestion) => (
-                      <Button className="apparel-result-suggestion" variant="outline" size="small" onClick={() => submitMessage(suggestion)} key={suggestion}>
-                        <span>{suggestion}</span><FigmaIcon name="arrow-down-right" size={16} />
-                      </Button>
+                      <SuggestionButton onClick={() => submitMessage(suggestion)} key={suggestion}>{suggestion}</SuggestionButton>
                     ))}
                   </div>
                 </AssistantMessage>

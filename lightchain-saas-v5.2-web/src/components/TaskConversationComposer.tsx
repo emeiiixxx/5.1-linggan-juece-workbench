@@ -19,6 +19,8 @@ type TaskConversationComposerProps = {
   placeholder: string;
   ariaLabel: string;
   disabled?: boolean;
+  isRunning?: boolean;
+  onStop?: () => void;
   className?: string;
   motionDelay?: number;
 };
@@ -32,6 +34,8 @@ export function TaskConversationComposer({
   placeholder,
   ariaLabel,
   disabled = false,
+  isRunning = false,
+  onStop,
   className = "",
   motionDelay = 0,
 }: TaskConversationComposerProps) {
@@ -145,7 +149,7 @@ export function TaskConversationComposer({
   };
 
   const submit = () => {
-    if (disabled || !value.trim()) return;
+    if (disabled || isRunning || !value.trim()) return;
     onSubmit();
     clearAttachments();
   };
@@ -250,8 +254,18 @@ export function TaskConversationComposer({
         <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple onChange={(event) => addAttachments(event, "image")} />
       </div>
       <span>Enter 发送 · Shift + Enter 换行</span>
-      <IconControl className="composer__send conversation-composer__send" label="发送" tooltipPlacement="top" disabled={disabled || !value.trim()} onClick={submit}>
-        <FigmaIcon name="arrow-up" size={24} />
+      <IconControl
+        className={`composer__send conversation-composer__send ${isRunning ? "is-running" : ""}`}
+        label={isRunning ? "停止当前任务" : "发送"}
+        tooltipPlacement="top"
+        disabled={isRunning ? !onStop : disabled || !value.trim()}
+        onClick={isRunning ? onStop : submit}
+      >
+        {isRunning ? (
+          <img className="conversation-composer__stop-icon" src={assetUrl("assets/figma-icons/stop.svg")} alt="" />
+        ) : (
+          <FigmaIcon name="arrow-up" size={24} />
+        )}
       </IconControl>
     </motion.section>
   );

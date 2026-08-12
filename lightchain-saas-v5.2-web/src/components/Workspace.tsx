@@ -10,6 +10,7 @@ import { primaryPageEntrance, primaryPageEntranceItem, primaryPageEntranceMediaI
 import { useI18n } from "../i18n";
 import { ConversationWorkspace } from "./ConversationWorkspace";
 import { ClothingConversationWorkspace } from "./ClothingConversationWorkspace";
+import { NewProductPlanningWorkspace } from "./NewProductPlanningWorkspace";
 import { useAutoGrowTextarea } from "../hooks/useAutoGrowTextarea";
 import { gsap } from "../motion/gsap";
 
@@ -41,13 +42,13 @@ const projectOptions: ProjectOption[] = [
 
 export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, onSelectedProfileChange, selectedProject, onSelectedProjectChange, onCreateTask }: {
   theme: "dark" | "light";
-  activeTask?: { id: number; prompt: string; profileName?: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "default" | "apparel" } | null;
+  activeTask?: { id: number; prompt: string; profileName?: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "new-product" | "default" | "apparel" } | null;
   newTaskKey?: number;
   selectedProfile?: ProfileOption | null;
   onSelectedProfileChange?: (profile: ProfileOption | null) => void;
   selectedProject?: ProjectOption | null;
   onSelectedProjectChange?: (project: ProjectOption | null) => void;
-  onCreateTask?: (task: { title: string; projectId: number | null; prompt: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "default" | "apparel" }) => void;
+  onCreateTask?: (task: { title: string; projectId: number | null; prompt: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "new-product" | "default" | "apparel" }) => void;
 }) {
   const { locale, t } = useI18n();
   const [activeTab, setActiveTab] = useState(0);
@@ -70,6 +71,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   const indicatorPositionedRef = useRef(false);
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
+  const activeTaskId = activeTask?.id ?? null;
   const reduceMotion = useReducedMotion();
   const quickStartExpandTransition = reduceMotion
     ? { duration: 0 }
@@ -112,10 +114,15 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   }, [reduceMotion]);
 
   useLayoutEffect(() => {
+    if (activeTaskId !== null) {
+      indicatorPositionedRef.current = false;
+      return;
+    }
     syncTabIndicator(true);
-  }, [activeTab, locale, syncTabIndicator]);
+  }, [activeTab, activeTaskId, locale, syncTabIndicator]);
 
   useLayoutEffect(() => {
+    if (activeTaskId !== null) return;
     const tabList = tabsRef.current;
     if (!tabList) return;
     const observer = new ResizeObserver(() => syncTabIndicator(false));
@@ -124,7 +131,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
       if (button) observer.observe(button);
     });
     return () => observer.disconnect();
-  }, [locale, syncTabIndicator]);
+  }, [activeTaskId, locale, syncTabIndicator]);
 
   useEffect(() => () => {
     if (tabIndicatorRef.current) gsap.killTweensOf(tabIndicatorRef.current);
@@ -178,7 +185,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
     const taskMessage = message.trim();
     if (!taskMessage) return;
     const title = Array.from(taskMessage).slice(0, 10).join("");
-    const taskAttachments = activeTab === 2
+    const taskAttachments = activeTab === 0 || activeTab === 2
       ? attachments.map(({ name, previewUrl }) => ({ name, previewUrl }))
       : undefined;
     onCreateTask?.({
@@ -186,9 +193,9 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
       projectId: selectedProject?.id ?? null,
       prompt: taskMessage,
       attachments: taskAttachments,
-      workflow: activeTab === 2 ? "apparel" : "default",
+      workflow: activeTab === 0 ? "new-product" : activeTab === 2 ? "apparel" : "default",
     });
-    if (activeTab !== 2) attachments.forEach((attachment) => {
+    if (activeTab !== 0 && activeTab !== 2) attachments.forEach((attachment) => {
       if (attachment.previewUrl) {
         URL.revokeObjectURL(attachment.previewUrl);
         attachmentUrlsRef.current.delete(attachment.previewUrl);
@@ -236,7 +243,9 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   return (
     <AnimatePresence mode="wait" initial={false}>
     {activeTask ? (
-      activeTask.workflow === "apparel" ? (
+      activeTask.workflow === "new-product" ? (
+        <NewProductPlanningWorkspace key={`new-product-conversation-${activeTask.id}`} prompt={activeTask.prompt} profileName={activeTask.profileName} attachments={activeTask.attachments} />
+      ) : activeTask.workflow === "apparel" ? (
         <ClothingConversationWorkspace key={`apparel-conversation-${activeTask.id}`} prompt={activeTask.prompt} attachments={activeTask.attachments} />
       ) : (
         <ConversationWorkspace key={`conversation-${activeTask.id}`} prompt={activeTask.prompt} profileName={activeTask.profileName} />

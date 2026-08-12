@@ -1,40 +1,37 @@
-import { useEffect, useRef, useState, type Dispatch, type FormEvent, type PointerEvent as ReactPointerEvent, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type PointerEvent as ReactPointerEvent, type SetStateAction } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
-import { Button } from "./Button";
+import { Button, QuickReplyButton } from "./Button";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
 import { CandidateImageLightbox, MasonryImageSelection } from "./ImageSelection";
 import { TaskConversationComposer } from "./TaskConversationComposer";
+import { ResearchScopeForm } from "./ResearchScopeForm";
 import { AnalysisStepIcon, ConversationFileCard, ConversationFormTitle, ConversationStatusIcon as StatusIcon, ConversationUserMessage, TaskDisclosure } from "./ConversationPrimitives";
 import { candidateCategories, candidatePageCount, candidateReferenceImages, formatCandidateSelection, formatTrendDirectionSelection, getCandidateCategoryLabel, getCandidateReference, getReferencePackageData, trendDirections, trendReportDetails, type CandidateCategoryId } from "../data/referenceCatalog";
 import { buildFashionProposalHtml } from "../report/fashionProposalHtml";
+import { useI18n } from "../i18n";
+import { getLocaleDefaultMarket, getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
 
 type AnalysisPhase = "parsing" | "complete";
-type ResearchMarket = "中国" | "日本" | "北美" | "欧洲";
 type TrendDownloadFormat = "HTML" | "PPT" | "PDF";
 type TrendPreviewKind = "research" | "package";
+type MessageMetaPosition = { left: number; top: number; side: "assistant" | "user" };
 
-const researchMarkets: ResearchMarket[] = ["中国", "日本", "北美", "欧洲"];
-const researchPlatforms: Record<ResearchMarket, { commerce: string[]; social: string[] }> = {
-  中国: {
-    commerce: ["淘宝", "京东", "抖音", "其他"],
-    social: ["小红书", "微博", "抖音"],
-  },
-  日本: {
-    commerce: ["ZOZOTOWN", "RakutenFashion", "LINE SHOPPING", "其他"],
-    social: ["Instagram", "TikTok", "X"],
-  },
-  北美: {
-    commerce: ["Amazon", "TikTok Shop", "品牌官网", "其他"],
-    social: ["Instagram", "Pinterest", "TikTok"],
-  },
-  欧洲: {
-    commerce: ["Zanlando", "Amazon", "品牌官网", "其他"],
-    social: ["Instagram", "Pinterest", "TikTok"],
-  },
-};
+function getMessageMetaPosition(completedBlock: HTMLElement): MessageMetaPosition {
+  const isUserMessage = completedBlock.classList.contains("conversation-message--user");
+  const anchor = isUserMessage
+    ? completedBlock.querySelector<HTMLElement>(".conversation-user-bubble") ?? completedBlock
+    : completedBlock;
+  const rect = anchor.getBoundingClientRect();
+  return {
+    left: isUserMessage ? rect.right - 8 : rect.left + 8,
+    top: rect.bottom + 28 < window.innerHeight ? rect.bottom : rect.top - 28,
+    side: isUserMessage ? "user" : "assistant",
+  };
+}
+
 const evidenceIds = ["EV-PROP-FILE-001", "EV-PROP-ECOM-001", "EV-PROP-SOC-001", "EV-PROP-TRD-001"];
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
@@ -201,7 +198,7 @@ function TrendDirectionSelectionForm({
           return (
             <button
               type="button"
-              className={`trend-direction-option ${selected ? "is-selected" : ""}`}
+              className={`visual-direction-choice-card trend-direction-option ${selected ? "is-selected" : ""}`}
               aria-pressed={selected}
               disabled={confirmed}
               onClick={() => onToggle(direction.id)}
@@ -230,6 +227,8 @@ function TrendDirectionSelectionForm({
 }
 
 export function ConversationWorkspace({ prompt, profileName }: { prompt: string; profileName?: string }) {
+  const { locale } = useI18n();
+  const profileScopeDefaults = getResearchScopeDefaults(profileName, locale);
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [analysisExpanded, setAnalysisExpanded] = useState(true);
   const [analysisPhase, setAnalysisPhase] = useState<AnalysisPhase>("parsing");
@@ -260,16 +259,17 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
     "soft-tailoring": 1,
     "transitional-dress": 1,
   });
-  const [researchMarket, setResearchMarket] = useState<ResearchMarket>("日本");
-  const [selectedCommerce, setSelectedCommerce] = useState<string[]>(["RakutenFashion", "其他"]);
-  const [selectedSocial, setSelectedSocial] = useState<string[]>(["Instagram", "TikTok"]);
+  const [selectedResearchMarkets, setSelectedResearchMarkets] = useState<ResearchMarket[]>(profileScopeDefaults.markets);
+  const [selectedCommerce, setSelectedCommerce] = useState<string[]>(profileScopeDefaults.commerce);
+  const [selectedSocial, setSelectedSocial] = useState<string[]>(profileScopeDefaults.social);
   const [otherCommerce, setOtherCommerce] = useState("");
+  const scopeTouchedRef = useRef(false);
   const scopePhaseRef = useRef<HTMLDivElement>(null);
   const confirmedResultsRef = useRef<HTMLDivElement>(null);
   const candidatePoolRef = useRef<HTMLDivElement>(null);
   const hoveredMessageRef = useRef<HTMLElement | null>(null);
   const messageMetaHideTimerRef = useRef<number | null>(null);
-  const [messageMetaPosition, setMessageMetaPosition] = useState<{ left: number; top: number; side: "assistant" | "user" } | null>(null);
+  const [messageMetaPosition, setMessageMetaPosition] = useState<MessageMetaPosition | null>(null);
   const reduceMotion = useReducedMotion();
   const analysisComplete = analysisPhase === "complete";
   const trendScanComplete = scopeResultStage >= 3;
@@ -294,6 +294,14 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
       window.clearTimeout(completionTimer);
     };
   }, [reduceMotion]);
+
+  useEffect(() => {
+    if (profileName || scopeConfirmed || scopeTouchedRef.current) return;
+    setSelectedResearchMarkets([getLocaleDefaultMarket(locale)]);
+    setSelectedCommerce([]);
+    setSelectedSocial([]);
+    setOtherCommerce("");
+  }, [locale, profileName, scopeConfirmed]);
 
   useEffect(() => {
     if (!trendPreviewOpen) return;
@@ -336,21 +344,10 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   }, [reduceMotion, scopeConfirmed]);
 
   useEffect(() => {
-    if (!messageMetaPosition) return;
     const reposition = () => {
       const completedBlock = hoveredMessageRef.current;
       if (!completedBlock) return;
-      const isUserMessage = completedBlock.classList.contains("conversation-message--user");
-      const anchor = isUserMessage
-        ? completedBlock.querySelector<HTMLElement>(".conversation-user-bubble") ?? completedBlock
-        : completedBlock;
-      const rect = anchor.getBoundingClientRect();
-      const assistantMetaLeft = completedBlock.tagName === "P" ? rect.left - 4 : rect.left;
-      setMessageMetaPosition({
-        left: isUserMessage ? rect.right + 4 : assistantMetaLeft,
-        top: rect.bottom + 28 < window.innerHeight ? rect.bottom : rect.top - 28,
-        side: isUserMessage ? "user" : "assistant",
-      });
+      setMessageMetaPosition(getMessageMetaPosition(completedBlock));
     };
     window.addEventListener("resize", reposition);
     window.addEventListener("scroll", reposition, true);
@@ -358,7 +355,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
       window.removeEventListener("resize", reposition);
       window.removeEventListener("scroll", reposition, true);
     };
-  }, [messageMetaPosition]);
+  }, []);
 
   useEffect(() => () => {
     if (messageMetaHideTimerRef.current !== null) window.clearTimeout(messageMetaHideTimerRef.current);
@@ -424,21 +421,29 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
     setSeasonSkipped(true);
   };
 
-  const selectMarket = (market: ResearchMarket) => {
-    if (market === researchMarket) return;
-    setResearchMarket(market);
-    setSelectedCommerce([]);
-    setSelectedSocial([]);
-    setOtherCommerce("");
+  const toggleResearchMarket = (market: ResearchMarket) => {
+    scopeTouchedRef.current = true;
+    const nextMarkets = selectedResearchMarkets.includes(market)
+      ? selectedResearchMarkets.filter((item) => item !== market)
+      : [...selectedResearchMarkets, market];
+    const nextPlatformOptions = getResearchPlatformOptions(nextMarkets);
+    setSelectedResearchMarkets(nextMarkets);
+    setSelectedCommerce((current) => current.filter((platform) => nextPlatformOptions.commerce.includes(platform)));
+    setSelectedSocial((current) => current.filter((platform) => nextPlatformOptions.social.includes(platform)));
   };
 
   const toggleSelection = (value: string, setter: Dispatch<SetStateAction<string[]>>) => {
+    scopeTouchedRef.current = true;
     setter((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
   };
 
-  const confirmResearchScope = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!selectedCommerce.length || !selectedSocial.length) return;
+  const updateOtherCommerce = (value: string) => {
+    scopeTouchedRef.current = true;
+    setOtherCommerce(value);
+  };
+
+  const confirmResearchScope = () => {
+    if (!selectedResearchMarkets.length || !selectedCommerce.length || !selectedSocial.length) return;
     setScopeResultStage(0);
     setScopeConfirmed(true);
   };
@@ -451,32 +456,29 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
       if (hoveredMessageRef.current) scheduleMessageMetaHide();
       return;
     }
-    if (messageMetaHideTimerRef.current !== null) window.clearTimeout(messageMetaHideTimerRef.current);
+    if (messageMetaHideTimerRef.current !== null) {
+      window.clearTimeout(messageMetaHideTimerRef.current);
+      messageMetaHideTimerRef.current = null;
+    }
     if (hoveredMessageRef.current === completedBlock && messageMetaPosition) return;
     hoveredMessageRef.current = completedBlock;
-    const isUserMessage = completedBlock.classList.contains("conversation-message--user");
-    const anchor = isUserMessage
-      ? completedBlock.querySelector<HTMLElement>(".conversation-user-bubble") ?? completedBlock
-      : completedBlock;
-    const rect = anchor.getBoundingClientRect();
-    const assistantMetaLeft = completedBlock.tagName === "P" ? rect.left - 4 : rect.left;
-    setMessageMetaPosition({
-      left: isUserMessage ? rect.right + 4 : assistantMetaLeft,
-      top: rect.bottom + 28 < window.innerHeight ? rect.bottom : rect.top - 28,
-      side: isUserMessage ? "user" : "assistant",
-    });
+    setMessageMetaPosition(getMessageMetaPosition(completedBlock));
   };
 
   const scheduleMessageMetaHide = () => {
-    if (messageMetaHideTimerRef.current !== null) window.clearTimeout(messageMetaHideTimerRef.current);
+    if (messageMetaHideTimerRef.current !== null) return;
     messageMetaHideTimerRef.current = window.setTimeout(() => {
+      messageMetaHideTimerRef.current = null;
       hoveredMessageRef.current = null;
       setMessageMetaPosition(null);
-    }, 120);
+    }, 220);
   };
 
   const keepMessageMetaOpen = () => {
-    if (messageMetaHideTimerRef.current !== null) window.clearTimeout(messageMetaHideTimerRef.current);
+    if (messageMetaHideTimerRef.current !== null) {
+      window.clearTimeout(messageMetaHideTimerRef.current);
+      messageMetaHideTimerRef.current = null;
+    }
   };
 
   const copyHoveredMessage = () => {
@@ -530,13 +532,14 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
     setTrendPreviewOpen(true);
   };
 
-  const confirmedCommerce = selectedCommerce.map((platform) => {
+  const confirmedCommerce = [...selectedCommerce, ...(otherCommerce.trim() ? [otherCommerce.trim()] : [])].map((platform) => {
     if (platform === "RakutenFashion") return "Rakuten Fashion";
-    if (platform === "其他" && otherCommerce.trim()) return otherCommerce.trim();
     return platform;
   }).join("、");
+  const confirmedMarkets = selectedResearchMarkets.join("、");
   const confirmedSocial = selectedSocial.join("、");
-  const scopeCanSubmit = selectedCommerce.length > 0 && selectedSocial.length > 0;
+  const researchPlatformOptions = getResearchPlatformOptions(selectedResearchMarkets);
+  const scopeCanSubmit = selectedResearchMarkets.length > 0 && selectedCommerce.length > 0 && selectedSocial.length > 0;
   const activeCandidatePage = candidatePages[activeCandidateCategory];
   const visibleCandidateImages = candidateReferenceImages.filter((candidate) =>
     candidate.categoryId === activeCandidateCategory && candidate.page === activeCandidatePage,
@@ -567,7 +570,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
     >
       <section className="conversation-stage" aria-label="任务对话">
         <div className="conversation-scroll">
-          <div className="conversation-feed" data-node-id="476:103924" onPointerMove={showMessageMeta} onPointerLeave={scheduleMessageMetaHide}>
+          <div className="conversation-feed" data-node-id="476:103924" onPointerOver={showMessageMeta} onPointerLeave={scheduleMessageMetaHide}>
             <ConversationUserMessage
               initial={reduceMotion ? false : { opacity: 0, y: 10, scale: 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -627,7 +630,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                   onToggle={() => setAnalysisExpanded((expanded) => !expanded)}
                 >
                       <div>
-                        <FigmaIcon name="dot" size={16} className="conversation-step-complete-icon" />
+                        <AnalysisStepIcon complete />
                         <span>读取业务偏好档案</span>
                       </div>
                       <p>已读取并理解业务偏好档案内容</p>
@@ -719,7 +722,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                           </Button>
                         </motion.span>
                         <motion.span className="conversation-quick-action" variants={quickActionReveal}>
-                          <Button variant="primary" size="small" onClick={() => useSeasonQuickReply("没有补充，继续")}>没有补充，继续</Button>
+                          <QuickReplyButton onClick={() => useSeasonQuickReply("没有补充，继续")}>没有补充，继续</QuickReplyButton>
                         </motion.span>
                       </motion.div>
                     ) : null}
@@ -742,7 +745,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                         <p>已保留季节未指定状态。可以继续进入调研范围。</p>
                         {!scopeFormVisible ? (
                           <div className="conversation-quick-actions">
-                            <Button variant="primary" size="small" onClick={() => useSeasonQuickReply("继续")}>继续</Button>
+                            <QuickReplyButton onClick={() => useSeasonQuickReply("继续")}>继续</QuickReplyButton>
                           </div>
                         ) : null}
                       </motion.article>
@@ -757,143 +760,34 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                 <motion.div
                   ref={scopePhaseRef}
                   className="conversation-scope-phase"
-                  initial={reduceMotion ? false : "hidden"}
-                  animate="visible"
-                  variants={{ hidden: {}, visible: { transition: { staggerChildren: reduceMotion ? 0 : 0.18, delayChildren: reduceMotion ? 0 : 0.06 } } }}
+                  initial={false}
                   data-node-id="484:106053"
                 >
-                  <ConversationUserMessage variants={conversationBlockReveal} data-node-id="484:106206">{scopeEntryMessage}</ConversationUserMessage>
+                  <ConversationUserMessage data-node-id="484:106206">{scopeEntryMessage}</ConversationUserMessage>
 
-                  <motion.article className="conversation-message conversation-message--assistant conversation-scope-copy" variants={conversationBlockReveal} data-node-id="484:106216">
-                    <p>需求理解已确认。接下来只确认调研范围：一个主市场，以及该市场下的电商平台和社媒平台。趋势资料库会默认纳入，不需要选择具体报告，也不会单独确认检索词。</p>
+                  <motion.article className="conversation-message conversation-message--assistant conversation-scope-copy" data-node-id="484:106216">
+                    <p>需求理解已确认。接下来确认本次调研覆盖的市场、电商平台和社媒平台。系统已根据业务偏好档案预填常用范围，你可以直接确认，也可以继续增删。</p>
                   </motion.article>
 
-                  <motion.article className="conversation-message conversation-message--assistant conversation-scope-message" variants={conversationBlockReveal} data-node-id="484:106226">
+                  <motion.article className="conversation-message conversation-message--assistant conversation-scope-message" data-node-id="484:106226">
                     <p>请选择主要市场、电商平台和社交媒体。</p>
-                    <motion.form
-                      className={`research-scope-form ${scopeConfirmed ? "is-readonly" : ""}`}
-                      aria-label="确认调研范围"
-                      onSubmit={confirmResearchScope}
-                      layout={!reduceMotion}
-                      transition={{ duration: reduceMotion ? 0 : 0.24, ease: revealEase, layout: { duration: reduceMotion ? 0 : 0.3, ease: revealEase } }}
-                    >
-                      <div className="research-scope-title">
-                        <span className="research-scope-title__icon"><img src={assetUrl("assets/figma-icons/apparel-design.svg")} alt="" /></span>
-                        <strong>确认调研范围</strong>
-                      </div>
-
-                      <div className="research-scope-note" id="research-scope-guidance">
-                        <strong>💡一个任务只应用一个主市场；平台按市场动态提供，可多选。</strong>
-                        <span>趋势资料库默认纳入，用于支撑方向假设；品牌或独立站仅沿用你在对话中指定的对象。</span>
-                      </div>
-
-                      <div className="research-scope-fields" aria-describedby="research-scope-guidance">
-                        <fieldset className="research-scope-field">
-                          <legend>主市场 <span aria-hidden="true">*</span></legend>
-                          <div className="research-scope-options">
-                            {researchMarkets.map((market) => (
-                              <motion.button
-                                type="button"
-                                className={researchMarket === market ? "is-selected" : ""}
-                                aria-pressed={researchMarket === market}
-                                disabled={scopeConfirmed}
-                                onClick={() => selectMarket(market)}
-                                layout={!reduceMotion}
-                                transition={{ duration: reduceMotion ? 0 : 0.22, ease: revealEase }}
-                                key={market}
-                              >
-                                {market}
-                              </motion.button>
-                            ))}
-                          </div>
-                        </fieldset>
-
-                        <div className="research-scope-divider" aria-hidden="true" />
-
-                        <AnimatePresence initial={false} mode="wait">
-                          <motion.div
-                            className="research-scope-cascade"
-                            key={researchMarket}
-                            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
-                            transition={{ duration: reduceMotion ? 0 : 0.26, ease: revealEase }}
-                            layout={!reduceMotion}
-                          >
-                            <fieldset className="research-scope-field">
-                              <legend>选择电商平台（支持多选） <span aria-hidden="true">*</span></legend>
-                              <div className="research-scope-options">
-                                {researchPlatforms[researchMarket].commerce.map((platform) => {
-                                  const selected = selectedCommerce.includes(platform);
-                                  return (
-                                    <motion.button
-                                      type="button"
-                                      className={selected ? "is-selected" : ""}
-                                      aria-pressed={selected}
-                                      disabled={scopeConfirmed}
-                                      onClick={() => toggleSelection(platform, setSelectedCommerce)}
-                                      whileTap={reduceMotion ? undefined : { scale: 0.97 }}
-                                      transition={{ duration: reduceMotion ? 0 : 0.18, ease: revealEase }}
-                                      key={platform}
-                                    >
-                                      {platform}
-                                    </motion.button>
-                                  );
-                                })}
-                              </div>
-                              <AnimatePresence initial={false}>
-                                {selectedCommerce.includes("其他") ? (
-                                  <motion.div
-                                    className="research-scope-other"
-                                    initial={reduceMotion ? false : { height: 0, opacity: 0, y: -4 }}
-                                    animate={{ height: 97, opacity: 1, y: 0 }}
-                                    exit={reduceMotion ? undefined : { height: 0, opacity: 0, y: -4 }}
-                                    transition={{ duration: reduceMotion ? 0 : 0.26, ease: revealEase }}
-                                  >
-                                    <textarea
-                                      value={otherCommerce}
-                                      onChange={(event) => setOtherCommerce(event.target.value)}
-                                      readOnly={scopeConfirmed}
-                                      placeholder="请输入其他电商平台或独立站名称，多个请用逗号“，”隔开"
-                                      aria-label="其他电商平台或独立站名称"
-                                    />
-                                  </motion.div>
-                                ) : null}
-                              </AnimatePresence>
-                            </fieldset>
-
-                            <div className="research-scope-divider" aria-hidden="true" />
-
-                            <fieldset className="research-scope-field">
-                              <legend>社媒平台（支持多选） <span aria-hidden="true">*</span></legend>
-                              <div className="research-scope-options">
-                                {researchPlatforms[researchMarket].social.map((platform) => {
-                                  const selected = selectedSocial.includes(platform);
-                                  return (
-                                    <motion.button
-                                      type="button"
-                                      className={selected ? "is-selected" : ""}
-                                      aria-pressed={selected}
-                                      disabled={scopeConfirmed}
-                                      onClick={() => toggleSelection(platform, setSelectedSocial)}
-                                      whileTap={reduceMotion ? undefined : { scale: 0.97 }}
-                                      transition={{ duration: reduceMotion ? 0 : 0.18, ease: revealEase }}
-                                      key={platform}
-                                    >
-                                      {platform}
-                                    </motion.button>
-                                  );
-                                })}
-                              </div>
-                            </fieldset>
-                          </motion.div>
-                        </AnimatePresence>
-                      </div>
-
-                      {!scopeConfirmed && <div className="research-scope-actions">
-                        <button type="submit" disabled={!scopeCanSubmit}>确认并继续</button>
-                      </div>}
-                    </motion.form>
+                    <ResearchScopeForm
+                      confirmed={scopeConfirmed}
+                      profileLinked={Boolean(profileName)}
+                      markets={researchMarkets}
+                      selectedMarkets={selectedResearchMarkets}
+                      commerceOptions={researchPlatformOptions.commerce}
+                      selectedCommerce={selectedCommerce}
+                      socialOptions={researchPlatformOptions.social}
+                      selectedSocial={selectedSocial}
+                      otherCommerce={otherCommerce}
+                      canSubmit={scopeCanSubmit}
+                      onToggleMarket={(market) => toggleResearchMarket(market as ResearchMarket)}
+                      onToggleCommerce={(platform) => toggleSelection(platform, setSelectedCommerce)}
+                      onToggleSocial={(platform) => toggleSelection(platform, setSelectedSocial)}
+                      onOtherCommerceChange={updateOtherCommerce}
+                      onConfirm={confirmResearchScope}
+                    />
                   </motion.article>
 
                   {scopeConfirmed ? (
@@ -901,7 +795,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                       initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                     >
-                      主市场：{researchMarket}；电商：{confirmedCommerce}；社媒：{confirmedSocial}
+                      地区：{confirmedMarkets}；电商：{confirmedCommerce}；社媒：{confirmedSocial}
                     </ConversationUserMessage>
                   ) : null}
 
@@ -1061,7 +955,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                                           animate={{ opacity: 1, y: 0 }}
                                           transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
                                         >
-                                          现在根据已确认方向、日本、女装和参考图特征，生成定向视觉参考检索条件。
+                                          现在根据已确认方向、{confirmedMarkets}、女装和参考图特征，生成定向视觉参考检索条件。
                                         </motion.p>
                                       ) : null}
                                       {candidateSearchStage >= 4 ? (
@@ -1142,35 +1036,39 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                                           );
                                         })}
                                       </div>
-                                      <div className="conversation-candidate-pagination" aria-label="候选参考素材分页">
-                                        <button
-                                          type="button"
-                                          aria-label="上一页"
-                                          disabled={activeCandidatePage === 1}
-                                          onClick={() => setCandidatePages((current) => ({ ...current, [activeCandidateCategory]: current[activeCandidateCategory] - 1 }))}
-                                        >
-                                          <FigmaIcon name="chevron-left" size={20} />
-                                        </button>
-                                        <span>{activeCandidatePage} / {candidatePageCount}</span>
-                                        <button
-                                          type="button"
-                                          aria-label="下一页"
-                                          disabled={activeCandidatePage === candidatePageCount}
-                                          onClick={() => setCandidatePages((current) => ({ ...current, [activeCandidateCategory]: current[activeCandidateCategory] + 1 }))}
-                                        >
-                                          <FigmaIcon name="chevron-right" size={20} />
-                                        </button>
-                                      </div>
-                                      {!candidateSelectionConfirmed ? (
-                                        <div className="conversation-candidate-form__actions">
-                                          <span className="conversation-form-selection-count" aria-live="polite">
-                                            已选：{selectedCandidateIds.length}张图
-                                          </span>
-                                          <Button variant="primary" size="small" disabled={!selectedCandidateIds.length} onClick={() => setCandidateSelectionConfirmed(true)}>
-                                            生成方向参考包
-                                          </Button>
+                                      <div className="conversation-candidate-form__actions">
+                                        <div className="conversation-candidate-pagination" aria-label="候选参考素材分页">
+                                          <button
+                                            type="button"
+                                            aria-label="上一页"
+                                            disabled={activeCandidatePage === 1}
+                                            onClick={() => setCandidatePages((current) => ({ ...current, [activeCandidateCategory]: current[activeCandidateCategory] - 1 }))}
+                                          >
+                                            <FigmaIcon name="chevron-left" size={20} />
+                                          </button>
+                                          <span>{activeCandidatePage} / {candidatePageCount}</span>
+                                          <button
+                                            type="button"
+                                            aria-label="下一页"
+                                            disabled={activeCandidatePage === candidatePageCount}
+                                            onClick={() => setCandidatePages((current) => ({ ...current, [activeCandidateCategory]: current[activeCandidateCategory] + 1 }))}
+                                          >
+                                            <FigmaIcon name="chevron-right" size={20} />
+                                          </button>
                                         </div>
-                                      ) : null}
+                                        {!candidateSelectionConfirmed ? (
+                                          <>
+                                            <span className="conversation-form-selection-count" aria-live="polite">
+                                              <span>已选择</span>
+                                              <strong>{selectedCandidateIds.length}</strong>
+                                              <span>张图片</span>
+                                            </span>
+                                            <Button variant="primary" size="small" disabled={!selectedCandidateIds.length} onClick={() => setCandidateSelectionConfirmed(true)}>
+                                              生成方向参考包
+                                            </Button>
+                                          </>
+                                        ) : null}
+                                      </div>
                                     </div>
                                   </motion.article>
                                 ) : null}
@@ -1225,7 +1123,6 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                                     <motion.div className="candidate-reference-handoff__actions" variants={quickActionReveal}>
                                       <Button variant="outline" onClick={() => setCustomerFeedbackSkipped(true)}>
                                         暂时跳过客户反馈
-                                        <FigmaIcon name="arrow-down-right" size={20} />
                                       </Button>
                                     </motion.div>
                                   ) : null}
@@ -1330,9 +1227,6 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}
-              onPointerDown={(event) => {
-                if (event.target === event.currentTarget) setTrendPreviewOpen(false);
-              }}
             >
               <motion.section
                 className="trend-preview-modal"

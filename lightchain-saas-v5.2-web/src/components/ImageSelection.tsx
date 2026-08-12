@@ -47,8 +47,7 @@ export function ImageActionBar({ favorited = false, onPreview, onFavorite, onDow
 
 export function CircleCheckbox({ checked, size = "large" }: { checked: boolean; size?: "small" | "large" }) {
   return (
-    <span className={`circle-checkbox circle-checkbox--${size}`} aria-hidden="true">
-      <img src={assetUrl(`assets/figma-icons/checkbox-circle-${checked ? "checked" : "unchecked"}.svg`)} alt="" />
+    <span className={`circle-checkbox circle-checkbox--${size}${checked ? " is-checked" : ""}`} aria-hidden="true">
       {checked ? <img className="circle-checkbox__check" src={assetUrl("assets/figma-icons/checkbox-check.svg")} alt="" /> : null}
     </span>
   );
@@ -98,6 +97,8 @@ export function MasonryImageSelection({
   label,
   selected,
   disabled = false,
+  loading = false,
+  loadingLabel = "生成中...",
   onSelect,
   onPreview,
 }: {
@@ -106,31 +107,40 @@ export function MasonryImageSelection({
   label: string;
   selected: boolean;
   disabled?: boolean;
+  loading?: boolean;
+  loadingLabel?: string;
   onSelect: () => void;
   onPreview: () => void;
 }) {
   return (
-    <div className={`masonry-image-selection ${selected ? "is-selected" : ""}`}>
+    <div className={`masonry-image-selection ${selected ? "is-selected" : ""} ${loading ? "is-loading" : ""}`} aria-busy={loading}>
       <button
         type="button"
         className="masonry-image-selection__toggle"
         aria-label={`${selected ? "取消选择" : "选择"}${alt}`}
         aria-pressed={selected}
-        disabled={disabled}
+        disabled={disabled || loading}
         onClick={onSelect}
       >
         <img src={src} alt={alt} />
         <span className="masonry-image-selection__title">{label}</span>
       </button>
-      <IconControl
-        className="masonry-image-selection__preview"
-        label={`放大查看${alt}`}
-        variant="tonal"
-        size="small"
-        onClick={(event) => runAction(event, onPreview)}
-      >
-        <img src={assetUrl("assets/figma-icons/view-full-image-tonal.svg")} alt="" />
-      </IconControl>
+      {loading ? (
+        <span className="masonry-image-selection__loading" aria-live="polite">
+          <img src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" />
+          <span>{loadingLabel}</span>
+        </span>
+      ) : (
+        <IconControl
+          className="masonry-image-selection__preview"
+          label={`放大查看${alt}`}
+          variant="tonal"
+          size="small"
+          onClick={(event) => runAction(event, onPreview)}
+        >
+          <img src={assetUrl("assets/figma-icons/view-full-image-tonal.svg")} alt="" />
+        </IconControl>
+      )}
     </div>
   );
 }
@@ -181,6 +191,8 @@ export type CandidateLightboxItem = {
   code: string;
   src: string;
   title: string;
+  subtitle?: string;
+  badges?: readonly string[];
 };
 
 export function CandidateImageLightbox({
@@ -190,6 +202,7 @@ export function CandidateImageLightbox({
   activeItemId,
   selectedIds,
   selectionDisabled = false,
+  showCategories = true,
   onCategoryChange,
   onNavigate,
   onToggleSelection,
@@ -201,21 +214,21 @@ export function CandidateImageLightbox({
   activeItemId: string;
   selectedIds: readonly string[];
   selectionDisabled?: boolean;
+  showCategories?: boolean;
   onCategoryChange: (categoryId: string) => void;
   onNavigate: (itemId: string) => void;
   onToggleSelection: (itemId: string) => void;
   onClose: () => void;
 }) {
-  const visibleItems = items.filter((item) => item.categoryId === activeCategoryId);
+  const visibleItems = showCategories ? items.filter((item) => item.categoryId === activeCategoryId) : items;
   const activeIndex = Math.max(0, visibleItems.findIndex((item) => item.id === activeItemId));
   const activeItem = visibleItems[activeIndex] ?? items.find((item) => item.id === activeItemId);
   const activeCategory = categories.find((category) => category.id === activeItem?.categoryId);
   const selected = activeItem ? selectedIds.includes(activeItem.id) : false;
-  const thumbnailStart = Math.min(
-    Math.max(activeIndex - 4, 0),
-    Math.max(visibleItems.length - 10, 0),
-  );
-  const thumbnailItems = visibleItems.slice(thumbnailStart, thumbnailStart + 10);
+  const thumbnailStart = showCategories
+    ? Math.min(Math.max(activeIndex - 4, 0), Math.max(visibleItems.length - 10, 0))
+    : 0;
+  const thumbnailItems = showCategories ? visibleItems.slice(thumbnailStart, thumbnailStart + 10) : visibleItems;
   const backdropRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLElement>(null);
   const tipRef = useRef<HTMLSpanElement>(null);
@@ -225,14 +238,17 @@ export function CandidateImageLightbox({
     const card = cardRef.current;
     const tip = tipRef.current;
     if (!backdrop || !card || !tip || prefersReducedMotion()) return;
-    gsap.timeline()
-      .from(backdrop, { autoAlpha: 0, duration: gsapMotion.fast, ease: "power2.out" })
-      .from(".candidate-lightbox__tabs", { autoAlpha: 0, y: -8, duration: gsapMotion.duration, ease: gsapMotion.ease }, "<0.04")
+    const timeline = gsap.timeline()
+      .from(backdrop, { autoAlpha: 0, duration: gsapMotion.fast, ease: "power2.out" });
+    if (showCategories) {
+      timeline.from(".candidate-lightbox__tabs", { autoAlpha: 0, y: -8, duration: gsapMotion.duration, ease: gsapMotion.ease }, "<0.04");
+    }
+    timeline
       .from(card, { autoAlpha: 0, y: 14, scale: 0.988, duration: 0.52, ease: gsapMotion.ease }, "<0.02")
       .from(".candidate-lightbox__previous, .candidate-lightbox__next", { autoAlpha: 0, scale: 0.9, duration: 0.28, stagger: 0.04, ease: gsapMotion.ease }, "<0.12")
       .fromTo(tip, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.24, ease: "power2.out" }, "<")
       .to(tip, { autoAlpha: 0, duration: 0.28, ease: "power2.in", delay: 2.48 });
-  }, { scope: backdropRef });
+  }, { scope: backdropRef, dependencies: [showCategories] });
 
   useGSAP(() => {
     if (!cardRef.current || prefersReducedMotion()) return;
@@ -275,28 +291,29 @@ export function CandidateImageLightbox({
   return createPortal(
     <div
       ref={backdropRef}
-      className="candidate-lightbox-backdrop"
+      className={`candidate-lightbox-backdrop ${showCategories ? "" : "candidate-lightbox-backdrop--flat"}`}
       role="presentation"
-      onPointerDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
       <IconControl className="candidate-lightbox__close" label="关闭大图" variant="ghost" size="medium" autoFocus onClick={onClose}>
         <FigmaIcon name="close" size={20} />
       </IconControl>
 
-      <div className="candidate-lightbox__tabs" role="tablist" aria-label="参考图类型">
-        {categories.map((category) => (
-          <button
-            type="button"
-            role="tab"
-            className={activeCategoryId === category.id ? "is-selected" : ""}
-            aria-selected={activeCategoryId === category.id}
-            onClick={() => onCategoryChange(category.id)}
-            key={category.id}
-          >
-            {category.label}
-          </button>
-        ))}
-      </div>
+      {showCategories ? (
+        <div className="candidate-lightbox__tabs" role="tablist" aria-label="参考图类型">
+          {categories.map((category) => (
+            <button
+              type="button"
+              role="tab"
+              className={activeCategoryId === category.id ? "is-selected" : ""}
+              aria-selected={activeCategoryId === category.id}
+              onClick={() => onCategoryChange(category.id)}
+              key={category.id}
+            >
+              {category.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <span ref={tipRef} className="candidate-lightbox__tip" aria-live="polite">
         💡 Tips：支持按键盘 ← → 键切换图片，按 Esc 退出查看大图
@@ -326,11 +343,11 @@ export function CandidateImageLightbox({
         <footer className="candidate-lightbox__information">
           <div className="candidate-lightbox__copy">
             <strong>{activeItem.code} · {activeItem.title}</strong>
-            <span>TikTok Shop US · USD 20.00</span>
+            <span>{activeItem.subtitle ?? "TikTok Shop US · USD 20.00"}</span>
             <div className="candidate-lightbox__badges" aria-label="素材标签">
-              <small>Amazon US / TikTok Shop US</small>
-              <small>2026年8月 / 2027年2月</small>
-              <small>{activeCategory?.label ?? "连衣裙、裤装、上衣、套装"}</small>
+              {(activeItem.badges ?? ["Amazon US / TikTok Shop US", "2026年8月 / 2027年2月", activeCategory?.label ?? "连衣裙、裤装、上衣、套装"]).map((badge) => (
+                <small key={badge}>{badge}</small>
+              ))}
             </div>
           </div>
           <div className="candidate-lightbox__actions">
@@ -344,7 +361,7 @@ export function CandidateImageLightbox({
               onClick={() => onToggleSelection(activeItem.id)}
             >
               <FigmaIcon name={selected ? "heart-filled" : "heart-outline"} size={20} />
-              {selected ? "取消喜欢" : "选择"}
+              {selected ? "取消喜欢" : "喜欢"}
             </Button>
           </div>
         </footer>
@@ -371,7 +388,7 @@ export function CandidateImageLightbox({
         <FigmaIcon name="chevron-right" size={24} />
       </IconControl>
 
-      <div className="candidate-lightbox__thumbnails" aria-label="同类型参考图">
+      <div className="candidate-lightbox__thumbnails" aria-label={showCategories ? "同类型参考图" : "全部改款结果"}>
         {thumbnailItems.map((item) => (
           <button
             type="button"

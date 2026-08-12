@@ -16,7 +16,7 @@ type TaskRecord = {
   prompt: string;
   profileName?: string;
   attachments?: { name: string; previewUrl?: string }[];
-  workflow: "default" | "apparel";
+  workflow: "new-product" | "default" | "apparel";
   status: "running";
 };
 
@@ -73,6 +73,11 @@ export default function App() {
               setActiveView("workspace");
               setNewTaskKey((value) => value + 1);
             }
+          }}
+          onMoveTask={(taskId, projectId) => {
+            setTaskRecords((current) => current.map((task) =>
+              task.id === taskId ? { ...task, projectId } : task,
+            ));
           }}
         />
         {activeView === "preferences" ? (
