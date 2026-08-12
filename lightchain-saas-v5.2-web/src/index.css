@@ -3172,8 +3172,10 @@ a:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: var(--text-secondary);
+  color: var(--text-on-brand-white);
   background: rgba(17, 24, 23, 0.64);
+  -webkit-backdrop-filter: blur(var(--blur-m));
+  backdrop-filter: blur(var(--blur-m));
   font-size: 14px;
   line-height: 20px;
   pointer-events: none;

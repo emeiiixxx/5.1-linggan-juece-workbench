@@ -68,6 +68,8 @@
   --shadow-xl: 0 20px 48px -8px var(--overlay-weak);
   --shadow-soft: var(--shadow-l);
 
+  --blur-m: 40px;
+
   --motion-standard: 200ms ease-out;
   --motion-pressed: 100ms ease-out;
 
