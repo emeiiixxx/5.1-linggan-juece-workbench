@@ -1736,56 +1736,25 @@ a:focus-visible {
   color: var(--text-placeholder);
 }
 
-.profile-search button {
-  height: 32px;
-  padding: 0;
-  border-radius: var(--radius-base);
-  color: var(--text-link);
-  background: transparent;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 20px;
-  transition: color var(--motion-standard);
-}
-
-.profile-search button:hover,
-.profile-search button:focus-visible {
-  color: var(--text-link-hover);
-  background: transparent;
-}
-
-.profile-search button:active:not(:disabled) {
-  color: var(--text-link-hover);
-  background: transparent;
-  transform: none;
-}
-
-.profile-search button:disabled {
-  color: var(--text-disabled);
-  background: transparent;
-  opacity: .65;
-}
-
-.profile-search > button:last-child {
-  width: max-content;
-  min-width: 32px;
-}
-
 .profile-search__clear {
   display: grid;
   width: 32px;
-  height: 32px !important;
-  min-width: 32px !important;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  border-radius: var(--radius-base);
   place-items: center;
-  color: var(--text-tertiary) !important;
-  background: transparent !important;
+  color: var(--text-tertiary);
+  background: transparent;
+  transition: color var(--motion-standard);
 }
 
 .profile-search__clear:hover,
 .profile-search__clear:focus-visible,
 .profile-search__clear:active:not(:disabled) {
-  color: var(--text-primary) !important;
-  background: transparent !important;
+  color: var(--text-primary);
+  background: transparent;
+  transform: none;
 }
 
 .profile-content {

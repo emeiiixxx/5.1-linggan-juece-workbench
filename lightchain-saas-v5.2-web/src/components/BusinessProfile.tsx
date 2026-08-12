@@ -449,7 +449,7 @@ export function BusinessProfile({ onCreateTask }: { onCreateTask?: (profile: Pro
         <motion.section className="profile-top" aria-labelledby="profile-title" variants={primaryPageEntranceItem}>
           <div className="profile-heading-art" aria-hidden="true"><img className="profile-heading-art__cut" src={profileArt("header-bg.png")} alt="" /></div>
           <div className="profile-heading"><div><h1 id="profile-title">{t("业务偏好档案标题")}</h1><p>{t("保存长期稳定的市场、品类、风格和经营边界，供任务自动应用。")}</p></div><button className="profile-button profile-button--primary" type="button" onClick={openCreate}><FigmaIcon name="plus" size={20} />{t("新建档案")}</button></div>
-          <label className="profile-search"><FigmaIcon name="search" size={20} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("输入档案名称搜索")} />{query && <button className="profile-search__clear" type="button" aria-label={t("清空搜索")} onClick={(event) => { event.preventDefault(); setQuery(""); }}><FigmaIcon name="delete" size={20} /></button>}<button type="button">{t("搜索")}</button></label>
+          <label className="profile-search"><FigmaIcon name="search" size={20} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("输入档案名称搜索")} />{query && <button className="profile-search__clear" type="button" aria-label={t("清空搜索")} onClick={(event) => { event.preventDefault(); setQuery(""); }}><FigmaIcon name="delete" size={20} /></button>}</label>
         </motion.section>
         <motion.section className="profile-content" aria-live="polite" variants={primaryPageEntranceItem}>
           {!hasProfiles || filteredProfiles.length === 0 ? (
