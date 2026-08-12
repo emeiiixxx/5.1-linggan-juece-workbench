@@ -58,6 +58,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [message, setMessage] = useState("");
+  const [tabListElement, setTabListElement] = useState<HTMLDivElement | null>(null);
   const { textareaRef: composerTextareaRef, height: composerInputHeight } = useAutoGrowTextarea(message, 160);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
@@ -65,7 +66,6 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const attachmentUrlsRef = useRef(new Set<string>());
-  const tabsRef = useRef<HTMLDivElement>(null);
   const tabIndicatorRef = useRef<HTMLSpanElement>(null);
   const tabButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const indicatorPositionedRef = useRef(false);
@@ -88,10 +88,9 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
       : projectOptions;
 
   const syncTabIndicator = useCallback((animate: boolean) => {
-    const tabList = tabsRef.current;
     const indicator = tabIndicatorRef.current;
     const activeButton = tabButtonRefs.current[activeTabRef.current];
-    if (!tabList || !indicator || !activeButton) return;
+    if (!tabListElement || !indicator || !activeButton) return;
 
     const target = {
       left: Math.round(activeButton.offsetLeft),
@@ -111,7 +110,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
       });
     }
     indicatorPositionedRef.current = true;
-  }, [reduceMotion]);
+  }, [reduceMotion, tabListElement]);
 
   useLayoutEffect(() => {
     if (activeTaskId !== null) {
@@ -119,19 +118,18 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
       return;
     }
     syncTabIndicator(true);
-  }, [activeTab, activeTaskId, locale, syncTabIndicator]);
+  }, [activeTab, activeTaskId, locale, syncTabIndicator, tabListElement]);
 
   useLayoutEffect(() => {
     if (activeTaskId !== null) return;
-    const tabList = tabsRef.current;
-    if (!tabList) return;
+    if (!tabListElement) return;
     const observer = new ResizeObserver(() => syncTabIndicator(false));
-    observer.observe(tabList);
+    observer.observe(tabListElement);
     tabButtonRefs.current.forEach((button) => {
       if (button) observer.observe(button);
     });
     return () => observer.disconnect();
-  }, [activeTaskId, locale, syncTabIndicator]);
+  }, [activeTaskId, locale, syncTabIndicator, tabListElement]);
 
   useEffect(() => () => {
     if (tabIndicatorRef.current) gsap.killTweensOf(tabIndicatorRef.current);
@@ -270,7 +268,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
             <p>{t("选择一个业务场景，描述你的目标，Agent 会带你完成后续步骤。")}</p>
           </div>
 
-          <div className="mode-tabs" role="tablist" aria-label={t("业务场景")} ref={tabsRef}>
+          <div className="mode-tabs" role="tablist" aria-label={t("业务场景")} ref={setTabListElement}>
             <span
               ref={tabIndicatorRef}
               className="mode-tabs__indicator"

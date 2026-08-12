@@ -36,13 +36,13 @@ const evidenceIds = ["EV-PROP-FILE-001", "EV-PROP-ECOM-001", "EV-PROP-SOC-001", 
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
 const taskDetailSteps = ["需求解析任务", "搜集行业资料", "整理报告结构"];
-const profileRevealDelay = 620;
-const analysisRevealDelay = 1520;
-const analysisTaskRevealDelay = 0.44;
-const analysisLoadingDuration = 3000;
+const profileRevealDelay = 120;
+const analysisRevealDelay = 320;
+const analysisTaskRevealDelay = 0.08;
+const analysisLoadingDuration = 1600;
 const conversationBlockReveal = {
-  hidden: { opacity: 0, y: 10, scale: 0.988 },
-  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.38, ease: revealEase } },
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.32, ease: revealEase } },
 };
 const confirmedResultsReveal = {
   hidden: {},
@@ -53,30 +53,8 @@ const quickActionReveal = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.24, ease: revealEase } },
 };
 
-function StreamingText({ children, delay = 0 }: { children: string; delay?: number }) {
-  const reduceMotion = useReducedMotion();
-  if (reduceMotion) return <span>{children}</span>;
-
-  return (
-    <motion.span
-      className="conversation-streaming-text"
-      aria-label={children}
-      initial="hidden"
-      animate="visible"
-      variants={{ visible: { transition: { delayChildren: delay, staggerChildren: 0.012 } } }}
-    >
-      {Array.from(children).map((character, index) => (
-        <motion.span
-          className="conversation-streaming-character"
-          aria-hidden="true"
-          variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.09, ease: "linear" } } }}
-          key={`${character}-${index}`}
-        >
-          {character === " " ? "\u00a0" : character}
-        </motion.span>
-      ))}
-    </motion.span>
-  );
+function StreamingText({ children }: { children: string; delay?: number }) {
+  return <span className="conversation-streaming-text">{children}</span>;
 }
 
 function buildCustomerDirectionPackageHtml(selectedDirectionIds: string[], selectedCandidateIds: string[]) {
@@ -187,30 +165,32 @@ function TrendDirectionSelectionForm({
   onConfirm: () => void;
 }) {
   return (
-    <section className={`trend-direction-form ${confirmed ? "is-confirmed" : ""}`} aria-label="选择客户提案采用的视觉方向" data-node-id="567:65705">
+    <section className={`new-product-direction-form ${confirmed ? "is-confirmed" : ""}`} aria-label="选择客户提案采用的视觉方向" data-node-id="567:65705">
       <ConversationFormTitle
         title="选择客户提案采用的视觉方向"
         helper="支持多选 · 每个方向均关联市场证据和客户需求匹配点"
+        status={confirmed ? "confirmed" : "pending"}
+        statusLabel={confirmed ? "已确认" : "待确认"}
       />
-      <div className="trend-direction-form__grid" role="group" aria-label="视觉方向，支持多选">
+      <div className="new-product-direction-grid" role="group" aria-label="视觉方向，支持多选">
         {trendDirections.map((direction) => {
           const selected = selectedIds.includes(direction.id);
           return (
             <button
               type="button"
-              className={`visual-direction-choice-card trend-direction-option ${selected ? "is-selected" : ""}`}
+              className={`visual-direction-choice-card ${selected ? "is-selected" : ""}`}
               aria-pressed={selected}
               disabled={confirmed}
               onClick={() => onToggle(direction.id)}
               key={direction.id}
             >
               <img src={assetUrl("assets/figma-confirmed/trend-direction-thumbnail.png")} alt="" />
-              <span className="trend-direction-option__copy">
+              <span>
                 <strong>{direction.id}·{direction.title}</strong>
                 <span>{direction.description}</span>
                 <small>{direction.recommendation}</small>
               </span>
-              <span className="trend-direction-option__check" aria-hidden="true">
+              <span className="new-product-direction-check" aria-hidden="true">
                 {selected ? <FigmaIcon name="check" size={12} /> : null}
               </span>
             </button>
@@ -218,7 +198,7 @@ function TrendDirectionSelectionForm({
         })}
       </div>
       {!confirmed ? (
-        <div className="trend-direction-form__actions">
+        <div className="new-product-form-actions">
           <Button variant="primary" size="small" disabled={!selectedIds.length} onClick={onConfirm}>确认并继续</Button>
         </div>
       ) : null}
@@ -276,17 +256,23 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   const candidateSearchComplete = candidateSearchStage >= 4;
 
   useEffect(() => {
+    if (reduceMotion) {
+      setProfileVisible(true);
+      setAnalysisVisible(true);
+      setAnalysisPhase("complete");
+      return;
+    }
     const profileTimer = window.setTimeout(
       () => setProfileVisible(true),
-      reduceMotion ? 0 : profileRevealDelay,
+      profileRevealDelay,
     );
     const analysisTimer = window.setTimeout(
       () => setAnalysisVisible(true),
-      reduceMotion ? 0 : analysisRevealDelay,
+      analysisRevealDelay,
     );
     const completionTimer = window.setTimeout(
       () => setAnalysisPhase("complete"),
-      (reduceMotion ? 0 : analysisRevealDelay) + analysisTaskRevealDelay * 1000 + analysisLoadingDuration,
+      analysisRevealDelay + analysisTaskRevealDelay * 1000 + analysisLoadingDuration,
     );
     return () => {
       window.clearTimeout(profileTimer);
@@ -336,10 +322,16 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   useEffect(() => {
     if (!scopeConfirmed) return;
     setScopeResultStage(0);
-    const timings = reduceMotion
-      ? [0, 120, 1600, 1760, 1920]
-      : [240, 820, 3400, 4080, 4720];
-    const timers = timings.map((delay, index) => window.setTimeout(() => setScopeResultStage(index + 1), delay));
+    if (reduceMotion) {
+      setScopeResultStage(5);
+      return;
+    }
+    const stages = [
+      { delay: 120, value: 1 },
+      { delay: 420, value: 2 },
+      { delay: 1400, value: 5 },
+    ];
+    const timers = stages.map(({ delay, value }) => window.setTimeout(() => setScopeResultStage(value), delay));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [reduceMotion, scopeConfirmed]);
 
@@ -349,11 +341,15 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
       if (!completedBlock) return;
       setMessageMetaPosition(getMessageMetaPosition(completedBlock));
     };
+    const hideWhileScrolling = () => {
+      hoveredMessageRef.current = null;
+      setMessageMetaPosition(null);
+    };
     window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("scroll", hideWhileScrolling, true);
     return () => {
       window.removeEventListener("resize", reposition);
-      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("scroll", hideWhileScrolling, true);
     };
   }, []);
 
@@ -364,18 +360,24 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   useEffect(() => {
     if (!trendDirectionsConfirmed || !candidateSearchRun) return;
     setCandidateSearchStage(0);
-    const timings = reduceMotion
-      ? [0, 80, 160, 320, 400]
-      : [280, 880, 1480, 3720, 4240];
-    const timers = timings.map((delay, index) => window.setTimeout(
-      () => setCandidateSearchStage(index + 1),
+    if (reduceMotion) {
+      setCandidateSearchStage(5);
+      return;
+    }
+    const stages = [
+      { delay: 120, value: 1 },
+      { delay: 420, value: 3 },
+      { delay: 1600, value: 5 },
+    ];
+    const timers = stages.map(({ delay, value }) => window.setTimeout(
+      () => setCandidateSearchStage(value),
       delay,
     ));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [candidateSearchRun, reduceMotion, trendDirectionsConfirmed]);
 
   useEffect(() => {
-    if (!candidateSearchStage) return;
+    if (candidateSearchStage !== 1 && candidateSearchStage !== 5) return;
     const frame = window.requestAnimationFrame(() => {
       candidatePoolRef.current?.scrollIntoView({
         behavior: reduceMotion ? "auto" : "smooth",
@@ -676,7 +678,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                     initial={reduceMotion ? false : "hidden"}
                     animate="visible"
                     variants={conversationBlockReveal}
-                    transition={{ duration: reduceMotion ? 0 : 0.4, delay: reduceMotion ? 0 : 0.56, ease: revealEase }}
+                    transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : 0.08, ease: revealEase }}
                   >
                     <p><StreamingText delay={0.62}>已完成本次需求解析</StreamingText></p>
                     <motion.div
@@ -684,7 +686,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                       initial={reduceMotion ? false : "hidden"}
                       animate="visible"
                       variants={conversationBlockReveal}
-                      transition={{ duration: reduceMotion ? 0 : 0.38, delay: reduceMotion ? 0 : 0.76, ease: revealEase }}
+                      transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : 0.12, ease: revealEase }}
                     >
                       <strong><StreamingText delay={0.82}>本次需求理解：</StreamingText></strong>
                       <ul>
@@ -703,7 +705,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                     initial={reduceMotion ? false : "hidden"}
                     animate="visible"
                     variants={conversationBlockReveal}
-                    transition={{ duration: reduceMotion ? 0 : 0.4, delay: reduceMotion ? 0 : 1.96, ease: revealEase }}
+                    transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : 0.18, ease: revealEase }}
                   >
                     <p><StreamingText delay={2.02}>请确认【季节】，可直接补充，也可回复“跳过”保留未指定状态。确认后回复“继续”进入调研范围。</StreamingText></p>
                     {!scopeFormVisible && !seasonSkipped ? (
@@ -713,11 +715,10 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                         data-node-id="476:105358"
                         initial={reduceMotion ? false : "hidden"}
                         animate="visible"
-                        variants={{ visible: { transition: { delayChildren: reduceMotion ? 0 : 2.84, staggerChildren: reduceMotion ? 0 : 0.12 } } }}
+                        variants={{ visible: { transition: { delayChildren: reduceMotion ? 0 : 0.24, staggerChildren: reduceMotion ? 0 : 0.06 } } }}
                       >
                         <motion.span className="conversation-quick-action" variants={quickActionReveal}>
                           <Button variant="outline" size="small" onClick={() => useSeasonQuickReply("跳过")}>
-                            <FigmaIcon name="arrow-left" size={20} />
                             跳过
                           </Button>
                         </motion.span>
@@ -899,7 +900,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                           className="conversation-message conversation-message--assistant conversation-handoff-copy"
                           initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.12, ease: revealEase }}
+                          transition={{ duration: reduceMotion ? 0 : 0.3, ease: revealEase }}
                           data-node-id="488:112714"
                         >
                           <p>{trendDirectionsConfirmed ? "已确认以下趋势方向，选择记录保留如下。" : "趋势方向分析及辅助材料已生成。请在下方选择认可方向；确认前不会进入定向候选检索。"}</p>
@@ -910,7 +911,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                             className="conversation-message conversation-message--assistant conversation-trend-result conversation-trend-selection-step"
                             initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.2, ease: revealEase }}
+                            transition={{ duration: reduceMotion ? 0 : 0.3, ease: revealEase }}
                             data-node-id="567:65705"
                           >
                             <TrendDirectionSelectionForm
@@ -1004,7 +1005,11 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                                   >
                                     <p>从已取得素材中选择客户参考图</p>
                                     <div className={`conversation-candidate-form ${candidateSelectionConfirmed ? "is-readonly" : ""}`} data-node-id="552:17645">
-                                      <ConversationFormTitle title="选择参考图 · 支持多选" />
+                                      <ConversationFormTitle
+                                        title="选择参考图 · 支持多选"
+                                        status={candidateSelectionConfirmed ? "confirmed" : "pending"}
+                                        statusLabel={candidateSelectionConfirmed ? "已确认" : "待确认"}
+                                      />
                                       <div className="conversation-candidate-tabs" role="tablist" aria-label="参考图类型">
                                         {candidateCategories.map((category) => (
                                           <button
@@ -1091,8 +1096,8 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                                     hidden: {},
                                     visible: {
                                       transition: {
-                                        delayChildren: reduceMotion ? 0 : 0.36,
-                                        staggerChildren: reduceMotion ? 0 : 0.18,
+                                        delayChildren: reduceMotion ? 0 : 0.08,
+                                        staggerChildren: reduceMotion ? 0 : 0.08,
                                       },
                                     },
                                   }}
@@ -1160,7 +1165,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
             || (scopeConfirmed && !trendScanComplete)
             || (trendDirectionsConfirmed && !candidateSearchComplete)
           }
-          motionDelay={0.42}
+          motionDelay={0.16}
         />
       </section>
 
