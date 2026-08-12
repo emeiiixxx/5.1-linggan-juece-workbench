@@ -84,7 +84,7 @@ function LoadingTask({ title, lines }: { title: string; lines: string[] }) {
 }
 
 function AssistantMessage({ children, className = "" }: { children: ReactNode; className?: string }) {
-  const messageRef = useGsapEntrance<HTMLArticleElement>();
+  const messageRef = useGsapEntrance<HTMLElement>();
   return (
     <article className={`conversation-message conversation-message--assistant apparel-assistant-message ${className}`} ref={messageRef}>
       {children}
