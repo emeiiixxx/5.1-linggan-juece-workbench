@@ -11,12 +11,11 @@ import {
   ConversationFeed,
   ConversationFormTitle,
   ConversationSingleChoiceList,
-  ConversationStatusIcon,
   ConversationTaskCompletion,
+  TaskProgressSummary,
   ConversationUserMessage,
   TaskArtifactRow,
   TaskDisclosure,
-  type ConversationStepStatus,
 } from "./ConversationPrimitives";
 import { useGsapEntrance } from "../motion/gsap";
 
@@ -376,13 +375,13 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
     URL.revokeObjectURL(url);
   };
 
-  const taskStates: ConversationStepStatus[] = [
+  const taskStates = [
     stageIndex > 0 ? "complete" : "loading",
     stageIndex > 3 ? "complete" : stageIndex > 0 ? "loading" : "pending",
     stageIndex > 5 ? "complete" : stageIndex >= 4 ? "loading" : "pending",
     stageIndex > 6 ? "complete" : stageIndex === 6 ? "loading" : "pending",
     stage === "complete" ? "complete" : stage === "exporting" ? "loading" : "pending",
-  ];
+  ] as const;
 
   return (
     <motion.main className={`workspace-region workspace-region--conversation plan-workspace ${detailPanelOpen ? "has-detail-panel" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
@@ -533,7 +532,7 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
       <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>
         <div className="task-detail-panel" aria-label="企划案任务概览">
           <header><strong>概览</strong><button type="button" onClick={() => setDetailPanelOpen(false)} aria-label="收起概览"><FigmaIcon name="expand-window" size={20} /></button></header>
-          <section><h2>待办</h2><div className="task-detail-list">{["确认设计主题", "搜集系列资料", "分析趋势与搭配方向", "确认导出格式", "生成最终企划案"].map((label, index) => <div key={label}><ConversationStatusIcon status={taskStates[index]} /><span>{label}</span></div>)}</div></section>
+          <section><h2 className="task-progress-heading">任务进展</h2><TaskProgressSummary labels={["确认设计主题", "搜集系列资料", "分析趋势与搭配方向", "确认导出格式", "生成最终企划案"]} states={taskStates} completeLabel="最终企划案已生成" /></section>
           <section><h2>任务产物</h2>{stage === "complete" ? <>{exportFormat.includes("PPT") ? <TaskArtifactRow kind="file">巴洛克航海梦设计企划案.ppt</TaskArtifactRow> : null}{exportFormat.includes("HTML") ? <TaskArtifactRow kind="file">巴洛克航海梦设计企划案.html</TaskArtifactRow> : null}</> : <TaskArtifactRow kind="file">等待生成最终企划案…</TaskArtifactRow>}</section>
           <section><h2>参考信息</h2><div className="task-detail-row"><FigmaIcon name="global" size={16} /><span>Gap SPRING-SUMMER 2026 男装系列</span></div><div className="task-detail-row"><FigmaIcon name="global" size={16} /><span>品牌秀场、街拍与零售造型资料</span></div></section>
         </div>

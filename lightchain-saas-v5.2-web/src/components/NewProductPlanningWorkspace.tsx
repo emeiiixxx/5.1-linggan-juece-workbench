@@ -20,6 +20,7 @@ import {
   ConversationUserMessage,
   TaskArtifactRow,
   TaskDisclosure,
+  TaskProgressSummary,
   type ConversationStepStatus,
 } from "./ConversationPrimitives";
 import { FigmaIcon } from "./FigmaIcon";
@@ -817,8 +818,8 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
         <div className="task-detail-panel" aria-label="新品企划任务概览">
           <header><strong>概览</strong><button type="button" onClick={() => setDetailPanelOpen(false)} aria-label="收起概览"><FigmaIcon name="expand-window" size={20} /></button></header>
           <section>
-            <h2>待办</h2>
-            <div className="task-detail-list">{taskLabels.map((label, index) => <div key={label}><ConversationStatusIcon status={taskStates[index]} /><span>{label}</span></div>)}</div>
+            <h2 className="task-progress-heading">任务进展</h2>
+            <TaskProgressSummary labels={taskLabels} states={taskStates} completeLabel="新品企划案已生成" />
           </section>
           <section>
             <h2>任务产物</h2>

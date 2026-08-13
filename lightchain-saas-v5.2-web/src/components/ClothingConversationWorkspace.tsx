@@ -4,7 +4,7 @@ import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
 import { Button, QuickReplyButton } from "./Button";
-import { AnalysisStepIcon, ConversationFeed, ConversationFormTitle, ConversationStatusIcon as ApparelStatusIcon, ConversationTaskCompletion, ConversationUserMessage as UserMessage, TaskArtifactRow, TaskDisclosure, type ConversationStepStatus as StepState } from "./ConversationPrimitives";
+import { AnalysisStepIcon, ConversationFeed, ConversationFormTitle, ConversationStatusIcon as ApparelStatusIcon, ConversationTaskCompletion, ConversationUserMessage as UserMessage, TaskArtifactRow, TaskDisclosure, TaskProgressSummary, type ConversationStepStatus as StepState } from "./ConversationPrimitives";
 import { TaskConversationComposer } from "./TaskConversationComposer";
 import { useGsapEntrance } from "../motion/gsap";
 import { SelectionCard, SelectionControl } from "./SelectionCard";
@@ -732,12 +732,8 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
         <div className="task-detail-panel apparel-task-detail" aria-label="款式设计任务概览">
           <header><strong>概览</strong><button type="button" onClick={() => setDetailPanelOpen(false)} aria-label="收起概览"><FigmaIcon name="expand-window" size={20} /></button></header>
           <section>
-            <h2>待办</h2>
-            <div className="task-detail-list">
-              {["需求解析与确认", "调研范围对齐", "趋势分析与确认", "候选参考与客户确认", "生成视觉素材（图片、图表等）"].map((label, index) => (
-                <div key={label}><ApparelStatusIcon status={taskStates[index]} /><span>{label}</span></div>
-              ))}
-            </div>
+            <h2 className="task-progress-heading">任务进展</h2>
+            <TaskProgressSummary labels={["需求解析与确认", "调研范围对齐", "趋势分析与确认", "候选参考与客户确认", "生成视觉素材（图片、图表等）"]} states={taskStates} completeLabel="系列设计图已生成" />
           </section>
           <section>
             <h2>任务产物</h2>

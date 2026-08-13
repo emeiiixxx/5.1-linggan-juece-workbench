@@ -10,7 +10,7 @@ import { ImageGalleryLightbox, MasonryImageSelection } from "./ImageSelection";
 import { TaskConversationComposer } from "./TaskConversationComposer";
 import { ResearchScopeForm } from "./ResearchScopeForm";
 import { SelectionCard } from "./SelectionCard";
-import { AnalysisStepIcon, ConversationFeed, ConversationFileCard, ConversationFormTitle, ConversationStatusIcon as StatusIcon, ConversationTaskCompletion, ConversationUserMessage, TaskArtifactRow, TaskDisclosure } from "./ConversationPrimitives";
+import { AnalysisStepIcon, ConversationFeed, ConversationFileCard, ConversationFormTitle, ConversationTaskCompletion, ConversationUserMessage, TaskArtifactRow, TaskDisclosure, TaskProgressSummary } from "./ConversationPrimitives";
 import { candidateCategories, candidatePageCount, candidateReferenceImages, formatCandidateSelection, formatTrendDirectionSelection, getCandidateCategoryLabel, getCandidateReference, getReferencePackageData, trendDirections, trendReportDetails, type CandidateCategoryId } from "../data/referenceCatalog";
 import { buildFashionProposalHtml } from "../report/fashionProposalHtml";
 import { useI18n } from "../i18n";
@@ -1524,23 +1524,16 @@ export function ConversationWorkspace({ prompt, profileName, initialState = "def
                 <button type="button" onClick={() => setDetailPanelOpen(false)} aria-label="收起概览"><FigmaIcon name="expand-window" size={20} /></button>
               </header>
               <section>
-                <h2>待办</h2>
-                <div className="task-detail-list">
-                  {taskDetailSteps.map((step, index) => (
-                    <motion.div initial={reduceMotion ? false : { opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : 0.52 + index * 0.1, ease: revealEase }} key={step}>
-                      <StatusIcon status={index === 0
-                        ? (analysisComplete ? "complete" : "loading")
-                        : index === 1
-                          ? (trendScanComplete ? "complete" : scopeConfirmed ? "loading" : "pending")
-                          : customerProposalStage === "complete"
-                            ? "complete"
-                            : customerProposalStage === "proposal-generating"
-                              ? "loading"
-                              : "pending"} />
-                      <span>{step}</span>
-                    </motion.div>
-                  ))}
-                </div>
+                <h2 className="task-progress-heading">任务进展</h2>
+                <TaskProgressSummary
+                  labels={taskDetailSteps}
+                  states={[
+                    analysisComplete ? "complete" : "loading",
+                    trendScanComplete ? "complete" : scopeConfirmed ? "loading" : "pending",
+                    customerProposalStage === "complete" ? "complete" : customerProposalStage === "proposal-generating" ? "loading" : "pending",
+                  ]}
+                  completeLabel="正式客户提案已生成"
+                />
               </section>
               <section>
                 <h2>任务产物</h2>

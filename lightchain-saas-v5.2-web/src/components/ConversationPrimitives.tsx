@@ -47,11 +47,37 @@ const conversationNonTextRegionSelector = [
 function getCopyableMessageText(message: HTMLElement) {
   const copy = message.cloneNode(true) as HTMLElement;
   copy.querySelectorAll(`${conversationNonTextRegionSelector}, button, [role="button"], input, textarea, select, img, picture, video, canvas`).forEach((element) => element.remove());
-  copy.style.cssText = "position:fixed;left:-100000px;top:0;width:" + message.getBoundingClientRect().width + "px;visibility:hidden;pointer-events:none;";
+  copy.style.cssText = "position:fixed;left:-100000px;top:0;width:" + message.getBoundingClientRect().width + "px;pointer-events:none;";
   document.body.appendChild(copy);
   const text = copy.innerText.trim();
   copy.remove();
   return text;
+}
+
+async function writeClipboardText(text: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fall through for browsers that expose Clipboard API but deny the write.
+    }
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.cssText = "position:fixed;left:-100000px;top:0;opacity:0;pointer-events:none;";
+  document.body.appendChild(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch {
+    copied = false;
+  }
+  textarea.remove();
+  return copied;
 }
 
 function getMessageMetaPosition(message: HTMLElement): MessageMetaPosition {
@@ -100,15 +126,19 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
 
   const showMessageMeta = (event: ReactPointerEvent<HTMLDivElement>) => {
     const eventTarget = event.target as HTMLElement;
-    if (eventTarget.closest<HTMLElement>(conversationNonTextRegionSelector)) {
+    const message = eventTarget.closest<HTMLElement>('[data-message-actions="true"]')
+      ?? eventTarget.closest<HTMLElement>(".conversation-message--user");
+    const messageContainsNonTextRegion = Boolean(
+      message?.matches(conversationNonTextRegionSelector)
+      || message?.querySelector(conversationNonTextRegionSelector),
+    );
+    if (eventTarget.closest<HTMLElement>(conversationNonTextRegionSelector) || messageContainsNonTextRegion) {
       if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current);
       hideTimerRef.current = null;
       hoveredMessageRef.current = null;
       setMetaPosition(null);
       return;
     }
-    const message = eventTarget.closest<HTMLElement>('[data-message-actions="true"]')
-      ?? eventTarget.closest<HTMLElement>(".conversation-message--user");
     if (!message) {
       if (hoveredMessageRef.current) scheduleMetaHide();
       return;
@@ -120,21 +150,17 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
     setMetaPosition(getMessageMetaPosition(message));
   };
 
-  const copyHoveredMessage = () => {
+  const copyHoveredMessage = async () => {
     const message = hoveredMessageRef.current;
     const text = message ? getCopyableMessageText(message) : "";
     if (!text) return;
-    const showCopiedToast = () => {
-      setToast(t("复制成功"));
-      if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
-      toastTimerRef.current = window.setTimeout(() => {
-        toastTimerRef.current = null;
-        setToast("");
-      }, 2000);
-    };
-    const copyOperation = navigator.clipboard?.writeText(text);
-    if (copyOperation) void copyOperation.then(showCopiedToast).catch(showCopiedToast);
-    else showCopiedToast();
+    const copied = await writeClipboardText(text);
+    setToast(t(copied ? "复制成功" : "复制失败，请重试"));
+    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => {
+      toastTimerRef.current = null;
+      setToast("");
+    }, 2000);
   };
 
   const likeHoveredMessage = () => {
@@ -291,6 +317,74 @@ export function ConversationStatusIcon({ status }: { status: ConversationStepSta
   if (status === "complete") return <span className="conversation-status-icon is-complete" aria-label={t("已完成")}><FigmaIcon name="check" size={16} /></span>;
   if (status === "loading") return <span className="conversation-status-icon is-loading" aria-label={t("进行中")}><img className="conversation-loading-asset" src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" /></span>;
   return <span className="conversation-status-icon is-pending" aria-label={t("待处理")} />;
+}
+
+export function TaskProgressSummary({ labels, states, completeLabel = "任务已完成" }: { labels: readonly string[]; states: readonly ConversationStepStatus[]; completeLabel?: string }) {
+  const reduceMotion = useReducedMotion();
+  const [historyExpanded, setHistoryExpanded] = useState(false);
+  const loadingIndex = states.findIndex((status) => status === "loading");
+  const pendingIndex = states.findIndex((status) => status === "pending");
+  const completedCount = states.filter((status) => status === "complete").length;
+  const complete = completedCount === labels.length;
+  const currentIndex = loadingIndex >= 0 ? loadingIndex : Math.max(pendingIndex, 0);
+  const nextIndex = currentIndex >= 0 ? currentIndex + 1 : -1;
+  const completedLabels = labels.filter((_, index) => states[index] === "complete");
+
+  return (
+    <div className="task-progress-summary" data-message-meta="disabled" data-copy-exclude="true">
+      <div className="task-progress-summary__primary">
+        <ConversationStatusIcon status={complete ? "complete" : states[currentIndex]} />
+        <span><small>{complete ? "已完成" : "当前"}</small><strong>{complete ? completeLabel : labels[currentIndex]}</strong></span>
+      </div>
+      {!complete && nextIndex < labels.length ? (
+        <div className="task-progress-summary__next">
+          <ConversationStatusIcon status="pending" />
+          <span><small>下一步</small><strong>{labels[nextIndex]}</strong></span>
+        </div>
+      ) : null}
+      {completedCount > 0 ? (
+        <div className="task-progress-summary__history-group">
+          <button
+            type="button"
+            className="task-progress-summary__history-toggle"
+            aria-expanded={historyExpanded}
+            onClick={() => setHistoryExpanded((expanded) => !expanded)}
+          >
+            <motion.span
+              className="task-progress-summary__history-chevron"
+              animate={{ rotate: historyExpanded ? 90 : 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.24, ease: revealEase }}
+            >
+              <FigmaIcon name="chevron-right" size={16} />
+            </motion.span>
+            <span>已完成 {completedCount} 项</span>
+          </button>
+          <AnimatePresence initial={false}>
+            {historyExpanded ? (
+              <motion.div
+                className="task-progress-summary__history-clip"
+                initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.24, ease: revealEase }}
+              >
+                <div className="task-progress-summary__history">
+                  {completedLabels.map((label) => (
+                    <div className="task-progress-summary__history-row" key={label}>
+                      <span className="task-progress-summary__history-leading" aria-hidden="true">
+                        <FigmaIcon name="dot" size={16} />
+                      </span>
+                      <span>{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function AnalysisStepIcon({ complete, delay = 0 }: { complete: boolean; delay?: number }) {

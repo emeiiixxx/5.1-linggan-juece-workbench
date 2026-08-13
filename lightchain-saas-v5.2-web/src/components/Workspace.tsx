@@ -138,6 +138,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   const activePlanSlotRef = useRef<HTMLElement | null>(null);
   const savedPlanEditorHtmlRef = useRef(defaultPlanEditorHtml);
   const planPromptRef = useRef(defaultPlanPrompt);
+  const planHasUserDraftRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const attachmentUrlsRef = useRef(new Set<string>());
@@ -170,6 +171,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   const syncPlanEditorValue = (editor: HTMLDivElement, normalizeEmptyMarkup = false) => {
     const nextPrompt = editor.innerText.replace(/\u00a0/g, " ");
     planPromptRef.current = nextPrompt;
+    if (!nextPrompt.trim()) planHasUserDraftRef.current = false;
     editor.dataset.empty = String(!nextPrompt.trim());
     if (normalizeEmptyMarkup && !nextPrompt.trim()) {
       editor.replaceChildren();
@@ -242,6 +244,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
     setMessage("");
     planPromptRef.current = defaultPlanPrompt;
     savedPlanEditorHtmlRef.current = defaultPlanEditorHtml;
+    planHasUserDraftRef.current = false;
     if (planEditorRef.current) {
       planEditorRef.current.innerHTML = defaultPlanEditorHtml;
       planEditorRef.current.dataset.empty = "false";
@@ -417,6 +420,10 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                 aria-selected={activeTab === index}
                 className={activeTab === index ? "is-active" : ""}
                 onClick={() => {
+                  if (index === 3 && activeTabRef.current !== 3 && !planHasUserDraftRef.current) {
+                    planPromptRef.current = defaultPlanPrompt;
+                    savedPlanEditorHtmlRef.current = defaultPlanEditorHtml;
+                  }
                   setActiveTab(index);
                   setProfileMenuOpen(false);
                   setProjectMenuOpen(false);
@@ -486,6 +493,10 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                   aria-multiline="true"
                   data-placeholder="描述企划案的主题、目标和交付要求..."
                   data-empty="false"
+                  onBeforeInput={(event) => {
+                    const inputType = (event.nativeEvent as InputEvent).inputType ?? "";
+                    if (inputType.startsWith("insert")) planHasUserDraftRef.current = true;
+                  }}
                   onPointerDown={(event) => {
                     activePlanSlotRef.current = (event.target as HTMLElement).closest<HTMLElement>(".composer-semantic-slot");
                   }}
@@ -496,7 +507,9 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                     activePlanSlotRef.current = (event.target as HTMLElement).closest<HTMLElement>(".composer-semantic-slot");
                   }}
                   onInput={(event) => {
-                    const isComposing = (event.nativeEvent as InputEvent).isComposing;
+                    const nativeEvent = event.nativeEvent as InputEvent;
+                    const isComposing = nativeEvent.isComposing;
+                    if ((nativeEvent.inputType ?? "").startsWith("insert")) planHasUserDraftRef.current = true;
                     if (!isComposing) normalizePlanEditorMarkup(event.currentTarget);
                     syncPlanEditorValue(event.currentTarget, !isComposing);
                   }}

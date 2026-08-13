@@ -170,6 +170,43 @@ export function Sidebar({
     onSelectStaticRow?.();
   };
 
+  const openSearchResult = (title: string) => {
+    setSearchOpen(false);
+    setSearchQuery("");
+
+    const groupIndex = groups.findIndex((group) => group.items.includes(title));
+    if (groupIndex >= 0) {
+      const group = groups[groupIndex];
+      const itemIndex = group.items.indexOf(title);
+      setProjectsExpanded(true);
+      if (!group.expanded) {
+        setGroups((current) => current.map((item) =>
+          item.id === group.id ? { ...item, expanded: true } : item,
+        ));
+      }
+      setSelectedRow({ kind: "item", groupId: group.id, itemIndex });
+      openSavedTask(group.id, title);
+      return;
+    }
+
+    const taskIndex = tasks.indexOf(title);
+    if (taskIndex >= 0) {
+      setTasksExpanded(true);
+      setSelectedRow({ kind: "task", taskIndex });
+      openSavedTask(null, title);
+      return;
+    }
+
+    const savedTask = completedProjectTaskExamples.find((task) => task.title === title);
+    if (savedTask) {
+      setSelectedRow(null);
+      onOpenTask?.(savedTask.id);
+      return;
+    }
+
+    onSelectStaticRow?.();
+  };
+
   const openCollapsedMenu = (menu: "projects" | "tasks") => {
     if (collapsedMenuCloseTimerRef.current) {
       clearTimeout(collapsedMenuCloseTimerRef.current);
@@ -1356,7 +1393,7 @@ export function Sidebar({
                       <button
                         type="button"
                         key={`${title}-${index}`}
-                        onClick={() => setSearchOpen(false)}
+                        onClick={() => openSearchResult(title)}
                       >
                         <strong>{title}</strong>
                         <span>{meta}</span>

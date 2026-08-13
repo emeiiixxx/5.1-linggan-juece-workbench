@@ -8246,6 +8246,10 @@ img.trend-direction-media__slide {
 }
 .task-detail-panel h2 { margin: 0 8px 8px; }
 
+.task-detail-panel h2.task-progress-heading {
+  color: var(--text-primary);
+}
+
 .task-detail-list,
 .task-detail-row {
   color: var(--text-secondary);
@@ -8259,6 +8263,131 @@ img.trend-direction-media__slide {
 }
 
 .task-detail-list { display: grid; gap: 4px; }
+
+.task-progress-summary {
+  display: grid;
+  gap: 4px;
+}
+
+.task-progress-summary__primary,
+.task-progress-summary__next {
+  display: flex;
+  min-height: 44px;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: var(--radius-base);
+}
+
+.task-progress-summary__primary > span:last-child,
+.task-progress-summary__next > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.task-progress-summary__primary > .conversation-status-icon,
+.task-progress-summary__next > .conversation-status-icon {
+  width: 16px;
+  height: 16px;
+  flex-basis: 16px;
+}
+
+.task-progress-summary__next > .conversation-status-icon.is-pending::before {
+  width: 4px;
+  height: 4px;
+  border: 0;
+  background: var(--text-placeholder);
+}
+
+.task-progress-summary small {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.task-progress-summary strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-progress-summary__next strong {
+  color: var(--text-placeholder);
+}
+
+.task-progress-summary__history-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 32px;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-base);
+  color: var(--text-primary);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.task-progress-summary__history-toggle:hover {
+  background: var(--state-hover);
+}
+
+.task-progress-summary__history-group {
+  display: grid;
+}
+
+.task-progress-summary__history-chevron {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+}
+
+.task-progress-summary__history-clip {
+  overflow: hidden;
+}
+
+.task-progress-summary__history {
+  display: grid;
+  gap: 4px;
+  padding: 4px 0 8px;
+}
+
+.task-progress-summary__history-row {
+  display: flex;
+  min-height: 16px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  color: var(--text-placeholder);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.task-progress-summary__history-leading {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
+}
 
 .task-detail-list > div,
 .task-detail-row {
