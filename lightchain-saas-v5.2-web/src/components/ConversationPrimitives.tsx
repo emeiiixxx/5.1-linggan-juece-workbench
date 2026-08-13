@@ -6,6 +6,8 @@ import { gsap, gsapMotion, useGSAP } from "../motion/gsap";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
 import { Button, OutlineToggleButton, SuggestionButton } from "./Button";
+import { useI18n } from "../i18n";
+import { useModalFocus } from "../hooks/useModalFocus";
 
 export type ConversationStepStatus = "complete" | "loading" | "pending";
 
@@ -35,11 +37,13 @@ function getMessageMetaPosition(message: HTMLElement): MessageMetaPosition {
 }
 
 export function ConversationFeed({ className = "", children, ...props }: HTMLAttributes<HTMLDivElement>) {
+  const { t } = useI18n();
   const reduceMotion = useReducedMotion();
   const hoveredMessageRef = useRef<HTMLElement | null>(null);
   const hideTimerRef = useRef<number | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const feedbackByMessageRef = useRef(new WeakMap<HTMLElement, MessageFeedback>());
+  const feedbackDialogRef = useRef<HTMLElement>(null);
   const [metaPosition, setMetaPosition] = useState<MessageMetaPosition | null>(null);
   const [, setFeedbackRevision] = useState(0);
   const [feedbackMessage, setFeedbackMessage] = useState<HTMLElement | null>(null);
@@ -80,7 +84,7 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
     const text = hoveredMessageRef.current?.innerText.trim();
     if (!text) return;
     const showCopiedToast = () => {
-      setToast("复制成功");
+      setToast(t("复制成功"));
       if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
       toastTimerRef.current = window.setTimeout(() => {
         toastTimerRef.current = null;
@@ -114,6 +118,7 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
     setSelectedReasons([]);
     setFeedbackDetail("");
   };
+  useModalFocus(feedbackDialogRef, Boolean(feedbackMessage), closeFeedbackDialog, hoveredMessageRef);
 
   const toggleFeedbackReason = (reason: string) => {
     setSelectedReasons((current) => current.includes(reason)
@@ -151,15 +156,6 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
     };
   }, []);
 
-  useEffect(() => {
-    if (!feedbackMessage) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeFeedbackDialog();
-    };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [feedbackMessage]);
-
   const currentFeedback = hoveredMessageRef.current
     ? feedbackByMessageRef.current.get(hoveredMessageRef.current)
     : undefined;
@@ -179,20 +175,20 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
           {metaPosition.side === "user" ? (
             <>
               <time>10:24</time>
-              <div><IconControl label="复制消息" variant="bare" size="xsmall" onClick={copyHoveredMessage}><FigmaIcon name="copy" size={16} /></IconControl></div>
+              <div><IconControl label={t("复制消息")} variant="bare" size="xsmall" onClick={copyHoveredMessage}><FigmaIcon name="copy" size={16} /></IconControl></div>
             </>
           ) : (
             <>
               <div>
-                <IconControl label="复制消息" variant="bare" size="xsmall" onClick={copyHoveredMessage}><FigmaIcon name="copy" size={16} /></IconControl>
-                <IconControl label="赞同消息" variant="bare" size="xsmall" aria-pressed={currentFeedback?.reaction === "like"} onClick={likeHoveredMessage}>
+                <IconControl label={t("复制消息")} variant="bare" size="xsmall" onClick={copyHoveredMessage}><FigmaIcon name="copy" size={16} /></IconControl>
+                <IconControl label={t("赞同消息")} variant="bare" size="xsmall" aria-pressed={currentFeedback?.reaction === "like"} onClick={likeHoveredMessage}>
                   <AnimatePresence initial={false} mode="wait">
                     <motion.span className="conversation-feedback-icon" key={currentFeedback?.reaction === "like" ? "like-filled" : "like"} initial={reduceMotion ? false : { opacity: 0, scale: 0.72, rotate: -8 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} exit={reduceMotion ? undefined : { opacity: 0, scale: 0.84 }} transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}>
                       <FigmaIcon name={currentFeedback?.reaction === "like" ? "like-filled" : "like"} size={16} />
                     </motion.span>
                   </AnimatePresence>
                 </IconControl>
-                <IconControl label="不赞同消息" variant="bare" size="xsmall" aria-pressed={currentFeedback?.reaction === "dislike"} onClick={openFeedbackDialog}>
+                <IconControl label={t("不赞同消息")} variant="bare" size="xsmall" aria-pressed={currentFeedback?.reaction === "dislike"} onClick={openFeedbackDialog}>
                   <AnimatePresence initial={false} mode="wait">
                     <motion.span className="conversation-feedback-icon" key={currentFeedback?.reaction === "dislike" ? "dislike-filled" : "dislike"} initial={reduceMotion ? false : { opacity: 0, scale: 0.72, rotate: 8 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} exit={reduceMotion ? undefined : { opacity: 0, scale: 0.84 }} transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}>
                       <FigmaIcon name={currentFeedback?.reaction === "dislike" ? "dislike-filled" : "dislike"} size={16} />
@@ -218,26 +214,26 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
       )}
       {feedbackMessage && typeof document !== "undefined" && createPortal(
         <motion.div className="conversation-feedback-backdrop" role="presentation" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduceMotion ? 0 : 0.2 }} onPointerDown={(event) => { if (event.target === event.currentTarget) closeFeedbackDialog(); }}>
-          <motion.section className="conversation-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="conversation-feedback-title" initial={reduceMotion ? false : { opacity: 0, y: 10, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}>
+          <motion.section ref={feedbackDialogRef} className="conversation-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="conversation-feedback-title" initial={reduceMotion ? false : { opacity: 0, y: 10, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}>
             <header>
-              <h2 id="conversation-feedback-title">帮助改进</h2>
-              <IconControl label="关闭" variant="bare" size="medium" autoFocus onClick={closeFeedbackDialog}><FigmaIcon name="close" size={20} /></IconControl>
+              <h2 id="conversation-feedback-title">{t("帮助改进")}</h2>
+              <IconControl label={t("关闭")} variant="bare" size="medium" onClick={closeFeedbackDialog}><FigmaIcon name="close" size={20} /></IconControl>
             </header>
             <div className="conversation-feedback-dialog__body">
-              <div className="conversation-feedback-reasons" role="group" aria-label="选择需要改进的原因，支持多选">
+              <div className="conversation-feedback-reasons" role="group" aria-label={t("选择需要改进的原因，支持多选")}>
                 {feedbackReasons.map((reason) => {
                   const selected = selectedReasons.includes(reason);
-                  return <OutlineToggleButton appearance="base" selected={selected} onClick={() => toggleFeedbackReason(reason)} key={reason}>{reason}</OutlineToggleButton>;
+                  return <OutlineToggleButton appearance="base" selected={selected} onClick={() => toggleFeedbackReason(reason)} key={reason}>{t(reason)}</OutlineToggleButton>;
                 })}
               </div>
               <label className="conversation-feedback-detail">
-                <textarea value={feedbackDetail} maxLength={1000} placeholder="填写详情（选填）" onChange={(event) => setFeedbackDetail(event.target.value)} />
+                <textarea value={feedbackDetail} maxLength={1000} placeholder={t("填写详情（选填）")} onChange={(event) => setFeedbackDetail(event.target.value)} />
                 <span>{feedbackDetail.length}/1000</span>
               </label>
             </div>
             <footer>
-              <Button variant="secondary" onClick={closeFeedbackDialog}>取消</Button>
-              <Button variant="primary" onClick={submitFeedback}>提交</Button>
+              <Button variant="secondary" onClick={closeFeedbackDialog}>{t("取消")}</Button>
+              <Button variant="primary" onClick={submitFeedback}>{t("提交")}</Button>
             </footer>
           </motion.section>
         </motion.div>,
@@ -248,9 +244,10 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
 }
 
 export function ConversationStatusIcon({ status }: { status: ConversationStepStatus }) {
-  if (status === "complete") return <span className="conversation-status-icon is-complete" aria-label="已完成"><FigmaIcon name="check" size={16} /></span>;
-  if (status === "loading") return <span className="conversation-status-icon is-loading" aria-label="进行中"><img className="conversation-loading-asset" src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" /></span>;
-  return <span className="conversation-status-icon is-pending" aria-label="待处理" />;
+  const { t } = useI18n();
+  if (status === "complete") return <span className="conversation-status-icon is-complete" aria-label={t("已完成")}><FigmaIcon name="check" size={16} /></span>;
+  if (status === "loading") return <span className="conversation-status-icon is-loading" aria-label={t("进行中")}><img className="conversation-loading-asset" src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" /></span>;
+  return <span className="conversation-status-icon is-pending" aria-label={t("待处理")} />;
 }
 
 export function AnalysisStepIcon({ complete, delay = 0 }: { complete: boolean; delay?: number }) {

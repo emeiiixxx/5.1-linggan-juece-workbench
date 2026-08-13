@@ -365,6 +365,7 @@ export function BusinessProfile({ onCreateTask }: { onCreateTask?: (profile: Pro
   const [parseProgress, setParseProgress] = useState(0);
   const [detailUploadOpen, setDetailUploadOpen] = useState(false);
   const [toast, setToast] = useState("");
+  const toastTimerRef = useRef<number | null>(null);
 
   const visibleProfiles = profiles.length ? profiles : [];
   const filteredProfiles = useMemo(() => visibleProfiles.filter((profile) => profile.name.toLowerCase().includes(query.toLowerCase())), [visibleProfiles, query]);
@@ -378,7 +379,18 @@ export function BusinessProfile({ onCreateTask }: { onCreateTask?: (profile: Pro
   const openCreate = () => { setForm(blankForm()); setUploadState("idle"); setAnimateCreateEntry(true); setView("create"); };
   const openDetail = (profile: Profile) => runViewTransition(() => setArchiveView("detail", profile));
   const returnToList = () => runViewTransition(() => setArchiveView("list"));
-  const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(""), 2200); };
+  const notify = (message: string) => {
+    setToast(message);
+    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => {
+      toastTimerRef.current = null;
+      setToast("");
+    }, 2200);
+  };
+
+  useEffect(() => () => {
+    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
+  }, []);
   const applyAutofill = () => {
     setForm({ name: "日本通勤女装档案", category: ["女装"], minPrice: "8000", maxPrice: "18000", price: priceChoice, currency: "JPY", countries: ["日本"], ages: ["25–34岁"], channels: ["ZOZOTOWN", "Rakuten Fashion"], brands: [] });
     setAnimateCreateEntry(false);

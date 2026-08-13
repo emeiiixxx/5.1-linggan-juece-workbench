@@ -49,6 +49,7 @@ export default function App() {
           expanded={sidebarExpanded}
           onToggle={() => setSidebarExpanded((value) => !value)}
           activeView={activeView}
+          activeTaskId={activeTaskId}
           onOpenWorkspace={() => {
             setActiveView("workspace");
             setActiveTaskId(null);

@@ -167,15 +167,14 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
     .references{background:#fbfcfb}.reference-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(48px,5vw,76px) clamp(16px,2vw,28px);align-items:start}.reference{min-width:0}.reference__media{aspect-ratio:4/5;margin:0}.reference__copy{padding-top:14px}.reference__heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.reference h3{margin:0;font-size:18px;font-weight:700;letter-spacing:-.025em}.reference__heading span,.reference__copy p{color:var(--muted);font-size:14px}.reference__heading span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.reference__copy p{min-height:34px;margin:8px 0 0;line-height:1.55}.source-link{display:inline-flex;gap:7px;margin-top:14px;color:var(--ink);font-size:14px;font-weight:650;text-decoration:none}.source-link:hover{color:var(--accent)}
     .method{display:grid;grid-template-columns:minmax(0,.72fr) minmax(420px,1.28fr);gap:clamp(48px,8vw,120px);align-items:start}.method__copy h2{margin:0;font-size:clamp(38px,5vw,70px);font-weight:740;line-height:1.04;letter-spacing:-.05em}.method__copy p{max-width:none;margin:24px 0 0;color:var(--muted);font-size:16px;line-height:1.78}.source-list{border-top:1px solid var(--line)}.source-row{display:grid;grid-template-columns:minmax(130px,.75fr) 1.25fr auto;gap:20px;padding:22px 0;border-bottom:1px solid var(--line);text-decoration:none}.source-row strong{font-size:14px}.source-row span{color:var(--muted);font-size:14px}.source-row b{font-weight:400}.source-row:hover strong,.source-row:hover b{color:var(--accent)}
     .footer{display:flex;align-items:flex-end;justify-content:flex-end;gap:32px;padding:42px clamp(20px,3.5vw,56px) 56px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
-    [data-reveal],[data-visual] img{will-change:transform,opacity}
+    .motion-ready [data-reveal]{opacity:0;transform:translateY(18px)}.motion-ready [data-visual] img{opacity:.86;transform:scale(1.025)}
+    [data-reveal],[data-visual] img{transition:opacity .58s cubic-bezier(.22,1,.36,1),transform .58s cubic-bezier(.22,1,.36,1);will-change:transform,opacity}.is-visible[data-reveal]{opacity:1;transform:none}.is-visible[data-visual] img{opacity:1;transform:none}
     @media(max-width:1024px){.reference-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
     @media(max-width:1024px){.plan-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.assortment-row{grid-template-columns:repeat(5,minmax(0,1fr))}.assortment-row>p{grid-column:1/-1}.assortment-row--head span:last-child{display:none}}
     @media(max-width:820px){.topbar__meta{display:none}.hero{padding-top:88px}.hero__heading,.hero__foot,.evidence__intro,.method{grid-template-columns:1fr}.hero h1{font-size:clamp(42px,12vw,66px);white-space:normal}.hero__media{height:58dvh}.hero__foot{gap:10px}.metrics{grid-template-columns:1fr}.metric+.metric{padding-left:0;border-left:0}.direction-list,.reference-grid,.channel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.direction__media{height:56dvh}.source-row{grid-template-columns:1fr auto}.source-row span{grid-column:1/2}.assumption-card{grid-template-columns:1fr}.footer{align-items:flex-start;flex-direction:column}}
     @media(max-width:560px){.direction-list,.reference-grid,.design-grid{grid-template-columns:1fr}.reference__copy p{min-height:0}}
-    @media(prefers-reduced-motion:reduce){[data-reveal],[data-visual] img{will-change:auto!important;transform:none!important;opacity:1!important;visibility:visible!important}}
+    @media(prefers-reduced-motion:reduce){[data-reveal],[data-visual] img{transition:none!important;will-change:auto!important;transform:none!important;opacity:1!important;visibility:visible!important}}
   </style>
-  <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/ScrollTrigger.min.js"></script>
 </head>
 <body>
   <main class="report">
@@ -196,17 +195,15 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
     <footer class="footer"><span>CLIENT WORKING DOCUMENT / SOURCE BOUNDARIES RETAINED</span></footer>
   </main>
   <script>
-    window.addEventListener("load",function(){
-      if(!window.gsap||!window.ScrollTrigger||window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
-      gsap.registerPlugin(ScrollTrigger);
-      gsap.from(".topbar",{autoAlpha:0,y:-8,duration:.45,ease:"power3.out",clearProps:"opacity,visibility,transform"});
-      gsap.from(".hero__heading > *",{autoAlpha:0,y:16,duration:.62,stagger:.07,ease:"power3.out",delay:.08,clearProps:"opacity,visibility,transform"});
-      gsap.from(".hero__media",{autoAlpha:0,scale:.992,duration:.78,ease:"power3.out",delay:.16,clearProps:"opacity,visibility,transform"});
-      gsap.from(".hero__media img",{scale:1.025,duration:1.05,ease:"power2.out",delay:.16,clearProps:"transform"});
-      gsap.set("[data-reveal]",{autoAlpha:0,y:18});
-      ScrollTrigger.batch("[data-reveal]",{start:"top 88%",once:true,interval:.08,batchMax:4,onEnter:function(items){gsap.to(items,{autoAlpha:1,y:0,duration:.58,stagger:.06,ease:"power3.out",overwrite:true,clearProps:"opacity,visibility,transform,willChange"})}});
-      ScrollTrigger.batch("[data-visual]",{start:"top 90%",once:true,interval:.08,batchMax:4,onEnter:function(frames){frames.forEach(function(frame){var image=frame.querySelector("img");if(image)gsap.fromTo(image,{autoAlpha:.86,scale:1.025},{autoAlpha:1,scale:1,duration:.72,ease:"power3.out",overwrite:true,clearProps:"opacity,visibility,transform,willChange"})})}});
-      requestAnimationFrame(function(){ScrollTrigger.refresh()});
+    document.documentElement.classList.add("motion-ready");
+    window.addEventListener("DOMContentLoaded",function(){
+      var targets=Array.prototype.slice.call(document.querySelectorAll("[data-reveal],[data-visual]"));
+      if(window.matchMedia("(prefers-reduced-motion: reduce)").matches||!("IntersectionObserver" in window)){
+        targets.forEach(function(target){target.classList.add("is-visible")});
+        return;
+      }
+      var observer=new IntersectionObserver(function(entries){entries.forEach(function(entry){if(!entry.isIntersecting)return;entry.target.classList.add("is-visible");observer.unobserve(entry.target)})},{rootMargin:"0px 0px -10% 0px",threshold:.08});
+      targets.forEach(function(target){observer.observe(target)});
     });
   </script>
 </body>

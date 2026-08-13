@@ -29,6 +29,7 @@ import { TaskConversationComposer } from "./TaskConversationComposer";
 import { getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
 import { useI18n } from "../i18n";
 import { buildFashionProposalHtml, type FashionProposalPlan, type FashionProposalSource } from "../report/fashionProposalHtml";
+import { useModalFocus } from "../hooks/useModalFocus";
 
 type PlanningStage =
   | "analyzing"
@@ -339,8 +340,10 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const [regeneratedSources, setRegeneratedSources] = useState<Record<string, string>>({});
   const [regenerationRound, setRegenerationRound] = useState(0);
   const [reportPreview, setReportPreview] = useState<{ name: string; html: string } | null>(null);
+  const reportPreviewDialogRef = useRef<HTMLElement>(null);
   const reduceMotion = useReducedMotion();
   const feedEndRef = useRef<HTMLDivElement>(null);
+  useModalFocus(reportPreviewDialogRef, Boolean(reportPreview), () => setReportPreview(null));
   const regenerationBusy = regenerationPhase !== "idle";
   const displayedResultItems = useMemo(
     () => resultItems.map((item) => ({ ...item, src: regeneratedSources[item.id] ?? item.src })),
@@ -691,7 +694,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 />
                 {stage === "structure" ? (
                   <div className="conversation-quick-action">
-                    <Button variant="primary" size="small" onClick={() => setStage("ai-generating")}>继续生成 AI 改款 <FigmaIcon name="arrow-right" size={20} /></Button>
+                    <Button variant="primary" size="small" onClick={() => setStage("ai-generating")}>继续生成 AI 改款 <FigmaIcon name="arrow-right" size={16} /></Button>
                   </div>
                 ) : null}
               </AssistantMessage>
@@ -723,6 +726,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                   <div className="new-product-results-grid">
                     {displayedResultItems.map((item) => (
                       <MasonryImageSelection
+                        key={item.id}
                         src={assetUrl(item.src)}
                         alt={`${item.code} ${item.title}`}
                         label={item.subtitle ?? item.title}
@@ -822,6 +826,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
               transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}
             >
               <motion.section
+                ref={reportPreviewDialogRef}
                 className="trend-preview-modal"
                 role="dialog"
                 aria-modal="true"
@@ -834,19 +839,19 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 <header className="trend-preview-modal__header">
                   <div>
                     <h2 id="new-product-report-preview-title">{reportPreview.name}</h2>
-                    <span>AI 生成 · 在线预览</span>
+                    <span>{t("AI 生成 · 在线预览")}</span>
                   </div>
                   <div className="trend-preview-modal__actions">
                     <DownloadFormatMenu
                       triggerStyle="outline"
                       onSelect={(format) => downloadReportFile(reportPreview.name, "AI 生成 · 在线预览", reportPreview.html, format)}
                     />
-                    <IconControl label="关闭在线查看" variant="bare" size="small" autoFocus onClick={() => setReportPreview(null)}>
+                    <IconControl label={t("关闭在线查看")} variant="bare" size="small" autoFocus onClick={() => setReportPreview(null)}>
                       <FigmaIcon name="close" size={20} />
                     </IconControl>
                   </div>
                 </header>
-                <iframe className="trend-preview-modal__frame" title={`${reportPreview.name}在线预览`} srcDoc={reportPreview.html} />
+                <iframe className="trend-preview-modal__frame" title={`${reportPreview.name}${t("在线查看")}`} srcDoc={reportPreview.html} sandbox="allow-scripts allow-popups" referrerPolicy="no-referrer" />
               </motion.section>
             </motion.div>
           ) : null}

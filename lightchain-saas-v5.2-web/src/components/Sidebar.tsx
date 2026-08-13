@@ -18,6 +18,7 @@ type SidebarProps = {
   expanded: boolean;
   onToggle: () => void;
   activeView?: "workspace" | "preferences";
+  activeTaskId?: number | null;
   onOpenWorkspace?: () => void;
   onOpenPreferences?: () => void;
   onCreateTaskInProject?: (project: { id: number; name: string }) => void;
@@ -62,6 +63,7 @@ export function Sidebar({
   expanded,
   onToggle,
   activeView = "workspace",
+  activeTaskId = null,
   onOpenWorkspace,
   onOpenPreferences,
   onCreateTaskInProject,
@@ -610,7 +612,7 @@ export function Sidebar({
     setDropFocusedGroupIndex(null);
   };
 
-  const newTaskSelected = activeView === "workspace" && selectedRow === null;
+  const newTaskSelected = activeView === "workspace" && activeTaskId === null && selectedRow === null;
 
   return (
     <>
@@ -782,10 +784,12 @@ export function Sidebar({
                   >
                     <div className="tree-group__children-inner">
                   {group.items.map((item, itemIndex) => {
-                    const isSelected =
-                      selectedRow?.kind === "item" &&
-                      selectedRow.groupId === group.id &&
-                      selectedRow.itemIndex === itemIndex;
+                    const mappedTaskId = createdTaskIdsRef.current.get(`${group.id}:${item}`);
+                    const isSelected = mappedTaskId !== undefined
+                      ? activeTaskId === mappedTaskId
+                      : selectedRow?.kind === "item" &&
+                        selectedRow.groupId === group.id &&
+                        selectedRow.itemIndex === itemIndex;
 
                     return (
                       <div
@@ -894,8 +898,10 @@ export function Sidebar({
             <div className={`sidebar-section__content task-list ${tasksExpanded ? "is-open" : ""}`}>
               <div className="sidebar-section__content-inner">
               {tasks.map((item, index) => {
-                const isSelected =
-                  selectedRow?.kind === "task" && selectedRow.taskIndex === index;
+                const mappedTaskId = createdTaskIdsRef.current.get(`task:${item}`);
+                const isSelected = mappedTaskId !== undefined
+                  ? activeTaskId === mappedTaskId
+                  : selectedRow?.kind === "task" && selectedRow.taskIndex === index;
                 const isMenuOpen =
                   actionMenu?.target.kind === "task" &&
                   actionMenu.target.taskIndex === index;

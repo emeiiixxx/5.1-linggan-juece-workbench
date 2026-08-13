@@ -14,6 +14,7 @@ import { candidateCategories, candidatePageCount, candidateReferenceImages, form
 import { buildFashionProposalHtml } from "../report/fashionProposalHtml";
 import { useI18n } from "../i18n";
 import { getLocaleDefaultMarket, getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
+import { useModalFocus } from "../hooks/useModalFocus";
 
 type AnalysisPhase = "parsing" | "complete";
 type GenerationDecision = "skip" | "confirm";
@@ -185,12 +186,24 @@ function downloadTrendWorkbook() {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-function downloadCustomerDirectionPackage(selectedCandidateIds: string[], selectedDirectionIds: string[]) {
-  const content = buildTrendReportHtml("package", selectedDirectionIds, selectedCandidateIds);
-  const url = URL.createObjectURL(new Blob([content], { type: "text/html;charset=utf-8" }));
+function downloadCustomerDirectionPackage(
+  selectedCandidateIds: string[],
+  selectedDirectionIds: string[],
+  format: TrendDownloadFormat,
+) {
+  const html = buildTrendReportHtml("package", selectedDirectionIds, selectedCandidateIds);
+  const mimeType = format === "HTML"
+    ? "text/html;charset=utf-8"
+    : format === "PPT"
+      ? "application/vnd.ms-powerpoint"
+      : "application/pdf";
+  const content = format === "HTML"
+    ? html
+    : `客户方向参考包\n\n${formatTrendDirectionSelection(selectedDirectionIds)}\n已选 ${selectedCandidateIds.length} 张客户参考图`;
+  const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
   const link = document.createElement("a");
   link.href = url;
-  link.download = "客户方向参考包.html";
+  link.download = `客户方向参考包.${format.toLowerCase()}`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -251,7 +264,7 @@ function TrendDirectionSelectionForm({
 }
 
 export function ConversationWorkspace({ prompt, profileName }: { prompt: string; profileName?: string }) {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const profileScopeDefaults = getResearchScopeDefaults(profileName, locale);
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [analysisExpanded, setAnalysisExpanded] = useState(true);
@@ -304,12 +317,14 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   const scopePhaseRef = useRef<HTMLDivElement>(null);
   const confirmedResultsRef = useRef<HTMLDivElement>(null);
   const candidatePoolRef = useRef<HTMLDivElement>(null);
+  const trendPreviewDialogRef = useRef<HTMLElement>(null);
   const reduceMotion = useReducedMotion();
   const analysisComplete = analysisPhase === "complete";
   const trendScanComplete = scopeResultStage >= 3;
   const candidateSearchComplete = candidateSearchStage >= 4;
   const customerRegenerationBusy = customerRegenerationPhase !== "idle";
   const customerProposalRunning = customerProposalStage === "ai-generating" || customerProposalStage === "proposal-generating" || customerRegenerationBusy;
+  useModalFocus(trendPreviewDialogRef, trendPreviewOpen, () => setTrendPreviewOpen(false));
 
   useEffect(() => {
     if (reduceMotion) {
@@ -349,13 +364,8 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
     if (!trendPreviewOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setTrendPreviewOpen(false);
-    };
-    document.addEventListener("keydown", closeOnEscape);
     return () => {
       document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", closeOnEscape);
     };
   }, [trendPreviewOpen]);
 
@@ -1239,15 +1249,11 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                                       description={`刚刚 · ${selectedCandidateIds.length}张已选参考图 · 含标题、说明与标签`}
                                     >
                                       <button type="button" onClick={() => openTrendPreview("package")}>在线查看</button>
-                                      <button
-                                        type="button"
-                                        onClick={() => downloadCustomerDirectionPackage(
-                                          selectedCandidateIds,
-                                          selectedTrendIds,
-                                        )}
-                                      >
-                                        下载
-                                      </button>
+                                      <DownloadFormatMenu onSelect={(format) => downloadCustomerDirectionPackage(
+                                        selectedCandidateIds,
+                                        selectedTrendIds,
+                                        format.toUpperCase() as TrendDownloadFormat,
+                                      )} />
                                     </ConversationFileCard>
                                   </motion.div>
                                   {!customerFeedbackSkipped ? (
@@ -1557,6 +1563,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
               transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}
             >
               <motion.section
+                ref={trendPreviewDialogRef}
                 className="trend-preview-modal"
                 role="dialog"
                 aria-modal="true"
@@ -1578,21 +1585,19 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                             ? "正式客户提案.html"
                             : "客户需求调研与视觉方向.html"
                     }</h2>
-                    <span>AI 生成 · 在线预览</span>
+                    <span>{t("AI 生成 · 在线预览")}</span>
                   </div>
                   <div className="trend-preview-modal__actions">
-                    <Button
-                      variant="outline"
-                      size="small"
-                      onClick={() => trendPreviewKind === "package"
-                        ? downloadCustomerDirectionPackage(selectedCandidateIds, selectedTrendIds)
-                        : trendPreviewKind === "ai-results" || trendPreviewKind === "proposal"
-                          ? downloadCustomerProposalFile(trendPreviewKind, "HTML", selectedTrendIds, trendPreviewKind === "ai-results" ? customerAiResultImages.map((item) => item.id) : selectedAiResultIds)
-                          : downloadTrendAnalysis("HTML")}
-                    >
-                      下载 HTML
-                    </Button>
-                    <IconControl label="关闭在线查看" variant="bare" size="small" autoFocus onClick={() => setTrendPreviewOpen(false)}>
+                    <DownloadFormatMenu
+                      triggerStyle="outline"
+                      onSelect={(format) => {
+                        const downloadFormat = format.toUpperCase() as TrendDownloadFormat;
+                        if (trendPreviewKind === "package") downloadCustomerDirectionPackage(selectedCandidateIds, selectedTrendIds, downloadFormat);
+                        else if (trendPreviewKind === "ai-results" || trendPreviewKind === "proposal") downloadCustomerProposalFile(trendPreviewKind, downloadFormat, selectedTrendIds, trendPreviewKind === "ai-results" ? customerAiResultImages.map((item) => item.id) : selectedAiResultIds);
+                        else downloadTrendAnalysis(downloadFormat);
+                      }}
+                    />
+                    <IconControl label={t("关闭在线查看")} variant="bare" size="small" autoFocus onClick={() => setTrendPreviewOpen(false)}>
                       <FigmaIcon name="close" size={20} />
                     </IconControl>
                   </div>
@@ -1601,6 +1606,8 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                   className="trend-preview-modal__frame"
                   title={trendPreviewKind === "package" ? "客户方向参考包在线预览" : trendPreviewKind === "ai-results" ? "AI改款结果在线预览" : trendPreviewKind === "proposal" ? "正式客户提案在线预览" : "客户需求调研与视觉方向在线预览"}
                   srcDoc={buildTrendReportHtml(trendPreviewKind, selectedTrendIds, selectedCandidateIds)}
+                  sandbox="allow-scripts allow-popups"
+                  referrerPolicy="no-referrer"
                 />
               </motion.section>
             </motion.div>

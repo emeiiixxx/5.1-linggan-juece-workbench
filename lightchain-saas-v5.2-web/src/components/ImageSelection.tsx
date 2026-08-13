@@ -1,10 +1,12 @@
-import { useEffect, useRef, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { assetUrl } from "../utils/assets";
 import { gsap, gsapMotion, prefersReducedMotion, useGSAP } from "../motion/gsap";
 import { Button } from "./Button";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
+import { useI18n } from "../i18n";
+import { useModalFocus } from "../hooks/useModalFocus";
 
 type ImageSelectionProps = {
   src: string;
@@ -30,15 +32,16 @@ export function ImageActionBar({ favorited = false, onPreview, onFavorite, onDow
   onFavorite: () => void;
   onDownload: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="image-action-bar" onClick={(event) => event.stopPropagation()}>
-      <IconControl label="查看大图" size="small" tooltipPlacement="top" onClick={(event) => runAction(event, onPreview)}>
+      <IconControl label={t("查看大图")} size="small" tooltipPlacement="top" onClick={(event) => runAction(event, onPreview)}>
         <img className="image-action-bar__icon image-action-bar__icon--preview" src={actionIcons.preview} alt="" />
       </IconControl>
-      <IconControl label={favorited ? "取消收藏" : "收藏到资源库"} size="small" tooltipPlacement="top" selected={favorited} onClick={(event) => runAction(event, onFavorite)}>
+      <IconControl label={t(favorited ? "取消收藏" : "收藏到资源库")} size="small" tooltipPlacement="top" selected={favorited} onClick={(event) => runAction(event, onFavorite)}>
         <img className="image-action-bar__icon image-action-bar__icon--favorite" src={actionIcons.favorite} alt="" />
       </IconControl>
-      <IconControl label="下载图片" size="small" tooltipPlacement="top" onClick={(event) => runAction(event, onDownload)}>
+      <IconControl label={t("下载图片")} size="small" tooltipPlacement="top" onClick={(event) => runAction(event, onDownload)}>
         <img className="image-action-bar__icon image-action-bar__icon--download" src={actionIcons.download} alt="" />
       </IconControl>
     </div>
@@ -69,12 +72,13 @@ export function ImageSelection({
   onFavorite,
   onDownload,
 }: ImageSelectionProps) {
+  const { t } = useI18n();
   return (
     <div className={`image-selection ${selected ? "is-selected" : ""}`}>
       <button
         type="button"
         className="image-selection__toggle"
-        aria-label={`${selected ? "取消选择" : "选择"}${alt}`}
+        aria-label={`${t(selected ? "取消选择" : "选择")} ${alt}`}
         aria-pressed={selected}
         disabled={disabled}
         onClick={onSelect}
@@ -112,12 +116,13 @@ export function MasonryImageSelection({
   onSelect: () => void;
   onPreview: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className={`masonry-image-selection ${selected ? "is-selected" : ""} ${loading ? "is-loading" : ""}`} aria-busy={loading}>
       <button
         type="button"
         className="masonry-image-selection__toggle"
-        aria-label={`${selected ? "取消选择" : "选择"}${alt}`}
+        aria-label={`${t(selected ? "取消选择" : "选择")} ${alt}`}
         aria-pressed={selected}
         disabled={disabled || loading}
         onClick={onSelect}
@@ -133,7 +138,7 @@ export function MasonryImageSelection({
       ) : (
         <IconControl
           className="masonry-image-selection__preview"
-          label={`放大查看${alt}`}
+          label={`${t("放大查看")} ${alt}`}
           variant="tonal"
           size="small"
           onClick={(event) => runAction(event, onPreview)}
@@ -146,8 +151,10 @@ export function MasonryImageSelection({
 }
 
 export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  const { t } = useI18n();
   const backdropRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
+  useModalFocus(dialogRef, true, onClose);
 
   useGSAP(() => {
     if (!backdropRef.current || !dialogRef.current || prefersReducedMotion()) return;
@@ -156,14 +163,6 @@ export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string;
       .from(dialogRef.current, { autoAlpha: 0, y: 14, scale: 0.988, duration: gsapMotion.duration, ease: gsapMotion.ease }, "<0.04");
   }, { scope: backdropRef });
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
   if (typeof document === "undefined") return null;
 
   return createPortal(
@@ -171,7 +170,7 @@ export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string;
       <section ref={dialogRef} className="media-lightbox" role="dialog" aria-modal="true" aria-labelledby="media-lightbox-title">
         <header className="media-lightbox__header">
           <h2 id="media-lightbox-title">{alt}</h2>
-          <IconControl label="关闭大图" variant="ghost" autoFocus onClick={onClose}><FigmaIcon name="close" size={20} /></IconControl>
+          <IconControl label={t("关闭大图")} variant="ghost" autoFocus onClick={onClose}><FigmaIcon name="close" size={20} /></IconControl>
         </header>
         <div className="media-lightbox__content"><img src={src} alt={alt} /></div>
       </section>
@@ -220,18 +219,44 @@ export function CandidateImageLightbox({
   onToggleSelection: (itemId: string) => void;
   onClose: () => void;
 }) {
-  const visibleItems = showCategories ? items.filter((item) => item.categoryId === activeCategoryId) : items;
+  const { t } = useI18n();
+  const visibleItems = useMemo(
+    () => showCategories ? items.filter((item) => item.categoryId === activeCategoryId) : items,
+    [activeCategoryId, items, showCategories],
+  );
   const activeIndex = Math.max(0, visibleItems.findIndex((item) => item.id === activeItemId));
   const activeItem = visibleItems[activeIndex] ?? items.find((item) => item.id === activeItemId);
   const activeCategory = categories.find((category) => category.id === activeItem?.categoryId);
   const selected = activeItem ? selectedIds.includes(activeItem.id) : false;
-  const thumbnailStart = showCategories
-    ? Math.min(Math.max(activeIndex - 4, 0), Math.max(visibleItems.length - 10, 0))
-    : 0;
-  const thumbnailItems = showCategories ? visibleItems.slice(thumbnailStart, thumbnailStart + 10) : visibleItems;
+  const thumbnailItems = visibleItems;
   const backdropRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLElement>(null);
   const tipRef = useRef<HTMLSpanElement>(null);
+  const thumbnailsRef = useRef<HTMLDivElement>(null);
+  const thumbnailFrameRef = useRef<number | null>(null);
+  const [thumbnailOverflow, setThumbnailOverflow] = useState({ left: false, right: false });
+  useModalFocus(backdropRef, true, onClose);
+
+  const updateThumbnailOverflow = useCallback(() => {
+    const thumbnails = thumbnailsRef.current;
+    if (!thumbnails) return;
+    const maxScrollLeft = thumbnails.scrollWidth - thumbnails.clientWidth;
+    const nextOverflow = {
+      left: thumbnails.scrollLeft > 1,
+      right: maxScrollLeft - thumbnails.scrollLeft > 1,
+    };
+    setThumbnailOverflow((current) => current.left === nextOverflow.left && current.right === nextOverflow.right
+      ? current
+      : nextOverflow);
+  }, []);
+
+  const scheduleThumbnailOverflowUpdate = useCallback(() => {
+    if (thumbnailFrameRef.current !== null) return;
+    thumbnailFrameRef.current = window.requestAnimationFrame(() => {
+      thumbnailFrameRef.current = null;
+      updateThumbnailOverflow();
+    });
+  }, [updateThumbnailOverflow]);
 
   useGSAP(() => {
     const backdrop = backdropRef.current;
@@ -263,10 +288,6 @@ export function CandidateImageLightbox({
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-        return;
-      }
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       const nextIndex = activeIndex + (event.key === "ArrowLeft" ? -1 : 1);
       const nextItem = visibleItems[nextIndex];
@@ -279,7 +300,35 @@ export function CandidateImageLightbox({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [activeIndex, onClose, onNavigate, visibleItems]);
+  }, [activeIndex, onNavigate, visibleItems]);
+
+  useEffect(() => {
+    const thumbnails = thumbnailsRef.current;
+    if (!thumbnails) return;
+    updateThumbnailOverflow();
+    const resizeObserver = new ResizeObserver(scheduleThumbnailOverflowUpdate);
+    resizeObserver.observe(thumbnails);
+    return () => resizeObserver.disconnect();
+  }, [scheduleThumbnailOverflowUpdate, thumbnailItems.length, updateThumbnailOverflow]);
+
+  useEffect(() => () => {
+    if (thumbnailFrameRef.current !== null) window.cancelAnimationFrame(thumbnailFrameRef.current);
+  }, []);
+
+  useEffect(() => {
+    const thumbnails = thumbnailsRef.current;
+    const activeThumbnail = thumbnails?.children.item(activeIndex);
+    if (!thumbnails || !(activeThumbnail instanceof HTMLElement)) return;
+    const thumbnailLeft = activeThumbnail.offsetLeft;
+    const thumbnailRight = thumbnailLeft + activeThumbnail.offsetWidth;
+    const viewportLeft = thumbnails.scrollLeft;
+    const viewportRight = viewportLeft + thumbnails.clientWidth;
+    if (thumbnailLeft >= viewportLeft && thumbnailRight <= viewportRight) return;
+    thumbnails.scrollTo({
+      left: thumbnailLeft - (thumbnails.clientWidth - activeThumbnail.offsetWidth) / 2,
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
+  }, [activeIndex, activeCategoryId]);
 
   if (typeof document === "undefined" || !activeItem) return null;
 
@@ -288,18 +337,30 @@ export function CandidateImageLightbox({
     if (nextItem) onNavigate(nextItem.id);
   };
 
+  const scrollThumbnails = (direction: -1 | 1) => {
+    const thumbnails = thumbnailsRef.current;
+    if (!thumbnails) return;
+    thumbnails.scrollBy({
+      left: direction * Math.max(thumbnails.clientWidth * 0.72, 160),
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
+  };
+
   return createPortal(
     <div
       ref={backdropRef}
       className={`candidate-lightbox-backdrop ${showCategories ? "" : "candidate-lightbox-backdrop--flat"}`}
-      role="presentation"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${t("查看大图")}：${activeItem.code} ${activeCategory?.label ?? activeItem.title}`}
+      tabIndex={-1}
     >
-      <IconControl className="candidate-lightbox__close" label="关闭大图" variant="ghost" size="medium" autoFocus onClick={onClose}>
+      <IconControl className="candidate-lightbox__close" label={t("关闭大图")} variant="ghost" size="medium" autoFocus onClick={onClose}>
         <FigmaIcon name="close" size={20} />
       </IconControl>
 
       {showCategories ? (
-        <div className="candidate-lightbox__tabs" role="tablist" aria-label="参考图类型">
+        <div className="candidate-lightbox__tabs" role="tablist" aria-label={t("参考图类型")}>
           {categories.map((category) => (
             <button
               type="button"
@@ -322,16 +383,14 @@ export function CandidateImageLightbox({
       <section
         ref={cardRef}
         className={`candidate-lightbox__card ${selected ? "is-selected" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`查看大图：${activeItem.code} ${activeCategory?.label ?? activeItem.title}`}
+        role="document"
       >
         <div className="candidate-lightbox__media">
           <img src={assetUrl(activeItem.src)} alt={`${activeItem.code} ${activeItem.title}`} />
           <button
             type="button"
             className="candidate-lightbox__selection-toggle"
-            aria-label={`${selected ? "取消选择" : "选择"}${activeItem.code}`}
+            aria-label={`${t(selected ? "取消选择" : "选择")} ${activeItem.code}`}
             aria-pressed={selected}
             disabled={selectionDisabled}
             onClick={() => onToggleSelection(activeItem.id)}
@@ -344,14 +403,14 @@ export function CandidateImageLightbox({
           <div className="candidate-lightbox__copy">
             <strong>{activeItem.code} · {activeItem.title}</strong>
             <span>{activeItem.subtitle ?? "TikTok Shop US · USD 20.00"}</span>
-            <div className="candidate-lightbox__badges" aria-label="素材标签">
+            <div className="candidate-lightbox__badges" aria-label={t("素材标签")}>
               {(activeItem.badges ?? ["Amazon US / TikTok Shop US", "2026年8月 / 2027年2月", activeCategory?.label ?? "连衣裙、裤装、上衣、套装"]).map((badge) => (
                 <small key={badge}>{badge}</small>
               ))}
             </div>
           </div>
           <div className="candidate-lightbox__actions">
-            <Button variant="outline">查看来源</Button>
+            <Button variant="outline">{t("查看来源")}</Button>
             <Button
               variant="outline"
               className="candidate-lightbox__select-button"
@@ -361,7 +420,7 @@ export function CandidateImageLightbox({
               onClick={() => onToggleSelection(activeItem.id)}
             >
               <FigmaIcon name={selected ? "heart-filled" : "heart-outline"} size={20} />
-              {selected ? "取消喜欢" : "喜欢"}
+              {t(selected ? "取消喜欢" : "喜欢")}
             </Button>
           </div>
         </footer>
@@ -369,7 +428,7 @@ export function CandidateImageLightbox({
 
       <IconControl
         className="candidate-lightbox__previous"
-        label="上一张"
+        label={t("上一张")}
         variant="tonal"
         size="large"
         disabled={activeIndex === 0}
@@ -379,7 +438,7 @@ export function CandidateImageLightbox({
       </IconControl>
       <IconControl
         className="candidate-lightbox__next"
-        label="下一张"
+        label={t("下一张")}
         variant="tonal"
         size="large"
         disabled={activeIndex === visibleItems.length - 1}
@@ -388,19 +447,31 @@ export function CandidateImageLightbox({
         <FigmaIcon name="chevron-right" size={24} />
       </IconControl>
 
-      <div className="candidate-lightbox__thumbnails" aria-label={showCategories ? "同类型参考图" : "全部改款结果"}>
-        {thumbnailItems.map((item) => (
-          <button
-            type="button"
-            className={item.id === activeItem.id ? "is-active" : ""}
-            aria-label={`查看 ${item.code}`}
-            aria-current={item.id === activeItem.id ? "true" : undefined}
-            onClick={() => onNavigate(item.id)}
-            key={item.id}
-          >
-            <img src={assetUrl(item.src)} alt="" />
-          </button>
-        ))}
+      <div className={`candidate-lightbox__thumbnail-rail ${thumbnailOverflow.left ? "can-scroll-left" : ""} ${thumbnailOverflow.right ? "can-scroll-right" : ""}`}>
+        {thumbnailOverflow.left ? (
+          <IconControl className="candidate-lightbox__thumbnail-scroll candidate-lightbox__thumbnail-scroll--previous" label={t("向左查看更多缩略图")} variant="tonal" size="small" onClick={() => scrollThumbnails(-1)}>
+            <FigmaIcon name="chevron-left" size={16} />
+          </IconControl>
+        ) : null}
+        <div ref={thumbnailsRef} className="candidate-lightbox__thumbnails" aria-label={t(showCategories ? "同类型参考图" : "全部改款结果")} onScroll={scheduleThumbnailOverflowUpdate}>
+          {thumbnailItems.map((item) => (
+            <button
+              type="button"
+              className={item.id === activeItem.id ? "is-active" : ""}
+              aria-label={`${t("查看")} ${item.code}`}
+              aria-current={item.id === activeItem.id ? "true" : undefined}
+              onClick={() => onNavigate(item.id)}
+              key={item.id}
+            >
+              <img src={assetUrl(item.src)} alt="" />
+            </button>
+          ))}
+        </div>
+        {thumbnailOverflow.right ? (
+          <IconControl className="candidate-lightbox__thumbnail-scroll candidate-lightbox__thumbnail-scroll--next" label={t("向右查看更多缩略图")} variant="tonal" size="small" onClick={() => scrollThumbnails(1)}>
+            <FigmaIcon name="chevron-right" size={16} />
+          </IconControl>
+        ) : null}
       </div>
     </div>,
     document.body,
