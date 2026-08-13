@@ -160,6 +160,11 @@ export function Sidebar({
     onOpenWorkspace?.();
   };
 
+  const openPreferences = () => {
+    setSelectedRow(null);
+    onOpenPreferences?.();
+  };
+
   const openSavedTask = (projectId: number | null, title: string) => {
     const taskId = createdTaskIdsRef.current.get(`${projectId ?? "task"}:${title}`);
     if (taskId !== undefined) {
@@ -711,10 +716,7 @@ export function Sidebar({
             <button
               type="button"
               className={activeView === "preferences" ? "is-selected" : ""}
-              onClick={() => {
-                setSelectedRow(null);
-                onOpenPreferences?.();
-              }}
+              onClick={openPreferences}
             >
               <FigmaIcon name="company-info" size={20} />
               <span title={t("业务偏好档案")}>{t("业务偏好档案")}</span>
@@ -1028,7 +1030,7 @@ export function Sidebar({
           <IconControl label={t("新建任务")} tooltipPlacement="right" onClick={openNewTask}>
             <FigmaIcon name="new-task" size={20} />
           </IconControl>
-          <IconControl label={t("企业偏好档案")} tooltipPlacement="right">
+          <IconControl label={t("企业偏好档案")} tooltipPlacement="right" onClick={openPreferences}>
             <FigmaIcon name="company-info" size={20} />
           </IconControl>
           <div className="collapsed-divider" />
