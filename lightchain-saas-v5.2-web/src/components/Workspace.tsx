@@ -29,6 +29,8 @@ type InspirationDesignType = typeof inspirationDesignOptions[number]["value"];
 type ProfileOption = { id: number; name: string };
 type ProjectOption = { id: number; name: string };
 type Attachment = { id: string; name: string; kind: "file" | "image"; previewUrl?: string };
+const defaultPlanPrompt = "以 Loro Piana 的 2027春夏 系列做为设计灵感，需要包含 短款外套、衬衫、卫衣、短袖、长裤、短裤 这些品类，生成一份 男装 主题设计企划";
+const defaultPlanEditorHtml = '以 <span class="composer-semantic-slot">Loro Piana</span> 的 <span class="composer-semantic-slot">2027春夏</span> 系列做为设计灵感，需要包含 <span class="composer-semantic-slot">短款外套、衬衫、卫衣、短袖、长裤、短裤</span> 这些品类，生成一份 <span class="composer-semantic-slot">男装</span> 主题设计企划';
 
 const profileOptions: ProfileOption[] = [
   { id: 1001, name: "日本通勤女装" },
@@ -69,6 +71,9 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
+  const planEditorRef = useRef<HTMLDivElement>(null);
+  const savedPlanEditorHtmlRef = useRef(defaultPlanEditorHtml);
+  const planPromptRef = useRef(defaultPlanPrompt);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const attachmentUrlsRef = useRef(new Set<string>());
@@ -93,6 +98,10 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
       ? [selectedProject, ...projectOptions]
       : projectOptions;
   const inspirationDesign = inspirationDesignOptions.find((option) => option.value === inspirationDesignType) ?? inspirationDesignOptions[0];
+  const setPlanEditorElement = useCallback((node: HTMLDivElement | null) => {
+    planEditorRef.current = node;
+    if (node) node.innerHTML = savedPlanEditorHtmlRef.current;
+  }, []);
 
   const syncTabIndicator = useCallback((animate: boolean) => {
     const indicator = tabIndicatorRef.current;
@@ -149,6 +158,12 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
 
   useEffect(() => {
     setMessage("");
+    planPromptRef.current = defaultPlanPrompt;
+    savedPlanEditorHtmlRef.current = defaultPlanEditorHtml;
+    if (planEditorRef.current) {
+      planEditorRef.current.innerHTML = defaultPlanEditorHtml;
+      planEditorRef.current.dataset.empty = "false";
+    }
     setAttachments((current) => {
       current.forEach((attachment) => {
         if (attachment.previewUrl) {
@@ -186,11 +201,9 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
     };
   }, [attachmentMenuOpen, profileMenuOpen, projectMenuOpen]);
 
-  const send = () => {
-    const taskMessage = message.trim();
-    if (!taskMessage) return;
+  const createTask = (taskMessage: string, sourceTab: number) => {
     const title = Array.from(taskMessage).slice(0, 10).join("");
-    const taskAttachments = activeTab === 0 || activeTab === 2
+    const taskAttachments = sourceTab === 0 || sourceTab === 2
       ? attachments.map(({ name, previewUrl }) => ({ name, previewUrl }))
       : undefined;
     onCreateTask?.({
@@ -198,16 +211,29 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
       projectId: selectedProject?.id ?? null,
       prompt: taskMessage,
       attachments: taskAttachments,
-      workflow: activeTab === 0 ? "new-product" : activeTab === 2 && inspirationDesignType === "apparel" ? "apparel" : "default",
+      workflow: sourceTab === 0 ? "new-product" : sourceTab === 2 && inspirationDesignType === "apparel" ? "apparel" : "default",
     });
-    if (activeTab !== 0 && activeTab !== 2) attachments.forEach((attachment) => {
+    if (sourceTab !== 0 && sourceTab !== 2) attachments.forEach((attachment) => {
       if (attachment.previewUrl) {
         URL.revokeObjectURL(attachment.previewUrl);
         attachmentUrlsRef.current.delete(attachment.previewUrl);
       }
     });
     setAttachments([]);
+  };
+
+  const send = () => {
+    const taskMessage = message.trim();
+    if (!taskMessage) return;
+    createTask(taskMessage, activeTab);
     setMessage("");
+  };
+
+  const sendPlan = () => {
+    const taskMessage = planPromptRef.current.trim();
+    if (!taskMessage) return;
+    createTask(taskMessage, 3);
+    planPromptRef.current = "";
   };
 
   const addAttachments = (event: ChangeEvent<HTMLInputElement>, kind: Attachment["kind"]) => {
@@ -239,10 +265,29 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   };
 
   const onComposerKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       send();
     }
+  };
+
+  const selectPlanEditorContext = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key.toLowerCase() !== "a" || (!event.metaKey && !event.ctrlKey) || event.altKey) return;
+
+    const editor = event.currentTarget;
+    const selection = window.getSelection();
+    const anchorNode = selection?.anchorNode;
+    if (!selection || !anchorNode || !editor.contains(anchorNode)) return;
+
+    const anchorElement = anchorNode instanceof Element ? anchorNode : anchorNode.parentElement;
+    const semanticSlot = anchorElement?.closest<HTMLElement>(".composer-semantic-slot");
+    const selectionTarget = semanticSlot && editor.contains(semanticSlot) ? semanticSlot : editor;
+    const range = document.createRange();
+    range.selectNodeContents(selectionTarget);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    event.preventDefault();
   };
 
   return (
@@ -340,7 +385,38 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                   </motion.div>
                 )}
               </AnimatePresence>
-              <div className="composer__text-wrap">
+              {activeTab === 3 ? (
+                <div
+                  key="plan-editor"
+                  ref={setPlanEditorElement}
+                  className="composer-plan-editor"
+                  contentEditable
+                  suppressContentEditableWarning
+                  role="textbox"
+                  aria-label="描述企划案的主题、目标和交付要求..."
+                  aria-multiline="true"
+                  data-placeholder="描述企划案的主题、目标和交付要求..."
+                  data-empty="false"
+                  onInput={(event) => {
+                    savedPlanEditorHtmlRef.current = event.currentTarget.innerHTML;
+                    const nextPrompt = event.currentTarget.innerText.replace(/\u00a0/g, " ");
+                    planPromptRef.current = nextPrompt;
+                    event.currentTarget.dataset.empty = String(!nextPrompt.trim());
+                    const sendButton = event.currentTarget.closest(".composer__input")?.querySelector<HTMLButtonElement>(".composer__send");
+                    if (sendButton) sendButton.disabled = !nextPrompt.trim();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
+                    selectPlanEditorContext(event);
+                    if (event.defaultPrevented) return;
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      sendPlan();
+                    }
+                  }}
+                />
+              ) : (
+              <div key="standard-editor" className="composer__text-wrap">
                 <AnimatePresence mode="wait" initial={false}>
                   {!message && (
                     <motion.span
@@ -365,6 +441,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                   aria-label={t(activeTab === 2 && inspirationDesignType === "pattern" ? "描述想要生成的图案风格、元素和应用场景..." : composerPlaceholders[activeTab])}
                 />
               </div>
+              )}
             </div>
             <div className="composer-attachment" ref={attachmentMenuRef}>
               <IconControl
@@ -413,14 +490,14 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
               className="composer__send"
               label={t("发送")}
               tooltipPlacement="top"
-              disabled={!message.trim()}
-              onClick={send}
+              disabled={activeTab === 3 ? !planPromptRef.current.trim() : !message.trim()}
+              onClick={activeTab === 3 ? sendPlan : send}
             >
               <FigmaIcon name="arrow-up" size={24} />
             </IconControl>
           </div>
           <div className="composer__footer">
-            <div className="composer-profile-select" ref={profileMenuRef}>
+            {activeTab !== 3 && <div className="composer-profile-select" ref={profileMenuRef}>
               <button
                 type="button"
                 className={`composer-select composer-select--profile ${profileMenuOpen ? "is-open" : ""}`}
@@ -489,7 +566,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
+            </div>}
             <div className="composer-project-select" ref={projectMenuRef}>
               <button
                 type="button"
