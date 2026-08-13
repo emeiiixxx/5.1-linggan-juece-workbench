@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { quickStartCards } from "../data/workspace";
 import { assetUrl } from "../utils/assets";
@@ -8,11 +8,18 @@ import { IconControl } from "./IconControl";
 import { QuickStartCard } from "./QuickStartCard";
 import { primaryPageEntrance, primaryPageEntranceItem, primaryPageEntranceMediaItem } from "../utils/pageMotion";
 import { useI18n } from "../i18n";
-import { ConversationWorkspace } from "./ConversationWorkspace";
-import { ClothingConversationWorkspace } from "./ClothingConversationWorkspace";
-import { NewProductPlanningWorkspace } from "./NewProductPlanningWorkspace";
 import { useAutoGrowTextarea } from "../hooks/useAutoGrowTextarea";
 import { gsap } from "../motion/gsap";
+
+const ConversationWorkspace = lazy(() =>
+  import("./ConversationWorkspace").then(({ ConversationWorkspace }) => ({ default: ConversationWorkspace })),
+);
+const ClothingConversationWorkspace = lazy(() =>
+  import("./ClothingConversationWorkspace").then(({ ClothingConversationWorkspace }) => ({ default: ClothingConversationWorkspace })),
+);
+const NewProductPlanningWorkspace = lazy(() =>
+  import("./NewProductPlanningWorkspace").then(({ NewProductPlanningWorkspace }) => ({ default: NewProductPlanningWorkspace })),
+);
 
 const tabs = ["新品企划", "客户提案", "灵感设计", "企划案"];
 const composerPlaceholders = [
@@ -291,6 +298,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   };
 
   return (
+    <Suspense fallback={<main className="workspace-region" aria-busy="true" />}>
     <AnimatePresence mode="wait" initial={false}>
     {activeTask ? (
       activeTask.workflow === "new-product" ? (
@@ -684,5 +692,6 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
     </motion.main>
     )}
     </AnimatePresence>
+    </Suspense>
   );
 }

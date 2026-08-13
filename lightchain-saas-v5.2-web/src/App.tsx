@@ -1,10 +1,13 @@
-import { useLayoutEffect, useState } from "react";
+import { lazy, Suspense, useLayoutEffect, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { Workspace } from "./components/Workspace";
-import { BusinessProfile } from "./components/BusinessProfile";
 import { I18nProvider } from "./i18n";
 import { useGsapStaggerEntrance } from "./motion/gsap";
+
+const BusinessProfile = lazy(() =>
+  import("./components/BusinessProfile").then(({ BusinessProfile }) => ({ default: BusinessProfile })),
+);
 
 type Theme = "dark" | "light";
 type SelectedProfile = { id: number; name: string };
@@ -82,14 +85,16 @@ export default function App() {
           }}
         />
         {activeView === "preferences" ? (
-          <BusinessProfile
-            onCreateTask={(profile) => {
-              setSelectedProfile({ id: profile.id, name: profile.name });
-              setActiveTaskId(null);
-              setNewTaskKey((value) => value + 1);
-              setActiveView("workspace");
-            }}
-          />
+          <Suspense fallback={<main className="workspace-region" aria-busy="true" />}>
+            <BusinessProfile
+              onCreateTask={(profile) => {
+                setSelectedProfile({ id: profile.id, name: profile.name });
+                setActiveTaskId(null);
+                setNewTaskKey((value) => value + 1);
+                setActiveView("workspace");
+              }}
+            />
+          </Suspense>
         ) : (
           <Workspace
             theme={theme}
