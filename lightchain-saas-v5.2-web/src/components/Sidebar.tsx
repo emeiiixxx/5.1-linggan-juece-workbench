@@ -612,8 +612,6 @@ export function Sidebar({
     setDropFocusedGroupIndex(null);
   };
 
-  const newTaskSelected = activeView === "workspace" && activeTaskId === null && selectedRow === null;
-
   return (
     <>
     <aside className={`sidebar ${expanded ? "is-expanded" : "is-collapsed"}`}>
@@ -649,8 +647,6 @@ export function Sidebar({
           <nav className="sidebar__primary" aria-label={t("工作台入口")}>
             <button
               type="button"
-              className={newTaskSelected ? "is-selected" : ""}
-              aria-current={newTaskSelected ? "page" : undefined}
               onClick={openNewTask}
             >
               <FigmaIcon name="new-task" size={20} />
