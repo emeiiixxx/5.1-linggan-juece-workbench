@@ -12,6 +12,18 @@ export function Button({ children, variant = "outline", size = "medium", classNa
   return <button type={type} className={`profile-button profile-button--${variant} ${sizeClass} ${className}`} {...props}>{children}</button>;
 }
 
+export function BusinessButton({ children, points, className = "", ...props }: Omit<ButtonProps, "variant" | "size"> & { points: number }) {
+  return (
+    <Button className={`business-button ${className}`.trim()} variant="primary" size="small" {...props}>
+      <span className="business-button__label">{children}</span>
+      <span className="business-button__points" aria-label={`${points} 积分`}>
+        <FigmaIcon name="points-star" size={16} />
+        <span>{points}</span>
+      </span>
+    </Button>
+  );
+}
+
 export function QuickReplyButton({ children, ...props }: Omit<ButtonProps, "variant" | "size">) {
   return (
     <Button variant="primary" size="small" {...props}>

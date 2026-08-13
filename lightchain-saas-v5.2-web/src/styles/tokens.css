@@ -5,10 +5,12 @@
   --brand-primary: #0bc1b8;
   --brand-primary-hover: #20d0c4;
   --brand-primary-disabled: #0d6261;
-  --brand-gradient: linear-gradient(90deg, #71f4d3 0%, #b69bf7 100%);
+  --brand-gradient: linear-gradient(90deg, #71f4d3 0%, #52dde0 50%, #ccb2ff 100%);
   --brand-secondary: #505c5e;
   --brand-secondary-hover: #798386;
   --brand-secondary-disabled: #3d484b;
+  --alpha-brand-10: rgb(32 208 196 / 10%);
+  --alpha-brand-20: rgb(32 208 196 / 20%);
   --status-danger: #ff4c4c;
   --status-danger-hover: #ff6464;
   --status-success: #36d183;
@@ -30,7 +32,7 @@
 
   --state-default: rgb(255 255 255 / 5%);
   --state-hover: rgb(255 255 255 / 10%);
-  --state-selected: #20d0c4;
+  --state-selected: rgb(255 255 255 / 15%);
   --state-selected-tab-sliding: rgb(255 255 255 / 15%);
   --state-selected-brand: #20d0c4;
 
@@ -60,7 +62,7 @@
   --surface-hover: var(--control-fill-hover);
   --sidebar-surface: var(--surface-default);
   --control-fill: var(--control-fill-back);
-  --control-active: var(--state-selected);
+  --control-active: var(--state-selected-brand);
 
   --shadow-s: 0 2px 4px 0 var(--overlay-weak);
   --shadow-m: 0 6px 14px -2px var(--overlay-weak);
@@ -113,7 +115,7 @@
 
   --state-default: rgb(0 0 0 / 3%);
   --state-hover: rgb(0 0 0 / 8%);
-  --state-selected: #70ebde;
+  --state-selected: rgb(0 0 0 / 8%);
   --state-selected-tab-sliding: #ffffff;
   --state-selected-brand: #70ebde;
 

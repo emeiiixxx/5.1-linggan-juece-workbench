@@ -2,6 +2,7 @@ import { lazy, Suspense, useLayoutEffect, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { Workspace } from "./components/Workspace";
+import { completedProjectTaskExamples } from "./data/workspace";
 import { I18nProvider } from "./i18n";
 import { useGsapStaggerEntrance } from "./motion/gsap";
 
@@ -19,8 +20,9 @@ type TaskRecord = {
   prompt: string;
   profileName?: string;
   attachments?: { name: string; previewUrl?: string }[];
-  workflow: "new-product" | "default" | "apparel";
-  status: "running";
+  workflow: "new-product" | "default" | "apparel" | "plan";
+  status: "running" | "completed";
+  initialState?: "default" | "complete";
 };
 
 export default function App() {
@@ -30,7 +32,7 @@ export default function App() {
   const [activeView, setActiveView] = useState<"workspace" | "preferences">("workspace");
   const [selectedProfile, setSelectedProfile] = useState<SelectedProfile | null>(null);
   const [selectedProject, setSelectedProject] = useState<SelectedProject | null>(null);
-  const [taskRecords, setTaskRecords] = useState<TaskRecord[]>([]);
+  const [taskRecords, setTaskRecords] = useState<TaskRecord[]>(completedProjectTaskExamples);
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
   const [newTaskKey, setNewTaskKey] = useState(0);
   const activeTask = taskRecords.find((task) => task.id === activeTaskId) ?? null;
@@ -58,16 +60,23 @@ export default function App() {
             setActiveTaskId(null);
             setNewTaskKey((value) => value + 1);
           }}
-          onOpenPreferences={() => setActiveView("preferences")}
+          onOpenPreferences={() => {
+            setActiveTaskId(null);
+            setActiveView("preferences");
+          }}
           onCreateTaskInProject={(project) => {
             setSelectedProject(project);
             setActiveTaskId(null);
             setNewTaskKey((value) => value + 1);
             setActiveView("workspace");
           }}
-          createdTask={taskRecords[0] ?? null}
+          createdTask={taskRecords.find((task) => task.status === "running") ?? null}
           onOpenTask={(taskId) => {
             setActiveTaskId(taskId);
+            setActiveView("workspace");
+          }}
+          onSelectStaticRow={() => {
+            setActiveTaskId(null);
             setActiveView("workspace");
           }}
           onDeleteTask={(taskId) => {

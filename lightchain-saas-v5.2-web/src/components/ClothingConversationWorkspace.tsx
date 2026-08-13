@@ -2,11 +2,12 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "rea
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
-import { CircleCheckbox, ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
+import { ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
 import { Button, QuickReplyButton } from "./Button";
 import { AnalysisStepIcon, ConversationFeed, ConversationFormTitle, ConversationStatusIcon as ApparelStatusIcon, ConversationTaskCompletion, ConversationUserMessage as UserMessage, TaskArtifactRow, TaskDisclosure, type ConversationStepStatus as StepState } from "./ConversationPrimitives";
 import { TaskConversationComposer } from "./TaskConversationComposer";
 import { useGsapEntrance } from "../motion/gsap";
+import { SelectionCard, SelectionControl } from "./SelectionCard";
 
 type ApparelStage =
   | "analyzing"
@@ -343,7 +344,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
             {stageIndex >= 1 && (
               <AssistantMessage className="conversation-scope-message">
                 <p>已完成初步解析。</p>
-                  <div className={`research-scope-form ${briefReply ? "is-readonly" : ""}`} data-node-id="563:34957">
+                  <div className={`research-scope-form ${briefReply ? "is-readonly" : ""}`} data-message-meta="disabled" data-copy-exclude="true" data-node-id="563:34957">
                     <ConversationFormTitle
                       title="为了更精准地规划系列，请确认以下几点："
                       status={briefReply ? "confirmed" : "pending"}
@@ -411,7 +412,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
             {stageIndex >= 3 && (
               <AssistantMessage>
                 <p>基于你的需求,我规划了以下4个设计方向:</p>
-                <div className={`research-scope-form apparel-direction-form ${stage === "directions" ? "is-editable" : "is-readonly"}`} role="group" aria-label="选择设计方向，支持多选" data-node-id="563:39531">
+                <div className={`research-scope-form apparel-direction-form ${stage === "directions" ? "is-editable" : "is-readonly"}`} role="group" aria-label="选择设计方向，支持多选" data-message-meta="disabled" data-copy-exclude="true" data-node-id="563:39531">
                   <ConversationFormTitle
                     title="选择设计方向，支持多选"
                     status={stage === "directions" ? "pending" : "confirmed"}
@@ -421,23 +422,18 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                     {designDirections.map((direction) => {
                       const selected = selectedDirectionIds.includes(direction.id);
                       return (
-                        <button
-                          type="button"
-                          className={`visual-direction-choice-card ${selected ? "is-selected" : ""}`}
-                          aria-pressed={selected}
+                        <SelectionCard
+                          mode="checkbox"
+                          selected={selected}
                           disabled={stage !== "directions"}
-                          onClick={() => toggleDirection(direction.id)}
+                          title={`${direction.id} · ${direction.title}`}
+                          description={direction.description}
+                          onSelect={() => toggleDirection(direction.id)}
                           key={direction.id}
-                        >
-                          <span className="apparel-direction-option__copy">
-                            <strong>{direction.id} · {direction.title}</strong>
-                            <small>{direction.description}</small>
-                          </span>
-                          <span className="apparel-direction-option__check"><CircleCheckbox checked={selected} size="small" /></span>
-                        </button>
+                        />
                       );
                     })}
-                    <div className={`visual-direction-choice-card apparel-direction-card apparel-direction-card--other ${selectedDirectionIds.includes("OTHER") ? "is-selected" : ""}`}>
+                    <div className={`selection-card selection-card--checkbox selection-card--text apparel-direction-card apparel-direction-card--other ${selectedDirectionIds.includes("OTHER") ? "is-selected" : ""}`}>
                       <span className="apparel-direction-option__copy">
                         <strong>D · 其他</strong>
                         <input
@@ -460,7 +456,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                         disabled={stage !== "directions"}
                         onClick={() => toggleDirection("OTHER")}
                       >
-                        <CircleCheckbox checked={selectedDirectionIds.includes("OTHER")} size="small" />
+                        <SelectionControl mode="checkbox" selected={selectedDirectionIds.includes("OTHER")} />
                       </button>
                     </div>
                   </div>
@@ -478,7 +474,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
             {stageIndex >= 5 && (
               <AssistantMessage className="conversation-candidate-grid-message">
                 <p>请从候选池中选择你喜欢的参考素材</p>
-                <div className={`research-scope-form media-selection-form ${stage === "candidates" ? "" : "is-readonly"}`} data-node-id="558:27525">
+                <div className={`research-scope-form media-selection-form ${stage === "candidates" ? "" : "is-readonly"}`} data-message-meta="disabled" data-copy-exclude="true" data-node-id="558:27525">
                   <ConversationFormTitle
                     title="候选池图片集 · 支持多选"
                     status={stage === "candidates" ? "pending" : "confirmed"}

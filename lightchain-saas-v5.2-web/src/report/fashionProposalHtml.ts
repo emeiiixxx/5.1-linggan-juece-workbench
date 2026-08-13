@@ -86,7 +86,7 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
   const planMarkup = isPlan && plan ? `
     <section class="section plan-overview">
       <div class="section-header" data-reveal><span class="signal">MERCHANDISING FRAME</span><h2>从视觉方向，落到商品结构。</h2><p>款数、价格与渠道角色均为本轮可执行建议；缺少历史销售、OTB 与供应商报价的部分继续标记为待确认假设。</p></div>
-      <div class="plan-metrics">${plan.summary.map((item) => `<article class="plan-metric" data-reveal><strong>${escapeHtml(item.value)}</strong><span>${escapeHtml(item.label)}</span><p>${escapeHtml(item.detail)}</p></article>`).join("")}</div>
+      <div class="plan-metrics">${plan.summary.map((item) => `<article class="plan-metric" data-reveal><strong data-fit-metric title="${escapeHtml(item.value)}">${escapeHtml(item.value)}</strong><span>${escapeHtml(item.label)}</span><p>${escapeHtml(item.detail)}</p></article>`).join("")}</div>
     </section>
     <section class="section assortment">
       <div class="section-header" data-reveal><span class="signal">ASSORTMENT ARCHITECTURE</span><h2>商品结构规划。</h2><p>以稳定款承接基础需求，以主力款表达方向，以测试款验证内容与比例。</p></div>
@@ -160,7 +160,7 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
     .evidence{padding-top:68px;padding-bottom:68px}.evidence__intro{display:grid;grid-template-columns:minmax(0,.85fr) minmax(320px,1.15fr);gap:48px;align-items:end}.evidence h2{max-width:none;margin:0;font-size:clamp(36px,4.4vw,64px);line-height:1.04;letter-spacing:-.045em}.evidence p{max-width:none;margin:0;color:var(--muted);font-size:16px;line-height:1.75}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:56px;border-top:1px solid var(--line)}.metric{padding:24px 0 0}.metric+.metric{padding-left:24px;border-left:1px solid var(--line)}.metric strong{display:block;font-size:clamp(42px,6vw,82px);font-weight:720;line-height:1;letter-spacing:-.05em}.metric span{display:block;margin-top:10px;color:var(--muted);font-size:14px}
     .direction-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(48px,6vw,88px) clamp(18px,2.4vw,36px)}.direction{min-width:0}.direction__media{height:clamp(420px,48vw,720px);margin:0}.direction__copy{display:grid;grid-template-columns:36px minmax(0,1fr);gap:14px;padding-top:18px}.direction__index{padding-top:3px;color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}.signal{color:var(--accent);font-size:14px;font-weight:650}.direction h3{margin:8px 0 12px;font-size:clamp(28px,3vw,46px);font-weight:720;line-height:1.06;letter-spacing:-.04em}.direction p{max-width:560px;margin:0;color:var(--muted);font-size:14px;line-height:1.7}
     .tag-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}.tag-list span{padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);color:var(--muted);font-size:14px;line-height:1.35}
-    .plan-overview{background:#fbfcfb}.plan-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}.plan-metric{min-height:220px;padding:28px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}.plan-metric strong{display:block;font-size:clamp(38px,5vw,68px);line-height:1;letter-spacing:-.05em}.plan-metric span{display:block;margin-top:18px;font-size:14px;font-weight:700}.plan-metric p{margin:10px 0 0;color:var(--muted);font-size:14px;line-height:1.65}
+    .plan-overview{background:#fbfcfb}.plan-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}.plan-metric{min-width:0;min-height:220px;padding:28px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}.plan-metric strong{display:block;max-width:100%;overflow:hidden;font-size:clamp(38px,5vw,68px);font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.05em;white-space:nowrap}.plan-metric span{display:block;margin-top:18px;font-size:14px;font-weight:700}.plan-metric p{margin:10px 0 0;color:var(--muted);font-size:14px;line-height:1.65}
     .assortment-table{border-top:1px solid var(--line)}.assortment-row{display:grid;grid-template-columns:.8fr .8fr .42fr .8fr .9fr 1.5fr;gap:18px;align-items:start;padding:22px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:1.6}.assortment-row--head{padding:12px 0;color:var(--muted);font-size:14px;font-weight:700;letter-spacing:.08em}.assortment-row strong{font-size:14px}.assortment-row p{margin:0;color:var(--muted)}
     .design-plan{background:#fbfcfb}.design-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}.design-card{min-height:240px;padding:32px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}.design-card h3{margin:12px 0 0;font-size:clamp(26px,3vw,42px);line-height:1.08;letter-spacing:-.04em}.design-card p{max-width:560px;margin:18px 0 0;color:var(--muted);font-size:14px;line-height:1.72}
     .channel-plan{background:#eef1ef}.channel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}.channel-card{min-height:260px;padding:32px;background:var(--paper)}.channel-card h3{margin:0;font-size:clamp(28px,3vw,44px);letter-spacing:-.04em}.channel-card p{max-width:540px;margin:18px 0 0;color:var(--muted);font-size:14px;line-height:1.75}.assumption-card{display:grid;grid-template-columns:minmax(160px,.35fr) minmax(0,1fr);gap:28px;margin-top:48px;padding-top:24px;border-top:1px solid var(--line)}.assumption-card strong{font-size:14px}.assumption-card ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 28px;margin:0;padding-left:18px;color:var(--muted);font-size:14px;line-height:1.65}
@@ -197,6 +197,25 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
   <script>
     document.documentElement.classList.add("motion-ready");
     window.addEventListener("DOMContentLoaded",function(){
+      var fitMetricValues=function(){
+        Array.prototype.forEach.call(document.querySelectorAll("[data-fit-metric]"),function(value){
+          value.style.fontSize="";
+          var maxSize=parseFloat(window.getComputedStyle(value).fontSize)||68;
+          var minSize=24;
+          var low=minSize;
+          var high=maxSize;
+          value.style.fontSize=high+"px";
+          if(value.scrollWidth<=value.clientWidth)return;
+          while(high-low>.5){
+            var next=(low+high)/2;
+            value.style.fontSize=next+"px";
+            if(value.scrollWidth<=value.clientWidth)low=next;else high=next;
+          }
+          value.style.fontSize=Math.max(minSize,low)+"px";
+        });
+      };
+      fitMetricValues();
+      if("ResizeObserver" in window){new ResizeObserver(fitMetricValues).observe(document.querySelector(".plan-metrics")||document.body)}else{window.addEventListener("resize",fitMetricValues)}
       var targets=Array.prototype.slice.call(document.querySelectorAll("[data-reveal],[data-visual]"));
       if(window.matchMedia("(prefers-reduced-motion: reduce)").matches||!("IntersectionObserver" in window)){
         targets.forEach(function(target){target.classList.add("is-visible")});

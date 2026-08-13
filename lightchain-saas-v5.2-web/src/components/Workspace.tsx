@@ -20,6 +20,9 @@ const ClothingConversationWorkspace = lazy(() =>
 const NewProductPlanningWorkspace = lazy(() =>
   import("./NewProductPlanningWorkspace").then(({ NewProductPlanningWorkspace }) => ({ default: NewProductPlanningWorkspace })),
 );
+const PlanConversationWorkspace = lazy(() =>
+  import("./PlanConversationWorkspace").then(({ PlanConversationWorkspace }) => ({ default: PlanConversationWorkspace })),
+);
 
 const tabs = ["新品企划", "客户提案", "灵感设计", "企划案"];
 const composerPlaceholders = [
@@ -39,6 +42,59 @@ type Attachment = { id: string; name: string; kind: "file" | "image"; previewUrl
 const defaultPlanPrompt = "以 Loro Piana 的 2027春夏 系列做为设计灵感，需要包含 短款外套、衬衫、卫衣、短袖、长裤、短裤 这些品类，生成一份 男装 主题设计企划";
 const defaultPlanEditorHtml = '以 <span class="composer-semantic-slot">Loro Piana</span> 的 <span class="composer-semantic-slot">2027春夏</span> 系列做为设计灵感，需要包含 <span class="composer-semantic-slot">短款外套、衬衫、卫衣、短袖、长裤、短裤</span> 这些品类，生成一份 <span class="composer-semantic-slot">男装</span> 主题设计企划';
 
+const textOffsetWithin = (root: HTMLElement, node: Node, offset: number) => {
+  const range = document.createRange();
+  range.selectNodeContents(root);
+  range.setEnd(node, offset);
+  return range.toString().length;
+};
+
+const planEditorPointAt = (root: HTMLElement, targetOffset: number) => {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let traversed = 0;
+  let node = walker.nextNode();
+  while (node) {
+    const length = node.textContent?.length ?? 0;
+    if (traversed + length >= targetOffset) return { node, offset: targetOffset - traversed };
+    traversed += length;
+    node = walker.nextNode();
+  }
+  return { node: root as Node, offset: root.childNodes.length };
+};
+
+const normalizePlanEditorMarkup = (editor: HTMLDivElement) => {
+  const selection = window.getSelection();
+  const activeRange = selection?.rangeCount ? selection.getRangeAt(0) : null;
+  const canRestoreSelection = Boolean(
+    activeRange
+    && editor.contains(activeRange.startContainer)
+    && editor.contains(activeRange.endContainer),
+  );
+  const savedSelection = canRestoreSelection && activeRange
+    ? {
+        start: textOffsetWithin(editor, activeRange.startContainer, activeRange.startOffset),
+        end: textOffsetWithin(editor, activeRange.endContainer, activeRange.endOffset),
+      }
+    : null;
+
+  editor.querySelectorAll("font").forEach((font) => font.replaceWith(...Array.from(font.childNodes)));
+
+  if (!selection || !savedSelection) return;
+  const start = planEditorPointAt(editor, savedSelection.start);
+  const end = planEditorPointAt(editor, savedSelection.end);
+  const restoredRange = document.createRange();
+  restoredRange.setStart(start.node, start.offset);
+  restoredRange.setEnd(end.node, end.offset);
+  selection.removeAllRanges();
+  selection.addRange(restoredRange);
+};
+
+const semanticSlotFromNode = (node: Node | null) => {
+  if (!node) return null;
+  const element = node instanceof Element ? node : node.parentElement;
+  return element?.closest<HTMLElement>(".composer-semantic-slot") ?? null;
+};
+
 const profileOptions: ProfileOption[] = [
   { id: 1001, name: "日本通勤女装" },
   { id: 1002, name: "灭霸毁灭宇宙回忆录" },
@@ -56,13 +112,13 @@ const projectOptions: ProjectOption[] = [
 
 export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, onSelectedProfileChange, selectedProject, onSelectedProjectChange, onCreateTask }: {
   theme: "dark" | "light";
-  activeTask?: { id: number; prompt: string; profileName?: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "new-product" | "default" | "apparel" } | null;
+  activeTask?: { id: number; prompt: string; profileName?: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "new-product" | "default" | "apparel" | "plan"; initialState?: "default" | "complete" } | null;
   newTaskKey?: number;
   selectedProfile?: ProfileOption | null;
   onSelectedProfileChange?: (profile: ProfileOption | null) => void;
   selectedProject?: ProjectOption | null;
   onSelectedProjectChange?: (project: ProjectOption | null) => void;
-  onCreateTask?: (task: { title: string; projectId: number | null; prompt: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "new-product" | "default" | "apparel" }) => void;
+  onCreateTask?: (task: { title: string; projectId: number | null; prompt: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "new-product" | "default" | "apparel" | "plan" }) => void;
 }) {
   const { locale, t } = useI18n();
   const [activeTab, setActiveTab] = useState(0);
@@ -79,6 +135,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   const projectMenuRef = useRef<HTMLDivElement>(null);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
   const planEditorRef = useRef<HTMLDivElement>(null);
+  const activePlanSlotRef = useRef<HTMLElement | null>(null);
   const savedPlanEditorHtmlRef = useRef(defaultPlanEditorHtml);
   const planPromptRef = useRef(defaultPlanPrompt);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -109,6 +166,24 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
     planEditorRef.current = node;
     if (node) node.innerHTML = savedPlanEditorHtmlRef.current;
   }, []);
+
+  const syncPlanEditorValue = (editor: HTMLDivElement, normalizeEmptyMarkup = false) => {
+    const nextPrompt = editor.innerText.replace(/\u00a0/g, " ");
+    planPromptRef.current = nextPrompt;
+    editor.dataset.empty = String(!nextPrompt.trim());
+    if (normalizeEmptyMarkup && !nextPrompt.trim()) {
+      editor.replaceChildren();
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.setStart(editor, 0);
+      range.collapse(true);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
+    savedPlanEditorHtmlRef.current = editor.innerHTML;
+    const sendButton = editor.closest(".composer__input")?.querySelector<HTMLButtonElement>(".composer__send");
+    if (sendButton) sendButton.disabled = !nextPrompt.trim();
+  };
 
   const syncTabIndicator = useCallback((animate: boolean) => {
     const indicator = tabIndicatorRef.current;
@@ -218,7 +293,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
       projectId: selectedProject?.id ?? null,
       prompt: taskMessage,
       attachments: taskAttachments,
-      workflow: sourceTab === 0 ? "new-product" : sourceTab === 2 && inspirationDesignType === "apparel" ? "apparel" : "default",
+      workflow: sourceTab === 0 ? "new-product" : sourceTab === 2 && inspirationDesignType === "apparel" ? "apparel" : sourceTab === 3 ? "plan" : "default",
     });
     if (sourceTab !== 0 && sourceTab !== 2) attachments.forEach((attachment) => {
       if (attachment.previewUrl) {
@@ -287,8 +362,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
     const anchorNode = selection?.anchorNode;
     if (!selection || !anchorNode || !editor.contains(anchorNode)) return;
 
-    const anchorElement = anchorNode instanceof Element ? anchorNode : anchorNode.parentElement;
-    const semanticSlot = anchorElement?.closest<HTMLElement>(".composer-semantic-slot");
+    const semanticSlot = activePlanSlotRef.current;
     const selectionTarget = semanticSlot && editor.contains(semanticSlot) ? semanticSlot : editor;
     const range = document.createRange();
     range.selectNodeContents(selectionTarget);
@@ -302,11 +376,13 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
     <AnimatePresence mode="wait" initial={false}>
     {activeTask ? (
       activeTask.workflow === "new-product" ? (
-        <NewProductPlanningWorkspace key={`new-product-conversation-${activeTask.id}`} prompt={activeTask.prompt} profileName={activeTask.profileName} attachments={activeTask.attachments} />
+        <NewProductPlanningWorkspace key={`new-product-conversation-${activeTask.id}`} prompt={activeTask.prompt} profileName={activeTask.profileName} attachments={activeTask.attachments} initialState={activeTask.initialState} />
       ) : activeTask.workflow === "apparel" ? (
         <ClothingConversationWorkspace key={`apparel-conversation-${activeTask.id}`} prompt={activeTask.prompt} attachments={activeTask.attachments} />
+      ) : activeTask.workflow === "plan" ? (
+        <PlanConversationWorkspace key={`plan-conversation-${activeTask.id}`} prompt={activeTask.prompt} />
       ) : (
-        <ConversationWorkspace key={`conversation-${activeTask.id}`} prompt={activeTask.prompt} profileName={activeTask.profileName} />
+        <ConversationWorkspace key={`conversation-${activeTask.id}`} prompt={activeTask.prompt} profileName={activeTask.profileName} initialState={activeTask.initialState} />
       )
     ) : (
     <motion.main
@@ -358,10 +434,10 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
         </motion.section>
 
         <motion.section className="composer" aria-label={t("新建任务")} data-node-id="140:6883" variants={primaryPageEntranceItem} style={{ height: composerInputHeight + 48 }}>
-          <div className={`composer__input ${attachments.length ? "has-attachments" : ""}`} data-node-id="457:95352" style={{ height: composerInputHeight }}>
+          <div className={`composer__input ${activeTab !== 3 && attachments.length ? "has-attachments" : ""}`} data-node-id="457:95352" style={{ height: composerInputHeight }}>
             <div className="composer__content">
               <AnimatePresence initial={false}>
-                {attachments.length > 0 && (
+                {activeTab !== 3 && attachments.length > 0 && (
                   <motion.div
                     className="composer-attachment-list"
                     initial={reduceMotion ? false : { opacity: 0, height: 0 }}
@@ -393,11 +469,16 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                   </motion.div>
                 )}
               </AnimatePresence>
+              <AnimatePresence mode="wait" initial={false}>
               {activeTab === 3 ? (
-                <div
+                <motion.div
                   key="plan-editor"
                   ref={setPlanEditorElement}
                   className="composer-plan-editor"
+                  initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }}
                   contentEditable
                   suppressContentEditableWarning
                   role="textbox"
@@ -405,26 +486,82 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                   aria-multiline="true"
                   data-placeholder="描述企划案的主题、目标和交付要求..."
                   data-empty="false"
+                  onPointerDown={(event) => {
+                    activePlanSlotRef.current = (event.target as HTMLElement).closest<HTMLElement>(".composer-semantic-slot");
+                  }}
+                  onPointerUp={(event) => {
+                    activePlanSlotRef.current = (event.target as HTMLElement).closest<HTMLElement>(".composer-semantic-slot");
+                  }}
+                  onClick={(event) => {
+                    activePlanSlotRef.current = (event.target as HTMLElement).closest<HTMLElement>(".composer-semantic-slot");
+                  }}
                   onInput={(event) => {
-                    savedPlanEditorHtmlRef.current = event.currentTarget.innerHTML;
-                    const nextPrompt = event.currentTarget.innerText.replace(/\u00a0/g, " ");
-                    planPromptRef.current = nextPrompt;
-                    event.currentTarget.dataset.empty = String(!nextPrompt.trim());
-                    const sendButton = event.currentTarget.closest(".composer__input")?.querySelector<HTMLButtonElement>(".composer__send");
-                    if (sendButton) sendButton.disabled = !nextPrompt.trim();
+                    const isComposing = (event.nativeEvent as InputEvent).isComposing;
+                    if (!isComposing) normalizePlanEditorMarkup(event.currentTarget);
+                    syncPlanEditorValue(event.currentTarget, !isComposing);
+                  }}
+                  onCompositionEnd={(event) => {
+                    normalizePlanEditorMarkup(event.currentTarget);
+                    syncPlanEditorValue(event.currentTarget, true);
                   }}
                   onKeyDown={(event) => {
                     if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
+                    const activeSemanticSlot = semanticSlotFromNode(window.getSelection()?.anchorNode ?? null) ?? activePlanSlotRef.current;
+                    if (event.key === "Backspace" || event.key === "Delete") {
+                      const selection = window.getSelection();
+                      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+                      const startSlot = semanticSlotFromNode(range?.startContainer ?? null);
+                      const endSlot = semanticSlotFromNode(range?.endContainer ?? null);
+                      if (selection && range && !range.collapsed && startSlot && startSlot === endSlot) {
+                        const slotTextLength = startSlot.textContent?.length ?? 0;
+                        if (range.toString().length >= slotTextLength) {
+                          event.preventDefault();
+                          startSlot.replaceChildren();
+                          const caret = document.createRange();
+                          caret.setStart(startSlot, 0);
+                          caret.collapse(true);
+                          selection.removeAllRanges();
+                          selection.addRange(caret);
+                          syncPlanEditorValue(event.currentTarget);
+                          return;
+                        }
+                      }
+
+                      const semanticSlot = semanticSlotFromNode(selection?.anchorNode ?? null);
+                      if (selection?.isCollapsed && semanticSlot && !semanticSlot.textContent) {
+                        event.preventDefault();
+                        const parent = semanticSlot.parentNode;
+                        const slotIndex = parent ? Array.prototype.indexOf.call(parent.childNodes, semanticSlot) : -1;
+                        semanticSlot.remove();
+                        if (parent && slotIndex >= 0) {
+                          const caret = document.createRange();
+                          caret.setStart(parent, slotIndex);
+                          caret.collapse(true);
+                          selection.removeAllRanges();
+                          selection.addRange(caret);
+                        }
+                        syncPlanEditorValue(event.currentTarget, true);
+                        return;
+                      }
+                    }
                     selectPlanEditorContext(event);
                     if (event.defaultPrevented) return;
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
+                      if (activeSemanticSlot && event.currentTarget.contains(activeSemanticSlot)) return;
                       sendPlan();
                     }
                   }}
                 />
               ) : (
-              <div key="standard-editor" className="composer__text-wrap">
+              <motion.div
+                key="standard-editor"
+                className="composer__text-wrap"
+                initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+                transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }}
+              >
                 <AnimatePresence mode="wait" initial={false}>
                   {!message && (
                     <motion.span
@@ -448,10 +585,11 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
                   placeholder=""
                   aria-label={t(activeTab === 2 && inspirationDesignType === "pattern" ? "描述想要生成的图案风格、元素和应用场景..." : composerPlaceholders[activeTab])}
                 />
-              </div>
+              </motion.div>
               )}
+              </AnimatePresence>
             </div>
-            <div className="composer-attachment" ref={attachmentMenuRef}>
+            {activeTab !== 3 && <div className="composer-attachment" ref={attachmentMenuRef}>
               <IconControl
                 className="composer-attachment__button"
                 label={t("添加附件")}
@@ -492,7 +630,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
               </AnimatePresence>
               <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple onChange={(event) => addAttachments(event, "file")} />
               <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple onChange={(event) => addAttachments(event, "image")} />
-            </div>
+            </div>}
             <div className="composer__send-hint" title={t("Enter 发送 · Shift + Enter 换行")}>{t("Enter 发送 · Shift + Enter 换行")}</div>
             <IconControl
               className="composer__send"

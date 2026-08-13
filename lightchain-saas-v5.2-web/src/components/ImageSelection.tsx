@@ -7,6 +7,7 @@ import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
 import { useI18n } from "../i18n";
 import { useModalFocus } from "../hooks/useModalFocus";
+import { CircleCheckbox } from "./CircleCheckbox";
 
 type ImageSelectionProps = {
   src: string;
@@ -28,16 +29,18 @@ const actionIcons = {
 
 export function ImageActionBar({ favorited = false, onPreview, onFavorite, onDownload }: {
   favorited?: boolean;
-  onPreview: () => void;
+  onPreview?: () => void;
   onFavorite: () => void;
   onDownload: () => void;
 }) {
   const { t } = useI18n();
   return (
     <div className="image-action-bar" onClick={(event) => event.stopPropagation()}>
-      <IconControl label={t("查看大图")} size="small" tooltipPlacement="top" onClick={(event) => runAction(event, onPreview)}>
-        <img className="image-action-bar__icon image-action-bar__icon--preview" src={actionIcons.preview} alt="" />
-      </IconControl>
+      {onPreview ? (
+        <IconControl label={t("查看大图")} size="small" tooltipPlacement="top" onClick={(event) => runAction(event, onPreview)}>
+          <img className="image-action-bar__icon image-action-bar__icon--preview" src={actionIcons.preview} alt="" />
+        </IconControl>
+      ) : null}
       <IconControl label={t(favorited ? "取消收藏" : "收藏到资源库")} size="small" tooltipPlacement="top" selected={favorited} onClick={(event) => runAction(event, onFavorite)}>
         <img className="image-action-bar__icon image-action-bar__icon--favorite" src={actionIcons.favorite} alt="" />
       </IconControl>
@@ -45,14 +48,6 @@ export function ImageActionBar({ favorited = false, onPreview, onFavorite, onDow
         <img className="image-action-bar__icon image-action-bar__icon--download" src={actionIcons.download} alt="" />
       </IconControl>
     </div>
-  );
-}
-
-export function CircleCheckbox({ checked, size = "large" }: { checked: boolean; size?: "small" | "large" }) {
-  return (
-    <span className={`circle-checkbox circle-checkbox--${size}${checked ? " is-checked" : ""}`} aria-hidden="true">
-      {checked ? <img className="circle-checkbox__check" src={assetUrl("assets/figma-icons/checkbox-check.svg")} alt="" /> : null}
-    </span>
   );
 }
 
@@ -74,7 +69,7 @@ export function ImageSelection({
 }: ImageSelectionProps) {
   const { t } = useI18n();
   return (
-    <div className={`image-selection ${selected ? "is-selected" : ""}`}>
+    <div className={`image-selection ${selected ? "is-selected" : ""}`} data-message-meta="disabled">
       <button
         type="button"
         className="image-selection__toggle"
@@ -118,7 +113,7 @@ export function MasonryImageSelection({
 }) {
   const { t } = useI18n();
   return (
-    <div className={`masonry-image-selection ${selected ? "is-selected" : ""} ${loading ? "is-loading" : ""}`} aria-busy={loading}>
+    <div className={`masonry-image-selection ${selected ? "is-selected" : ""} ${loading ? "is-loading" : ""}`} data-message-meta="disabled" aria-busy={loading}>
       <button
         type="button"
         className="masonry-image-selection__toggle"
@@ -179,12 +174,12 @@ export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string;
   );
 }
 
-export type CandidateLightboxCategory = {
+export type ImageGalleryCategory = {
   id: string;
   label: string;
 };
 
-export type CandidateLightboxItem = {
+export type ImageGalleryItem = {
   id: string;
   categoryId: string;
   code: string;
@@ -194,7 +189,7 @@ export type CandidateLightboxItem = {
   badges?: readonly string[];
 };
 
-export function CandidateImageLightbox({
+export function ImageGalleryLightbox({
   categories,
   items,
   activeCategoryId,
@@ -207,8 +202,8 @@ export function CandidateImageLightbox({
   onToggleSelection,
   onClose,
 }: {
-  categories: readonly CandidateLightboxCategory[];
-  items: readonly CandidateLightboxItem[];
+  categories: readonly ImageGalleryCategory[];
+  items: readonly ImageGalleryItem[];
   activeCategoryId: string;
   activeItemId: string;
   selectedIds: readonly string[];
@@ -454,18 +449,22 @@ export function CandidateImageLightbox({
           </IconControl>
         ) : null}
         <div ref={thumbnailsRef} className="candidate-lightbox__thumbnails" aria-label={t(showCategories ? "同类型参考图" : "全部改款结果")} onScroll={scheduleThumbnailOverflowUpdate}>
-          {thumbnailItems.map((item) => (
-            <button
-              type="button"
-              className={item.id === activeItem.id ? "is-active" : ""}
-              aria-label={`${t("查看")} ${item.code}`}
-              aria-current={item.id === activeItem.id ? "true" : undefined}
-              onClick={() => onNavigate(item.id)}
-              key={item.id}
-            >
-              <img src={assetUrl(item.src)} alt="" />
-            </button>
-          ))}
+          {thumbnailItems.map((item) => {
+            const itemSelected = selectedIds.includes(item.id);
+            return (
+              <button
+                type="button"
+                className={`${item.id === activeItem.id ? "is-active" : ""} ${itemSelected ? "is-selected" : ""}`.trim()}
+                aria-label={`${t("查看")} ${item.code}${itemSelected ? `，${t("已选择")}` : ""}`}
+                aria-current={item.id === activeItem.id ? "true" : undefined}
+                onClick={() => onNavigate(item.id)}
+                key={item.id}
+              >
+                <img src={assetUrl(item.src)} alt="" />
+                {itemSelected ? <span className="candidate-lightbox__thumbnail-selected" aria-hidden="true"><FigmaIcon name="heart-filled" size={16} /></span> : null}
+              </button>
+            );
+          })}
         </div>
         {thumbnailOverflow.right ? (
           <IconControl className="candidate-lightbox__thumbnail-scroll candidate-lightbox__thumbnail-scroll--next" label={t("向右查看更多缩略图")} variant="tonal" size="small" onClick={() => scrollThumbnails(1)}>

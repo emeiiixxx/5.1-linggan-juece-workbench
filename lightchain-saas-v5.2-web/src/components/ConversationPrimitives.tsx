@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type HTMLAttributes, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type HTMLAttributes, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion, type HTMLMotionProps } from "motion/react";
 import { assetUrl } from "../utils/assets";
@@ -8,10 +8,14 @@ import { IconControl } from "./IconControl";
 import { Button, OutlineToggleButton, SuggestionButton } from "./Button";
 import { useI18n } from "../i18n";
 import { useModalFocus } from "../hooks/useModalFocus";
+import { Toast } from "./Toast";
+import { SelectionCard } from "./SelectionCard";
 
 export type ConversationStepStatus = "complete" | "loading" | "pending";
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
+const conversationMetaClaimEvent = "lightchain:conversation-meta-claim";
+const TaskDisclosureCompleteContext = createContext<boolean | null>(null);
 
 type MessageMetaPosition = { left: number; top: number; side: "assistant" | "user" };
 type MessageFeedback = {
@@ -21,6 +25,34 @@ type MessageFeedback = {
 };
 
 const feedbackReasons = ["不正确 / 不完整", "没有遵循我的指示", "速度慢", "偏题 / 超出范围", "其他"];
+const conversationNonTextRegionSelector = [
+  '[data-message-meta="disabled"]',
+  '[data-copy-exclude="true"]',
+  "form",
+  ".research-scope-form",
+  ".plan-choice-form",
+  ".new-product-direction-form",
+  ".new-product-results-form",
+  ".conversation-candidate-form",
+  ".customer-ai-results-form",
+  ".media-selection-form",
+  ".image-selection",
+  ".masonry-image-selection",
+  ".plan-generation-image-grid",
+  ".plan-reference-grid",
+  ".conversation-quick-actions",
+  ".new-product-quick-replies",
+].join(", ");
+
+function getCopyableMessageText(message: HTMLElement) {
+  const copy = message.cloneNode(true) as HTMLElement;
+  copy.querySelectorAll(`${conversationNonTextRegionSelector}, button, [role="button"], input, textarea, select, img, picture, video, canvas`).forEach((element) => element.remove());
+  copy.style.cssText = "position:fixed;left:-100000px;top:0;width:" + message.getBoundingClientRect().width + "px;visibility:hidden;pointer-events:none;";
+  document.body.appendChild(copy);
+  const text = copy.innerText.trim();
+  copy.remove();
+  return text;
+}
 
 function getMessageMetaPosition(message: HTMLElement): MessageMetaPosition {
   const isUserMessage = message.classList.contains("conversation-message--user");
@@ -28,10 +60,9 @@ function getMessageMetaPosition(message: HTMLElement): MessageMetaPosition {
     ? message.querySelector<HTMLElement>(".conversation-user-bubble") ?? message
     : message;
   const rect = anchor.getBoundingClientRect();
-  const showBelow = rect.bottom + 36 <= window.innerHeight;
   return {
     left: isUserMessage ? rect.right : rect.left,
-    top: showBelow ? rect.bottom + 4 : rect.top - 32,
+    top: rect.bottom + 4,
     side: isUserMessage ? "user" : "assistant",
   };
 }
@@ -39,6 +70,7 @@ function getMessageMetaPosition(message: HTMLElement): MessageMetaPosition {
 export function ConversationFeed({ className = "", children, ...props }: HTMLAttributes<HTMLDivElement>) {
   const { t } = useI18n();
   const reduceMotion = useReducedMotion();
+  const metaOwnerRef = useRef(Symbol("conversation-feed-meta"));
   const hoveredMessageRef = useRef<HTMLElement | null>(null);
   const hideTimerRef = useRef<number | null>(null);
   const toastTimerRef = useRef<number | null>(null);
@@ -68,12 +100,20 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
 
   const showMessageMeta = (event: ReactPointerEvent<HTMLDivElement>) => {
     const eventTarget = event.target as HTMLElement;
+    if (eventTarget.closest<HTMLElement>(conversationNonTextRegionSelector)) {
+      if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+      hoveredMessageRef.current = null;
+      setMetaPosition(null);
+      return;
+    }
     const message = eventTarget.closest<HTMLElement>('[data-message-actions="true"]')
       ?? eventTarget.closest<HTMLElement>(".conversation-message--user");
     if (!message) {
       if (hoveredMessageRef.current) scheduleMetaHide();
       return;
     }
+    window.dispatchEvent(new CustomEvent(conversationMetaClaimEvent, { detail: metaOwnerRef.current }));
     keepMetaOpen();
     if (hoveredMessageRef.current === message && metaPosition) return;
     hoveredMessageRef.current = message;
@@ -81,7 +121,8 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
   };
 
   const copyHoveredMessage = () => {
-    const text = hoveredMessageRef.current?.innerText.trim();
+    const message = hoveredMessageRef.current;
+    const text = message ? getCopyableMessageText(message) : "";
     if (!text) return;
     const showCopiedToast = () => {
       setToast(t("复制成功"));
@@ -138,6 +179,15 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
   };
 
   useEffect(() => {
+    const dismissOtherFeedMeta = (event: Event) => {
+      if ((event as CustomEvent<symbol>).detail === metaOwnerRef.current) return;
+      if (hideTimerRef.current !== null) {
+        window.clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
+      hoveredMessageRef.current = null;
+      setMetaPosition(null);
+    };
     const reposition = () => {
       const message = hoveredMessageRef.current;
       if (message) setMetaPosition(getMessageMetaPosition(message));
@@ -146,9 +196,11 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
       hoveredMessageRef.current = null;
       setMetaPosition(null);
     };
+    window.addEventListener(conversationMetaClaimEvent, dismissOtherFeedMeta);
     window.addEventListener("resize", reposition);
     window.addEventListener("scroll", hideWhileScrolling, true);
     return () => {
+      window.removeEventListener(conversationMetaClaimEvent, dismissOtherFeedMeta);
       window.removeEventListener("resize", reposition);
       window.removeEventListener("scroll", hideWhileScrolling, true);
       if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current);
@@ -202,22 +254,13 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
         </div>,
         document.body,
       )}
-      {typeof document !== "undefined" && createPortal(
-        <AnimatePresence>
-          {toast ? (
-            <motion.div className="conversation-copy-toast" role="status" initial={reduceMotion ? false : { opacity: 0, x: "-50%", y: -12 }} animate={{ opacity: 1, x: "-50%", y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, x: "-50%", y: -8 }} transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}>
-              {toast}
-            </motion.div>
-          ) : null}
-        </AnimatePresence>,
-        document.body,
-      )}
+      <Toast message={toast} />
       {feedbackMessage && typeof document !== "undefined" && createPortal(
         <motion.div className="conversation-feedback-backdrop" role="presentation" initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduceMotion ? 0 : 0.2 }} onPointerDown={(event) => { if (event.target === event.currentTarget) closeFeedbackDialog(); }}>
           <motion.section ref={feedbackDialogRef} className="conversation-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="conversation-feedback-title" initial={reduceMotion ? false : { opacity: 0, y: 10, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}>
             <header>
               <h2 id="conversation-feedback-title">{t("帮助改进")}</h2>
-              <IconControl label={t("关闭")} variant="bare" size="medium" onClick={closeFeedbackDialog}><FigmaIcon name="close" size={20} /></IconControl>
+              <IconControl label={t("关闭")} variant="ghost" size="medium" onClick={closeFeedbackDialog}><FigmaIcon name="close" size={20} /></IconControl>
             </header>
             <div className="conversation-feedback-dialog__body">
               <div className="conversation-feedback-reasons" role="group" aria-label={t("选择需要改进的原因，支持多选")}>
@@ -252,18 +295,20 @@ export function ConversationStatusIcon({ status }: { status: ConversationStepSta
 
 export function AnalysisStepIcon({ complete, delay = 0 }: { complete: boolean; delay?: number }) {
   const reduceMotion = useReducedMotion();
+  const taskComplete = useContext(TaskDisclosureCompleteContext);
+  const effectiveComplete = taskComplete ?? complete;
   return (
     <span className="conversation-step-state-icon" aria-hidden="true">
-      <AnimatePresence initial={false} mode="wait">
+      <AnimatePresence initial={false} mode="sync">
         <motion.span
-          className={complete ? "conversation-step-complete-icon" : ""}
-          key={complete ? "complete" : "searching"}
-          initial={reduceMotion ? false : { opacity: 0, scale: 0.65 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={reduceMotion ? undefined : { opacity: 0, scale: 0.72 }}
-          transition={{ duration: reduceMotion ? 0 : 0.18, delay: reduceMotion ? 0 : delay, ease: revealEase }}
+          className={`conversation-step-state-icon__glyph ${effectiveComplete ? "conversation-step-complete-icon" : "conversation-step-search-icon"}`}
+          key={effectiveComplete ? "complete" : "searching"}
+          initial={reduceMotion ? false : { opacity: 0, scale: effectiveComplete ? 0.72 : 0.9, rotate: effectiveComplete ? -10 : 0 }}
+          animate={{ opacity: 1, scale: 1, rotate: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, scale: effectiveComplete ? 0.82 : 1.12, rotate: effectiveComplete ? 0 : 8 }}
+          transition={{ duration: reduceMotion ? 0 : 0.24, delay: reduceMotion ? 0 : delay, ease: revealEase }}
         >
-          <FigmaIcon name={complete ? "dot" : "search"} size={16} />
+          <FigmaIcon name={effectiveComplete ? "dot" : "search"} size={16} />
         </motion.span>
       </AnimatePresence>
     </span>
@@ -340,7 +385,7 @@ export function TaskDisclosure({
   }, { scope: rootRef, dependencies: [expanded, reduceMotion] });
 
   return (
-    <div className="conversation-analysis-task" ref={rootRef}>
+    <div className="conversation-analysis-task" ref={rootRef} data-message-meta="disabled">
       <button type="button" className="conversation-analysis-trigger" aria-expanded={expanded} aria-controls={controlsId} onClick={onToggle}>
         <AnimatePresence initial={false} mode="wait">
           {complete ? (
@@ -359,7 +404,9 @@ export function TaskDisclosure({
         </span>
       </button>
       <div id={controlsId} className="conversation-analysis-details" ref={detailsRef} aria-hidden={!expanded} style={{ pointerEvents: expanded ? "auto" : "none" }}>
-        {children}
+        <TaskDisclosureCompleteContext.Provider value={complete}>
+          {children}
+        </TaskDisclosureCompleteContext.Provider>
       </div>
     </div>
   );
@@ -387,6 +434,43 @@ export function ConversationFormTitle({
       </div>
       {helper ? <small>{helper}</small> : null}
     </header>
+  );
+}
+
+export type ConversationSingleChoiceOption = {
+  value: string;
+  label: ReactNode;
+};
+
+export function ConversationSingleChoiceList({
+  options,
+  value,
+  disabled = false,
+  ariaLabel,
+  onChange,
+}: {
+  options: readonly ConversationSingleChoiceOption[];
+  value: string;
+  disabled?: boolean;
+  ariaLabel: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className={`conversation-single-choice-list ${disabled ? "is-readonly" : ""}`} role="radiogroup" aria-label={ariaLabel}>
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <SelectionCard
+            mode="radio"
+            selected={selected}
+            disabled={disabled}
+            title={option.label}
+            onSelect={() => onChange(option.value)}
+            key={option.value}
+          />
+        );
+      })}
+    </div>
   );
 }
 

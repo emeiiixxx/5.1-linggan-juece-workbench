@@ -78,6 +78,8 @@ export function ResearchScopeForm({
   return (
     <form
       className={`research-scope-form ${confirmed ? "is-readonly" : ""}`}
+      data-message-meta="disabled"
+      data-copy-exclude="true"
       aria-label="确认调研范围"
       onSubmit={(event) => {
         event.preventDefault();

@@ -14,10 +14,35 @@ export const projectGroups = [
 
 export const taskItems = [
   "不在项目里面的任务",
-  "不在项目里面的任务",
   "待处理的反馈",
   "团队建设活动",
   "市场调研计划",
+];
+
+export const completedProjectTaskExample = {
+  id: -2027001,
+  title: "27年宠物流行服饰趋势",
+  projectId: 0,
+  prompt: "围绕 2027 年宠物服饰流行趋势，面向 Amazon US 与 TikTok Shop US，生成一份包含市场、人群、品类、价格、波段、视觉方向和 AI 改款结果的新品企划。",
+  workflow: "new-product" as const,
+  status: "completed" as const,
+  initialState: "complete" as const,
+};
+
+export const completedCustomerProposalExample = {
+  id: -2027002,
+  title: "27年颜色流行趋势",
+  projectId: 0,
+  prompt: "围绕 2027 年颜色流行趋势，结合目标市场、客户需求与公开行业资料，整理视觉方向、参考素材和 AI 改款结果，并生成一份完整客户提案。",
+  profileName: "灭霸毁灭宇宙回忆录",
+  workflow: "default" as const,
+  status: "completed" as const,
+  initialState: "complete" as const,
+};
+
+export const completedProjectTaskExamples = [
+  completedProjectTaskExample,
+  completedCustomerProposalExample,
 ];
 
 export const quickStartCards = [

@@ -8,7 +8,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { projectGroups, recentItems, taskItems } from "../data/workspace";
+import { completedProjectTaskExamples, projectGroups, recentItems, taskItems } from "../data/workspace";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
 import { useI18n } from "../i18n";
@@ -24,6 +24,7 @@ type SidebarProps = {
   onCreateTaskInProject?: (project: { id: number; name: string }) => void;
   createdTask?: { id: number; title: string; projectId: number | null } | null;
   onOpenTask?: (taskId: number) => void;
+  onSelectStaticRow?: () => void;
   onDeleteTask?: (taskId: number) => void;
   onMoveTask?: (taskId: number, projectId: number | null) => void;
 };
@@ -69,6 +70,7 @@ export function Sidebar({
   onCreateTaskInProject,
   createdTask,
   onOpenTask,
+  onSelectStaticRow,
   onDeleteTask,
   onMoveTask,
 }: SidebarProps) {
@@ -103,7 +105,9 @@ export function Sidebar({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const collapsedMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastCreatedTaskIdRef = useRef<number | null>(null);
-  const createdTaskIdsRef = useRef(new Map<string, number>());
+  const createdTaskIdsRef = useRef(new Map<string, number>(
+    completedProjectTaskExamples.map((task) => [`${task.projectId}:${task.title}`, task.id]),
+  ));
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
   const visibleRecentItems = recentItems
     .filter(([title, meta]) =>
@@ -122,7 +126,10 @@ export function Sidebar({
     createdTaskIdsRef.current.set(taskKey, createdTask.id);
 
     if (createdTask.projectId === null) {
-      setTasks((current) => [createdTask.title, ...current]);
+      setTasks((current) => [
+        createdTask.title,
+        ...current.filter((title) => title !== createdTask.title),
+      ]);
       setTasksExpanded(true);
       setSelectedRow({ kind: "task", taskIndex: 0 });
       return;
@@ -133,7 +140,14 @@ export function Sidebar({
     setGroups((current) =>
       current.map((group) =>
         group.id === createdTask.projectId
-          ? { ...group, items: [createdTask.title, ...group.items], expanded: true }
+          ? {
+              ...group,
+              items: [
+                createdTask.title,
+                ...group.items.filter((title) => title !== createdTask.title),
+              ],
+              expanded: true,
+            }
           : group,
       ),
     );
@@ -148,7 +162,12 @@ export function Sidebar({
 
   const openSavedTask = (projectId: number | null, title: string) => {
     const taskId = createdTaskIdsRef.current.get(`${projectId ?? "task"}:${title}`);
-    if (taskId !== undefined) onOpenTask?.(taskId);
+    if (taskId !== undefined) {
+      setSelectedRow(null);
+      onOpenTask?.(taskId);
+      return;
+    }
+    onSelectStaticRow?.();
   };
 
   const openCollapsedMenu = (menu: "projects" | "tasks") => {
@@ -655,7 +674,10 @@ export function Sidebar({
             <button
               type="button"
               className={activeView === "preferences" ? "is-selected" : ""}
-              onClick={onOpenPreferences}
+              onClick={() => {
+                setSelectedRow(null);
+                onOpenPreferences?.();
+              }}
             >
               <FigmaIcon name="company-info" size={20} />
               <span title={t("业务偏好档案")}>{t("业务偏好档案")}</span>
@@ -781,11 +803,11 @@ export function Sidebar({
                     <div className="tree-group__children-inner">
                   {group.items.map((item, itemIndex) => {
                     const mappedTaskId = createdTaskIdsRef.current.get(`${group.id}:${item}`);
-                    const isSelected = mappedTaskId !== undefined
+                    const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
                       ? activeTaskId === mappedTaskId
-                      : selectedRow?.kind === "item" &&
+                      : activeTaskId === null && selectedRow?.kind === "item" &&
                         selectedRow.groupId === group.id &&
-                        selectedRow.itemIndex === itemIndex;
+                        selectedRow.itemIndex === itemIndex);
 
                     return (
                       <div
@@ -895,9 +917,9 @@ export function Sidebar({
               <div className="sidebar-section__content-inner">
               {tasks.map((item, index) => {
                 const mappedTaskId = createdTaskIdsRef.current.get(`task:${item}`);
-                const isSelected = mappedTaskId !== undefined
+                const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
                   ? activeTaskId === mappedTaskId
-                  : selectedRow?.kind === "task" && selectedRow.taskIndex === index;
+                  : activeTaskId === null && selectedRow?.kind === "task" && selectedRow.taskIndex === index);
                 const isMenuOpen =
                   actionMenu?.target.kind === "task" &&
                   actionMenu.target.taskIndex === index;
@@ -1088,10 +1110,13 @@ export function Sidebar({
                   >
                     <div className="tree-group__children-inner">
                       {group.items.map((item, itemIndex) => {
-                        const isSelected =
-                          selectedRow?.kind === "item" &&
-                          selectedRow.groupId === group.id &&
-                          selectedRow.itemIndex === itemIndex;
+                        const mappedTaskId = createdTaskIdsRef.current.get(`${group.id}:${item}`);
+                        const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
+                          ? activeTaskId === mappedTaskId
+                          : activeTaskId === null &&
+                            selectedRow?.kind === "item" &&
+                            selectedRow.groupId === group.id &&
+                            selectedRow.itemIndex === itemIndex);
                         const isMenuOpen =
                           actionMenu?.target.kind === "item" &&
                           actionMenu.target.groupIndex === groupIndex &&
@@ -1203,8 +1228,11 @@ export function Sidebar({
               }}
             >
               {tasks.map((item, index) => {
-                const isSelected =
-                  selectedRow?.kind === "task" && selectedRow.taskIndex === index;
+                const mappedTaskId = createdTaskIdsRef.current.get(`task:${item}`);
+                const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
+                  ? activeTaskId === mappedTaskId
+                  : activeTaskId === null &&
+                    selectedRow?.kind === "task" && selectedRow.taskIndex === index);
                 const isMenuOpen =
                   actionMenu?.target.kind === "task" &&
                   actionMenu.target.taskIndex === index;

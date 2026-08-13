@@ -6,9 +6,10 @@ import { Button, QuickReplyButton } from "./Button";
 import { DownloadFormatMenu } from "./DownloadFormatMenu";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
-import { CandidateImageLightbox, MasonryImageSelection } from "./ImageSelection";
+import { ImageGalleryLightbox, MasonryImageSelection } from "./ImageSelection";
 import { TaskConversationComposer } from "./TaskConversationComposer";
 import { ResearchScopeForm } from "./ResearchScopeForm";
+import { SelectionCard } from "./SelectionCard";
 import { AnalysisStepIcon, ConversationFeed, ConversationFileCard, ConversationFormTitle, ConversationStatusIcon as StatusIcon, ConversationTaskCompletion, ConversationUserMessage, TaskArtifactRow, TaskDisclosure } from "./ConversationPrimitives";
 import { candidateCategories, candidatePageCount, candidateReferenceImages, formatCandidateSelection, formatTrendDirectionSelection, getCandidateCategoryLabel, getCandidateReference, getReferencePackageData, trendDirections, trendReportDetails, type CandidateCategoryId } from "../data/referenceCatalog";
 import { buildFashionProposalHtml } from "../report/fashionProposalHtml";
@@ -233,24 +234,17 @@ function TrendDirectionSelectionForm({
         {trendDirections.map((direction) => {
           const selected = selectedIds.includes(direction.id);
           return (
-            <button
-              type="button"
-              className={`visual-direction-choice-card ${selected ? "is-selected" : ""}`}
-              aria-pressed={selected}
+            <SelectionCard
+              mode="checkbox"
+              selected={selected}
               disabled={confirmed}
-              onClick={() => onToggle(direction.id)}
+              image={{ src: assetUrl("assets/figma-confirmed/trend-direction-thumbnail.png") }}
+              title={`${direction.id}·${direction.title}`}
+              description={direction.description}
+              supporting={direction.recommendation}
+              onSelect={() => onToggle(direction.id)}
               key={direction.id}
-            >
-              <img src={assetUrl("assets/figma-confirmed/trend-direction-thumbnail.png")} alt="" />
-              <span>
-                <strong>{direction.id}·{direction.title}</strong>
-                <span>{direction.description}</span>
-                <small>{direction.recommendation}</small>
-              </span>
-              <span className="new-product-direction-check" aria-hidden="true">
-                {selected ? <FigmaIcon name="check-bold" size={12} /> : null}
-              </span>
-            </button>
+            />
           );
         })}
       </div>
@@ -263,39 +257,52 @@ function TrendDirectionSelectionForm({
   );
 }
 
-export function ConversationWorkspace({ prompt, profileName }: { prompt: string; profileName?: string }) {
+export function ConversationWorkspace({ prompt, profileName, initialState = "default" }: {
+  prompt: string;
+  profileName?: string;
+  initialState?: "default" | "complete";
+}) {
   const { locale, t } = useI18n();
+  const startsComplete = initialState === "complete";
   const profileScopeDefaults = getResearchScopeDefaults(profileName, locale);
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
-  const [analysisExpanded, setAnalysisExpanded] = useState(true);
-  const [analysisPhase, setAnalysisPhase] = useState<AnalysisPhase>("parsing");
-  const [profileVisible, setProfileVisible] = useState(false);
-  const [analysisVisible, setAnalysisVisible] = useState(false);
+  const [analysisExpanded, setAnalysisExpanded] = useState(!startsComplete);
+  const [analysisPhase, setAnalysisPhase] = useState<AnalysisPhase>(startsComplete ? "complete" : "parsing");
+  const [profileVisible, setProfileVisible] = useState(startsComplete);
+  const [analysisVisible, setAnalysisVisible] = useState(startsComplete);
   const [followUp, setFollowUp] = useState("");
-  const [scopeFormVisible, setScopeFormVisible] = useState(false);
+  const [composerFocusRequest, setComposerFocusRequest] = useState(0);
+  const [scopeFormVisible, setScopeFormVisible] = useState(startsComplete);
   const [scopeEntryMessage, setScopeEntryMessage] = useState("继续");
   const [seasonSkipped, setSeasonSkipped] = useState(false);
-  const [scopeConfirmed, setScopeConfirmed] = useState(false);
-  const [scopeResultStage, setScopeResultStage] = useState(0);
+  const [scopeConfirmed, setScopeConfirmed] = useState(startsComplete);
+  const [scopeResultStage, setScopeResultStage] = useState(startsComplete ? 5 : 0);
   const [trendScanExpanded, setTrendScanExpanded] = useState(true);
   const [trendPreviewOpen, setTrendPreviewOpen] = useState(false);
   const [trendPreviewKind, setTrendPreviewKind] = useState<TrendPreviewKind>("research");
-  const [selectedTrendIds, setSelectedTrendIds] = useState<string[]>([]);
-  const [trendDirectionsConfirmed, setTrendDirectionsConfirmed] = useState(false);
+  const [selectedTrendIds, setSelectedTrendIds] = useState<string[]>(
+    startsComplete ? trendDirections.slice(0, 2).map((direction) => direction.id) : [],
+  );
+  const [trendDirectionsConfirmed, setTrendDirectionsConfirmed] = useState(startsComplete);
   const [candidateSearchExpanded, setCandidateSearchExpanded] = useState(true);
-  const [candidateSearchStage, setCandidateSearchStage] = useState(0);
-  const [candidateSearchRun, setCandidateSearchRun] = useState(0);
-  const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
-  const [candidateSelectionConfirmed, setCandidateSelectionConfirmed] = useState(false);
-  const [customerFeedbackSkipped, setCustomerFeedbackSkipped] = useState(false);
-  const [generationDecision, setGenerationDecision] = useState<GenerationDecision | null>(null);
-  const [customerProposalStage, setCustomerProposalStage] = useState<"idle" | "ai-generating" | "results" | "proposal-generating" | "complete">("idle");
-  const [aiGenerationProgress, setAiGenerationProgress] = useState(0);
-  const [proposalGenerationProgress, setProposalGenerationProgress] = useState(0);
+  const [candidateSearchStage, setCandidateSearchStage] = useState(startsComplete ? 5 : 0);
+  const [candidateSearchRun, setCandidateSearchRun] = useState(startsComplete ? 1 : 0);
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>(
+    startsComplete ? candidateReferenceImages.slice(0, 5).map((candidate) => candidate.id) : [],
+  );
+  const [candidateSelectionConfirmed, setCandidateSelectionConfirmed] = useState(startsComplete);
+  const [customerFeedbackSkipped, setCustomerFeedbackSkipped] = useState(startsComplete);
+  const [generationDecision, setGenerationDecision] = useState<GenerationDecision | null>(startsComplete ? "confirm" : null);
+  const [generationEntryMessage, setGenerationEntryMessage] = useState("确认并生成");
+  const [customerProposalStage, setCustomerProposalStage] = useState<"idle" | "ai-generating" | "results" | "proposal-generating" | "complete">(startsComplete ? "complete" : "idle");
+  const [aiGenerationProgress, setAiGenerationProgress] = useState(startsComplete ? 4 : 0);
+  const [proposalGenerationProgress, setProposalGenerationProgress] = useState(startsComplete ? 4 : 0);
   const [aiGenerationExpanded, setAiGenerationExpanded] = useState(true);
   const [proposalGenerationExpanded, setProposalGenerationExpanded] = useState(true);
-  const [selectedAiResultIds, setSelectedAiResultIds] = useState<string[]>([]);
-  const [aiResultsConfirmed, setAiResultsConfirmed] = useState(false);
+  const [selectedAiResultIds, setSelectedAiResultIds] = useState<string[]>(
+    startsComplete ? customerAiResultImages.slice(0, 5).map((item) => item.id) : [],
+  );
+  const [aiResultsConfirmed, setAiResultsConfirmed] = useState(startsComplete);
   const [aiResultPreviewId, setAiResultPreviewId] = useState<string | null>(null);
   const [customerRegenerationPhase, setCustomerRegenerationPhase] = useState<"idle" | "queued" | "generating">("idle");
   const [customerRegenerationTargetIds, setCustomerRegenerationTargetIds] = useState<string[]>([]);
@@ -327,6 +334,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   useModalFocus(trendPreviewDialogRef, trendPreviewOpen, () => setTrendPreviewOpen(false));
 
   useEffect(() => {
+    if (startsComplete) return;
     if (reduceMotion) {
       setProfileVisible(true);
       setAnalysisVisible(true);
@@ -350,7 +358,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
       window.clearTimeout(analysisTimer);
       window.clearTimeout(completionTimer);
     };
-  }, [reduceMotion]);
+  }, [reduceMotion, startsComplete]);
 
   useEffect(() => {
     if (profileName || scopeConfirmed || scopeTouchedRef.current) return;
@@ -379,14 +387,16 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
 
   useEffect(() => {
     if (!scopeConfirmed) return;
+    if (startsComplete) return;
     const frame = window.requestAnimationFrame(() => {
       confirmedResultsRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [reduceMotion, scopeConfirmed]);
+  }, [reduceMotion, scopeConfirmed, startsComplete]);
 
   useEffect(() => {
     if (!scopeConfirmed) return;
+    if (startsComplete) return;
     setScopeResultStage(0);
     if (reduceMotion) {
       setScopeResultStage(5);
@@ -399,10 +409,11 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
     ];
     const timers = stages.map(({ delay, value }) => window.setTimeout(() => setScopeResultStage(value), delay));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [reduceMotion, scopeConfirmed]);
+  }, [reduceMotion, scopeConfirmed, startsComplete]);
 
   useEffect(() => {
     if (!trendDirectionsConfirmed || !candidateSearchRun) return;
+    if (startsComplete) return;
     setCandidateSearchStage(0);
     if (reduceMotion) {
       setCandidateSearchStage(5);
@@ -418,7 +429,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
       delay,
     ));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [candidateSearchRun, reduceMotion, trendDirectionsConfirmed]);
+  }, [candidateSearchRun, reduceMotion, startsComplete, trendDirectionsConfirmed]);
 
   useEffect(() => {
     if (candidateSearchStage !== 1 && candidateSearchStage !== 5) return;
@@ -521,11 +532,20 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   const submitFollowUp = () => {
     const message = followUp.trim();
     if (!message) return;
-    if (analysisComplete && message === "继续") {
-      setScopeEntryMessage("继续");
-      setScopeFormVisible(true);
+    if (candidateSelectionConfirmed && customerFeedbackSkipped && !generationDecision) {
+      setGenerationEntryMessage(message);
+      startCustomerAiGeneration();
+    } else if (analysisComplete && !scopeFormVisible) {
+      if (message === "继续") {
+        setScopeEntryMessage("继续");
+        setScopeFormVisible(true);
+      } else if (message === "跳过") {
+        setSeasonSkipped(true);
+      } else {
+        setScopeEntryMessage(message);
+        setScopeFormVisible(true);
+      }
     }
-    if (analysisComplete && message === "跳过") setSeasonSkipped(true);
     setFollowUp("");
   };
 
@@ -677,7 +697,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
   const conversationPlaceholder = !analysisComplete
     ? "Agent 正在解析需求，请稍候..."
     : !scopeFormVisible
-      ? "补充季节，或回复“跳过”；输入“继续”进入调研范围..."
+      ? "补充季节或其他条件；输入“继续”进入调研范围..."
       : !scopeConfirmed
         ? "请完成上方调研范围表单，或输入需要补充的条件..."
       : !trendScanComplete
@@ -843,7 +863,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                     variants={conversationBlockReveal}
                     transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : 0.18, ease: revealEase }}
                   >
-                    <p><StreamingText delay={2.02}>请确认【季节】，可直接补充，也可回复“跳过”保留未指定状态。确认后回复“继续”进入调研范围。</StreamingText></p>
+                    <p><StreamingText delay={2.02}>请确认【季节】，可直接补充；没有补充时可继续进入调研范围。</StreamingText></p>
                     {!scopeFormVisible && !seasonSkipped ? (
                       <motion.div
                         className="conversation-quick-actions"
@@ -854,8 +874,8 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                         variants={{ visible: { transition: { delayChildren: reduceMotion ? 0 : 0.24, staggerChildren: reduceMotion ? 0 : 0.06 } } }}
                       >
                         <motion.span className="conversation-quick-action" variants={quickActionReveal}>
-                          <Button variant="outline" size="small" onClick={() => useSeasonQuickReply("跳过")}>
-                            跳过
+                          <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>
+                            补充条件
                           </Button>
                         </motion.span>
                         <motion.span className="conversation-quick-action" variants={quickActionReveal}>
@@ -964,7 +984,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                           transition={{ duration: reduceMotion ? 0 : 0.32, ease: revealEase }}
                           data-node-id="488:112602"
                         >
-                          <p data-message-actions={trendScanComplete ? "true" : undefined}>范围已确认。我会先做小样本趋势方向扫描，分别整理趋势资料、电商供给/竞争与社媒信号，不直接进入候选池。</p>
+                          <p>范围已确认。我会先做小样本趋势方向扫描，分别整理趋势资料、电商供给/竞争与社媒信号，不直接进入候选池。</p>
                           <TaskDisclosure
                             title="趋势方向扫描"
                             expanded={trendScanExpanded}
@@ -1078,7 +1098,6 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                                 {candidateSearchStage >= 1 ? (
                                   <motion.article
                                     className="conversation-message conversation-message--assistant conversation-candidate-copy"
-                                    data-message-actions={candidateSearchComplete ? "true" : undefined}
                                     initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: reduceMotion ? 0 : 0.3, ease: revealEase }}
@@ -1239,7 +1258,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                                   }}
                                   data-node-id="567:69268"
                                 >
-                                  <motion.p variants={quickActionReveal} data-message-actions="true">
+                                  <motion.p variants={quickActionReveal}>
                                     已将 {selectedCandidateIds.length} 张客户参考图、已确认视觉方向和简洁市场依据整理为对外方向参考包。当前等待客户反馈；可以直接粘贴文字、聊天截图、标注图或文档。
                                   </motion.p>
                                   <motion.div className="candidate-reference-handoff__file" variants={quickActionReveal}>
@@ -1278,7 +1297,6 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                               {candidateSelectionConfirmed && customerFeedbackSkipped ? (
                                 <motion.article
                                   className="conversation-message conversation-message--assistant candidate-generation-assumptions"
-                                  data-message-actions="true"
                                   initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.08, ease: revealEase }}
@@ -1296,8 +1314,8 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                                   </p>
                                   {!generationDecision ? (
                                     <div className="candidate-generation-assumptions__actions">
-                                      <Button variant="outline" size="small" onClick={() => setGenerationDecision("skip")}>跳过</Button>
-                                      <Button variant="primary" size="small" onClick={startCustomerAiGeneration}>
+                                      <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>补充反馈</Button>
+                                      <Button variant="primary" size="small" onClick={() => { setGenerationEntryMessage("确认并生成"); startCustomerAiGeneration(); }}>
                                         <span>确认并生成</span>
                                         <FigmaIcon name="arrow-right" size={20} />
                                       </Button>
@@ -1311,13 +1329,12 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
                                 >
-                                  {generationDecision === "confirm" ? "确认并生成" : "跳过"}
+                                  {generationDecision === "confirm" ? generationEntryMessage : "跳过"}
                                 </ConversationUserMessage>
                               ) : null}
                               {generationDecision === "confirm" && customerProposalStage !== "idle" ? (
                                 <motion.article
                                   className="conversation-message conversation-message--assistant customer-ai-generation-message"
-                                  data-message-actions="true"
                                   initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.08, ease: revealEase }}
@@ -1341,7 +1358,6 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                               {["results", "proposal-generating", "complete"].includes(customerProposalStage) ? (
                                 <motion.article
                                   className="conversation-message conversation-message--assistant customer-ai-results-message"
-                                  data-message-actions="true"
                                   initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: reduceMotion ? 0 : 0.32, ease: revealEase }}
@@ -1413,7 +1429,6 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                               {customerRegenerationRound > 0 && !customerRegenerationBusy && customerProposalStage === "results" ? (
                                 <motion.article
                                   className="conversation-message conversation-message--assistant"
-                                  data-message-actions="true"
                                   initial={reduceMotion ? false : { opacity: 0, y: 6 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
@@ -1433,7 +1448,6 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
                               {["proposal-generating", "complete"].includes(customerProposalStage) ? (
                                 <motion.article
                                   className="conversation-message conversation-message--assistant customer-proposal-generation-message"
-                                  data-message-actions="true"
                                   initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: reduceMotion ? 0 : 0.3, ease: revealEase }}
@@ -1499,6 +1513,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
           isRunning={customerProposalRunning}
           onStop={stopCustomerProposalTask}
           motionDelay={0.16}
+          focusRequest={composerFocusRequest}
         />
       </section>
 
@@ -1616,7 +1631,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
         document.body,
       )}
       {candidatePreviewId ? (
-        <CandidateImageLightbox
+        <ImageGalleryLightbox
           categories={candidateCategories}
           items={candidateReferenceImages}
           activeCategoryId={activeCandidateCategory}
@@ -1630,7 +1645,7 @@ export function ConversationWorkspace({ prompt, profileName }: { prompt: string;
         />
       ) : null}
       {aiResultPreviewId ? (
-        <CandidateImageLightbox
+        <ImageGalleryLightbox
           categories={candidateCategories}
           items={displayedCustomerAiResults}
           activeCategoryId={getCandidateReference(aiResultPreviewId)?.categoryId ?? candidateCategories[0].id}

@@ -23,6 +23,7 @@ type TaskConversationComposerProps = {
   onStop?: () => void;
   className?: string;
   motionDelay?: number;
+  focusRequest?: number;
 };
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
@@ -38,6 +39,7 @@ export function TaskConversationComposer({
   onStop,
   className = "",
   motionDelay = 0,
+  focusRequest = 0,
 }: TaskConversationComposerProps) {
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
@@ -48,6 +50,14 @@ export function TaskConversationComposer({
   const attachmentUrlsRef = useRef(new Set<string>());
   const reduceMotion = useReducedMotion();
   const { textareaRef, height } = useAutoGrowTextarea(value, 144, 320, 64 + (attachments.length ? 36 : 0));
+
+  useEffect(() => {
+    if (!focusRequest || disabled) return;
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }, [disabled, focusRequest, textareaRef]);
 
   useEffect(() => {
     const conversationStage = composerRef.current?.closest<HTMLElement>(".conversation-stage");

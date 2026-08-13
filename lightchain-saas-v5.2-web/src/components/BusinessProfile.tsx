@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { motion, useReducedMotion } from "motion/react";
 import { createPortal } from "react-dom";
 import { FigmaIcon } from "./FigmaIcon";
+import { Radio } from "./Radio";
 import { assetUrl } from "../utils/assets";
 import { primaryPageEntrance, primaryPageEntranceFadeItem, primaryPageEntranceItem } from "../utils/pageMotion";
 import { useI18n } from "../i18n";
+import { Toast } from "./Toast";
 
 type ArchiveView = "list" | "create" | "edit" | "parsing" | "confirm" | "detail";
 type UploadState = "idle" | "ready";
@@ -427,7 +429,7 @@ export function BusinessProfile({ onCreateTask }: { onCreateTask?: (profile: Pro
   };
 
   if (view === "detail" && activeProfile) {
-    return <><ProfileDetail profile={activeProfile} onBack={returnToList} onCreateTask={onCreateTask} onEdit={() => { setForm(formFromProfile(activeProfile)); setView("edit"); }} onReparse={() => setDetailUploadOpen(true)} onRename={(name) => { const updated = { ...activeProfile, name, updated: "刚刚" }; setProfiles((current) => current.map((profile) => profile.id === updated.id ? updated : profile)); setActiveProfile(updated); notify(t("档案已重命名")); }} onDuplicate={() => { const prefix = activeProfile.name.replace(/-\d+$/, ""); let index = 1; while (profiles.some((profile) => profile.name === `${prefix}-${index}`)) index += 1; const copiedProfile = { ...activeProfile, id: Date.now(), name: `${prefix}-${index}`, updated: "刚刚" }; setProfiles((current) => [copiedProfile, ...current]); notify(t("复制成功")); }} onDelete={() => { setProfiles((current) => current.filter((profile) => profile.id !== activeProfile.id)); runViewTransition(() => setArchiveView("list", null)); notify(t("档案已删除")); }} />{detailUploadOpen && <UploadModal onClose={() => setDetailUploadOpen(false)} onConfirm={() => { setDetailUploadOpen(false); setForm(formFromProfile(activeProfile)); setUploadState("ready"); setView("parsing"); }} />}{toast && <div className="profile-toast" role="status">{toast}</div>}</>;
+    return <><ProfileDetail profile={activeProfile} onBack={returnToList} onCreateTask={onCreateTask} onEdit={() => { setForm(formFromProfile(activeProfile)); setView("edit"); }} onReparse={() => setDetailUploadOpen(true)} onRename={(name) => { const updated = { ...activeProfile, name, updated: "刚刚" }; setProfiles((current) => current.map((profile) => profile.id === updated.id ? updated : profile)); setActiveProfile(updated); notify(t("档案已重命名")); }} onDuplicate={() => { const prefix = activeProfile.name.replace(/-\d+$/, ""); let index = 1; while (profiles.some((profile) => profile.name === `${prefix}-${index}`)) index += 1; const copiedProfile = { ...activeProfile, id: Date.now(), name: `${prefix}-${index}`, updated: "刚刚" }; setProfiles((current) => [copiedProfile, ...current]); notify(t("复制成功")); }} onDelete={() => { setProfiles((current) => current.filter((profile) => profile.id !== activeProfile.id)); runViewTransition(() => setArchiveView("list", null)); notify(t("档案已删除")); }} />{detailUploadOpen && <UploadModal onClose={() => setDetailUploadOpen(false)} onConfirm={() => { setDetailUploadOpen(false); setForm(formFromProfile(activeProfile)); setUploadState("ready"); setView("parsing"); }} />}<Toast message={toast} /></>;
   }
 
   if (view === "parsing" || view === "confirm") {
@@ -445,7 +447,7 @@ export function BusinessProfile({ onCreateTask }: { onCreateTask?: (profile: Pro
   }
 
   if (view === "edit" && activeProfile) {
-    return <><CreatePage form={form} setForm={setForm} uploadState={uploadState} complete={complete} canSave={canSave} editing onBack={() => setView("detail")} onSelectFile={() => setUploadOpen(true)} onRemoveFile={() => setUploadState("idle")} onSave={saveModification} onCancel={() => setView("detail")} />{uploadOpen && <UploadModal onClose={() => setUploadOpen(false)} onConfirm={() => { setUploadOpen(false); setUploadState("ready"); setView("parsing"); }} />}{toast && <div className="profile-toast" role="status">{toast}</div>}</>;
+    return <><CreatePage form={form} setForm={setForm} uploadState={uploadState} complete={complete} canSave={canSave} editing onBack={() => setView("detail")} onSelectFile={() => setUploadOpen(true)} onRemoveFile={() => setUploadState("idle")} onSave={saveModification} onCancel={() => setView("detail")} />{uploadOpen && <UploadModal onClose={() => setUploadOpen(false)} onConfirm={() => { setUploadOpen(false); setUploadState("ready"); setView("parsing"); }} />}<Toast message={toast} /></>;
   }
 
   const hasProfiles = visibleProfiles.length > 0;
@@ -468,7 +470,7 @@ export function BusinessProfile({ onCreateTask }: { onCreateTask?: (profile: Pro
             <div className="profile-empty-card"><div className="profile-empty-content"><div className="profile-empty-art"><img className="profile-empty-art__cut" src={profileArt("EmptyIcon.png")} alt="" /></div><div className="profile-empty-copy"><strong>{t(query ? "没有匹配的档案" : "还没有业务偏好档案")}</strong><span>{t(query ? "试试其他名称，或创建一个新的档案" : "保存品类、价格段、国家和目标年龄，后续任务无需重复输入")}</span></div></div>{!query && <button className="profile-button profile-button--primary profile-button--small" type="button" onClick={openCreate}>{t("创建第一个档案")}</button>}</div>
           ) : <div className="profile-list">{filteredProfiles.map((profile) => <ProfileCard profile={profile} key={profile.id} onDetail={() => openDetail(profile)} onCreateTask={onCreateTask} onRename={(name) => { setProfiles((current) => current.map((item) => item.id === profile.id ? { ...item, name, updated: "刚刚" } : item)); notify(t("档案已重命名")); }} onDuplicate={() => { const prefix = profile.name.replace(/-\d+$/, ""); let index = 1; while (profiles.some((item) => item.name === `${prefix}-${index}`)) index += 1; setProfiles((current) => [{ ...profile, id: Date.now(), name: `${prefix}-${index}`, updated: "刚刚" }, ...current]); notify(t("复制成功")); }} onDelete={() => { setProfiles((current) => current.filter((item) => item.id !== profile.id)); notify(t("档案已删除")); }} />)}<div className="profile-list-end"><i />{t("没有更多内容了")}<i /></div></div>}
         </motion.section>
-      </motion.div>{toast && <div className="profile-toast" role="status">{toast}</div>}
+      </motion.div><Toast message={toast} />
     </main>
   );
 }
@@ -496,7 +498,7 @@ function CreatePage({ form, setForm, uploadState, complete, canSave, parsing, ed
         <SelectField label="渠道" values={form.channels} placeholder="选择平台" options={["ZOZOTOWN", "Rakuten Fashion", "天猫", "京东", "抖音"]} onChange={(value) => change("channels", value)} />
         <SelectField label="参考品牌" values={form.brands} placeholder="输入品牌名称" options={["优衣库", "GU", "GAP", "COS", "ZARA"]} onChange={(value) => change("brands", value)} />
       </motion.form>
-      <motion.footer className="profile-form-footer" variants={primaryPageEntranceFadeItem}><button className="profile-button profile-button--outline" type="button" disabled={complete === 0} onClick={() => setForm(blankForm())}><FigmaIcon name="reset" size={20} />{t("重置")}</button><span>{t("已完成")} <b>{complete} / 5</b> {t("项必填内容")}</span><div><button className="profile-button profile-button--secondary" type="button" onClick={onCancel}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" disabled={!canSave} onClick={onSave}>{t(editing ? "保存修改" : "保存档案")}</button></div></motion.footer>
+      <motion.footer className="profile-form-footer" variants={primaryPageEntranceFadeItem}><button className="profile-button profile-button--outline" type="button" disabled={complete === 0} onClick={() => setForm(blankForm())}><FigmaIcon name="reset" size={20} />{t("重置")}</button><span>{t("已完成")} <b>{complete} / 5</b> {t("项必填内容")}</span><div><button className="profile-button profile-button--outline" type="button" onClick={onCancel}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" disabled={!canSave} onClick={onSave}>{t(editing ? "保存修改" : "保存档案")}</button></div></motion.footer>
     </motion.div></main>
   );
 }
@@ -533,14 +535,13 @@ function ParseConfirm({ choice, onChoice, onCancel, onApply }: { choice: string;
   const choices = ["JPY 8,000 – 18,000", "JPY 12,000 – 25,000", "暂不预填"];
   const successIcon = assetUrl("assets/figma-icons/success.svg");
   const infoIcon = assetUrl("assets/figma-icons/info-circle.svg");
-  const radioDot = assetUrl("assets/figma-icons/radio-dot.svg");
   const recognised = ["品类：女装", "价格段：JPY8,000–18,000", "国家：日本", "年龄段：25–34岁、35–44岁", "渠道：ZOZOTOWN、Rakuten Fashion"];
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onCancel(); };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onCancel]);
-  return <div className="profile-confirm-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}><section className="profile-confirm" role="dialog" aria-modal="true" aria-labelledby="parse-title"><button className="profile-confirm__close" type="button" aria-label={t("关闭")} onClick={onCancel}><FigmaIcon name="close" size={20} /></button><h2 id="parse-title">{t("资料解析完成")}</h2><p>{t("已识别并可预填 5 项信息，未提及内容保持为空。")}</p><ul>{recognised.map((value) => <li key={value}><img src={successIcon} alt="" /><span>{t(value)}</span></li>)}<li className="is-warning"><img src={infoIcon} alt="" /><span>{t("未识别：参考品牌")}</span></li></ul><div className="profile-confirm__divider" aria-hidden="true" /><strong>{t("价格段同时出现两个候选，请选择")}</strong><div className="profile-confirm__choices" role="radiogroup">{choices.map((value) => <button type="button" role="radio" aria-checked={choice === value} key={value} onClick={() => onChoice(value)}><span className={`profile-radio ${choice === value ? "is-checked" : ""}`}>{choice === value && <img src={radioDot} alt="" />}</span><span>{t(value)}</span></button>)}</div><footer><button className="profile-button profile-button--secondary" type="button" onClick={onCancel}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" onClick={onApply}>{t("应用预填结果")}</button></footer></section></div>;
+  return <div className="profile-confirm-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}><section className="profile-confirm" role="dialog" aria-modal="true" aria-labelledby="parse-title"><button className="profile-confirm__close" type="button" aria-label={t("关闭")} onClick={onCancel}><FigmaIcon name="close" size={20} /></button><h2 id="parse-title">{t("资料解析完成")}</h2><p>{t("已识别并可预填 5 项信息，未提及内容保持为空。")}</p><ul>{recognised.map((value) => <li key={value}><img src={successIcon} alt="" /><span>{t(value)}</span></li>)}<li className="is-warning"><img src={infoIcon} alt="" /><span>{t("未识别：参考品牌")}</span></li></ul><div className="profile-confirm__divider" aria-hidden="true" /><strong>{t("价格段同时出现两个候选，请选择")}</strong><div className="profile-confirm__choices" role="radiogroup">{choices.map((value) => <button type="button" role="radio" aria-checked={choice === value} key={value} onClick={() => onChoice(value)}><Radio checked={choice === value} /><span>{t(value)}</span></button>)}</div><footer><button className="profile-button profile-button--secondary" type="button" onClick={onCancel}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" onClick={onApply}>{t("应用预填结果")}</button></footer></section></div>;
 }
 
 function ProfileActionDialog({ mode, profile, name, titleId, onNameChange, onClose, onRename, onDelete }: { mode: "rename" | "delete"; profile: Profile; name: string; titleId: string; onNameChange: (name: string) => void; onClose: () => void; onRename: (name: string) => void; onDelete: () => void }) {

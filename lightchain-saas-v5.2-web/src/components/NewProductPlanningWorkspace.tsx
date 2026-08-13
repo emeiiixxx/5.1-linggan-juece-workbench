@@ -5,10 +5,10 @@ import { assetUrl } from "../utils/assets";
 import { Button, QuickReplyButton } from "./Button";
 import { DownloadFormatMenu, type DownloadFormat } from "./DownloadFormatMenu";
 import {
-  CandidateImageLightbox,
+  ImageGalleryLightbox,
   MasonryImageSelection,
-  type CandidateLightboxCategory,
-  type CandidateLightboxItem,
+  type ImageGalleryCategory,
+  type ImageGalleryItem,
 } from "./ImageSelection";
 import {
   AnalysisStepIcon,
@@ -23,6 +23,7 @@ import {
   type ConversationStepStatus,
 } from "./ConversationPrimitives";
 import { FigmaIcon } from "./FigmaIcon";
+import { SelectionCard } from "./SelectionCard";
 import { IconControl } from "./IconControl";
 import { ResearchScopeForm } from "./ResearchScopeForm";
 import { TaskConversationComposer } from "./TaskConversationComposer";
@@ -106,12 +107,12 @@ const resultDisplayLabels = [
   "Amazon US · 过渡季连衣裙改款",
 ] as const;
 
-const lightboxCategories: readonly CandidateLightboxCategory[] = directions.map((direction) => ({
+const lightboxCategories: readonly ImageGalleryCategory[] = directions.map((direction) => ({
   id: direction.id,
   label: direction.title,
 }));
 
-const resultItems: readonly CandidateLightboxItem[] = resultSources.map((src, index) => ({
+const resultItems: readonly ImageGalleryItem[] = resultSources.map((src, index) => ({
   id: `A${String(index + 1).padStart(2, "0")}`,
   code: `A${String(index + 1).padStart(2, "0")}`,
   title: index < 2 ? "都市轻通勤层次" : index < 4 ? "梦境花园的清晨" : "柔性系列改款",
@@ -210,11 +211,11 @@ function buildMerchandisingPlan(confirmedDirectionCount: number): FashionProposa
   };
 }
 
-function AssistantMessage({ children, className = "" }: { children: ReactNode; className?: string }) {
+function AssistantMessage({ children, className = "", actions = true }: { children: ReactNode; className?: string; actions?: boolean }) {
   return (
     <motion.article
       className={`conversation-message conversation-message--assistant new-product-message ${className}`}
-      data-message-actions="true"
+      data-message-actions={actions ? "true" : undefined}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.32, ease: revealEase }}
@@ -229,9 +230,9 @@ function NewProductLoadingTask({ title, lines, complete = false }: { title: stri
   const controlsId = useId();
   return (
     <TaskDisclosure title={title} expanded={expanded} complete={complete} controlsId={controlsId} onToggle={() => setExpanded((value) => !value)}>
-      {lines.map((line) => (
+      {lines.map((line, index) => (
         <div key={line}>
-          <AnalysisStepIcon complete={complete} />
+          <AnalysisStepIcon complete={complete} delay={index * 0.06} />
           <span>{line}</span>
         </div>
       ))}
@@ -316,23 +317,29 @@ function DownloadableFile({ name, description, html, onPreview }: { name: string
   );
 }
 
-export function NewProductPlanningWorkspace({ prompt, profileName, attachments = [] }: {
+export function NewProductPlanningWorkspace({ prompt, profileName, attachments = [], initialState = "default" }: {
   prompt: string;
   profileName?: string;
   attachments?: { name: string; previewUrl?: string }[];
+  initialState?: "default" | "complete";
 }) {
   const { locale, t } = useI18n();
   const scopeDefaults = getResearchScopeDefaults(profileName, locale);
-  const [stage, setStage] = useState<PlanningStage>("analyzing");
-  const [analysisExpanded, setAnalysisExpanded] = useState(true);
+  const startsComplete = initialState === "complete";
+  const [stage, setStage] = useState<PlanningStage>(startsComplete ? "complete" : "analyzing");
+  const [analysisExpanded, setAnalysisExpanded] = useState(!startsComplete);
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [followUp, setFollowUp] = useState("");
   const [markets, setMarkets] = useState<ResearchMarket[]>(scopeDefaults.markets);
   const [commerce, setCommerce] = useState<string[]>(scopeDefaults.commerce);
   const [social, setSocial] = useState<string[]>(scopeDefaults.social);
   const [otherCommerce, setOtherCommerce] = useState("");
-  const [selectedDirections, setSelectedDirections] = useState<string[]>([]);
-  const [selectedResults, setSelectedResults] = useState<string[]>([]);
+  const [selectedDirections, setSelectedDirections] = useState<string[]>(
+    startsComplete ? directions.slice(0, 2).map((direction) => direction.id) : [],
+  );
+  const [selectedResults, setSelectedResults] = useState<string[]>(
+    startsComplete ? resultItems.slice(0, 5).map((item) => item.id) : [],
+  );
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [activePreviewCategory, setActivePreviewCategory] = useState<string>(directions[0].id);
   const [regenerationPhase, setRegenerationPhase] = useState<"idle" | "queued" | "generating">("idle");
@@ -340,6 +347,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const [regeneratedSources, setRegeneratedSources] = useState<Record<string, string>>({});
   const [regenerationRound, setRegenerationRound] = useState(0);
   const [reportPreview, setReportPreview] = useState<{ name: string; html: string } | null>(null);
+  const [composerFocusRequest, setComposerFocusRequest] = useState(0);
   const reportPreviewDialogRef = useRef<HTMLElement>(null);
   const reduceMotion = useReducedMotion();
   const feedEndRef = useRef<HTMLDivElement>(null);
@@ -573,7 +581,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
               <span>{prompt}</span>
             </ConversationUserMessage>
 
-            <AssistantMessage>
+            <AssistantMessage actions={false}>
               <p>{stage === "analyzing" ? "正在读取需求资料并整理企划边界。" : "已完成需求解析，并保留所有未提供字段为未指定。"}</p>
               <TaskDisclosure title="解析新品企划需求" expanded={analysisExpanded} complete={stage !== "analyzing"} controlsId="new-product-analysis" onToggle={() => setAnalysisExpanded((value) => !value)}>
                 {["读取本次文字、图片和文档", "读取已应用的业务偏好档案", "识别品类、人群、价格、渠道、波段与排除条件", "记录缺失信息，不补造未提供内容"].map((line, index) => <div key={line}><AnalysisStepIcon complete={stage !== "analyzing"} delay={index * 0.06} /><span>{line}</span></div>)}
@@ -590,7 +598,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 <p>资料缺口：无历史销售、旧企划、OTB 预算和真实供应商报价。缺失内容不会补造。</p>
                 {stage === "brief" ? (
                   <div className="new-product-quick-replies">
-                    <Button variant="outline" size="small" onClick={() => setStage("scope")}>跳过未指定项</Button>
+                    <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>补充条件</Button>
                     <QuickReplyButton onClick={() => setStage("scope")}>满意，请继续</QuickReplyButton>
                   </div>
                 ) : null}
@@ -625,7 +633,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
             ) : null}
 
             {["research", "directions", "structure-planning", "structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage) ? (
-              <AssistantMessage>
+              <AssistantMessage actions={false}>
                 <p>调研范围已确认，正在自动完成多来源调研与视觉方向整理。</p>
                 <NewProductLoadingTask
                   title="调研与证据整理"
@@ -655,11 +663,17 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                     {directions.map((direction) => {
                       const selected = selectedDirections.includes(direction.id);
                       return (
-                        <button type="button" className={`visual-direction-choice-card ${selected ? "is-selected" : ""}`} aria-pressed={selected} disabled={stage !== "directions"} onClick={() => toggle(direction.id, setSelectedDirections)} key={direction.id}>
-                          <img src={assetUrl(direction.src)} alt="" />
-                          <span><strong>{direction.title}</strong><span>{direction.description}</span><small>{direction.recommendation}</small></span>
-                          <span className="new-product-direction-check">{selected ? <FigmaIcon name="check-bold" size={12} /> : null}</span>
-                        </button>
+                        <SelectionCard
+                          mode="checkbox"
+                          selected={selected}
+                          disabled={stage !== "directions"}
+                          image={{ src: assetUrl(direction.src) }}
+                          title={direction.title}
+                          description={direction.description}
+                          supporting={direction.recommendation}
+                          onSelect={() => toggle(direction.id, setSelectedDirections)}
+                          key={direction.id}
+                        />
                       );
                     })}
                   </div>
@@ -673,7 +687,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
               : null}
 
             {["structure-planning", "structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage) ? (
-              <AssistantMessage>
+              <AssistantMessage actions={false}>
                 <p>{stage === "structure-planning" ? "视觉方向已确认，正在自动完成商品结构规划。" : "视觉方向已确认，商品结构规划已完成。"}</p>
                 <NewProductLoadingTask
                   title="商品结构规划"
@@ -701,7 +715,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
             ) : null}
 
             {["ai-generating", "results", "plan-generating", "complete"].includes(stage) ? (
-              <AssistantMessage>
+              <AssistantMessage actions={false}>
                 <p>商品结构已确认，正在生成专业改款提示词与 AI 款式图。</p>
                 <NewProductLoadingTask
                   title="AI 改款生成"
@@ -712,7 +726,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
             ) : null}
 
             {["results", "plan-generating", "complete"].includes(stage) ? (
-              <AssistantMessage>
+              <AssistantMessage actions={false}>
                 <p>8 张 AI 改款图已生成。它们继承已确认视觉方向、参考商品特征和商品结构，并按渠道客群区分廓形与表达。</p>
                 <DownloadableFile name="AI 改款结果.html" description="刚刚 · 专业服装提示词已通过完整性检查 · AI 概念表达" />
                 <p>{t("请从改款结果中，选择你喜欢的图片")}</p>
@@ -758,18 +772,18 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
             {regenerationBusy ? (
               <>
                 <ConversationUserMessage>重新生成{regenerationTargetIds.join("、")}</ConversationUserMessage>
-                <AssistantMessage><p>立即为你重新生成所选图片，其他图片保持不变。</p></AssistantMessage>
+                <AssistantMessage actions={false}><p>立即为你重新生成所选图片，其他图片保持不变。</p></AssistantMessage>
               </>
             ) : null}
 
             {regenerationRound > 0 && !regenerationBusy && stage === "results" ? (
-              <AssistantMessage><p>已完成局部重新生成，继续在上方表单选择你满意的图片。</p></AssistantMessage>
+              <AssistantMessage actions={false}><p>已完成局部重新生成，继续在上方表单选择你满意的图片。</p></AssistantMessage>
             ) : null}
 
             {["plan-generating", "complete"].includes(stage) ? (
               <>
                 <ConversationUserMessage>{selectedResults.join("、")}</ConversationUserMessage>
-                <AssistantMessage>
+                <AssistantMessage actions={false}>
                   <p>正在将已确认图片、调研依据、视觉方向和商品结构写入新品企划案。</p>
                   <NewProductLoadingTask title="生成新品企划案" complete={stage === "complete"} lines={["锁定用户确认的 AI 款式图", "关联调研证据、视觉方向与商品结构", "生成统一只读 HTML 查看版本", "准备 HTML、PPT、PDF 下载文件"]} />
                 </AssistantMessage>
@@ -796,7 +810,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
         </div>
 
         <div className="conversation-bottom-fade" aria-hidden="true" />
-        <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} />
+        <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} focusRequest={composerFocusRequest} />
       </section>
 
       <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>
@@ -860,7 +874,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
       )}
 
       {previewId ? (
-        <CandidateImageLightbox
+        <ImageGalleryLightbox
           categories={lightboxCategories}
           items={displayedResultItems}
           activeCategoryId={activePreviewCategory}
