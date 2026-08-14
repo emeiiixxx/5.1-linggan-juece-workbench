@@ -8421,6 +8421,7 @@ img.trend-direction-media__slide {
   align-items: center;
   justify-content: space-between;
   margin: 0 0 8px;
+  padding: 0 8px;
 }
 
 .task-detail-reference-heading h2 {

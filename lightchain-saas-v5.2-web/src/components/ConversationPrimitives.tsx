@@ -577,6 +577,10 @@ export function TaskDetailPanel({
   const [referenceExpanded, setReferenceExpanded] = useState(false);
   const isReferenceGallery = referenceTitle === "参考款式" && references.some((reference) => reference.thumbnail);
 
+  useEffect(() => {
+    if (!isReferenceGallery) setReferenceExpanded(false);
+  }, [isReferenceGallery]);
+
   const renderReference = (reference: TaskDetailReferenceLink, expanded = false) => {
     const content = (
       <>
@@ -633,20 +637,22 @@ export function TaskDetailPanel({
             {artifacts}
           </section>
         ) : null}
-        <section>
-          {isReferenceGallery ? (
-            <div className="task-detail-reference-heading">
-              <h2>{referenceTitle}</h2>
-              <button type="button" onClick={() => setReferenceExpanded(true)}>
-                <span>查看全部</span>
-                <FigmaIcon name="chevron-right" size={16} />
-              </button>
+        {references.length ? (
+          <section>
+            {isReferenceGallery ? (
+              <div className="task-detail-reference-heading">
+                <h2>{referenceTitle}</h2>
+                <button type="button" onClick={() => setReferenceExpanded(true)}>
+                  <span>查看全部</span>
+                  <FigmaIcon name="chevron-right" size={16} />
+                </button>
+              </div>
+            ) : <h2>{referenceTitle}</h2>}
+            <div className="task-detail-reference-list">
+              {references.map((reference) => renderReference(reference))}
             </div>
-          ) : <h2>{referenceTitle}</h2>}
-          <div className="task-detail-reference-list">
-            {references.map((reference) => renderReference(reference))}
-          </div>
-        </section>
+          </section>
+        ) : null}
       </div>
       {isReferenceGallery ? (
         <div className="task-detail-panel__view task-detail-panel__reference-view">

@@ -23,38 +23,42 @@ type GenerationDecision = "skip" | "confirm";
 type TrendDownloadFormat = "HTML" | "PPT" | "PDF";
 type TrendPreviewKind = "research" | "ai-results" | "proposal";
 const evidenceIds = ["EV-PROP-FILE-001", "EV-PROP-ECOM-001", "EV-PROP-SOC-001", "EV-PROP-TRD-001"];
-const customerProposalReferenceStyles: readonly ImageGalleryItem[] = [
-  {
-    id: "customer-reference-style-01",
-    categoryId: "restrained-ruffle",
-    code: "REF 01",
-    src: "assets/new-product/new-product-direction-07.jpg",
-    title: "克制荷叶边实穿上衣",
-    subtitle: "Amazon US · 女装趋势款",
-    badges: ["Amazon US", "过渡季", "荷叶边实穿化"],
+const customerProposalReferenceEvidence = {
+  "01": {
+    subtitle: "Amazon US · 女装通勤款公开商品资料",
+    badges: ["Amazon US", "轻量通勤", "跨场景"],
     sourceUrl: "https://www.amazon.com/Best-Sellers-Womens-Fashion/zgbs/fashion/7147440011",
   },
-  {
-    id: "customer-reference-style-02",
-    categoryId: "heritage-botanical",
-    code: "REF 02",
-    src: "assets/figma-confirmed/candidate-gallery-look-02.png",
-    title: "传承植物印花更新",
-    subtitle: "TikTok Creative Center · 服饰内容信号",
-    badges: ["TikTok", "社媒趋势", "植物印花"],
-    sourceUrl: "https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en",
-  },
-  {
-    id: "customer-reference-style-03",
-    categoryId: "soft-tailoring",
-    code: "REF 03",
-    src: "assets/figma-confirmed/candidate-gallery-look-01.png",
-    title: "柔性结构与轻量层次",
-    subtitle: "Google Trends · 女装趋势信号",
-    badges: ["Google Trends", "轻结构", "通勤"],
+  "02": {
+    subtitle: "Google Trends · 女装面料与层次信号",
+    badges: ["Google Trends", "柔性结构", "层次"],
     sourceUrl: "https://trends.google.com/trends/explore?cat=68&geo=US",
   },
-];
+  "03": {
+    subtitle: "TikTok Creative Center · 学院风服饰内容信号",
+    badges: ["TikTok", "复古学院", "社媒趋势"],
+    sourceUrl: "https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en",
+  },
+  "04": {
+    subtitle: "BELK · 都市功能女装公开商品资料",
+    badges: ["BELK", "都市轻机能", "通勤"],
+    sourceUrl: "https://www.belk.com/women/womens-clothing/",
+  },
+} as const;
+
+const customerProposalReferenceStyles: readonly ImageGalleryItem[] = trendDirections.map((direction, index) => {
+  const evidence = customerProposalReferenceEvidence[direction.id];
+  return {
+    id: `customer-reference-style-${direction.id}`,
+    categoryId: candidateCategories[index]?.id ?? candidateCategories[0].id,
+    code: `REF ${direction.id}`,
+    src: trendReportDetails[direction.id].image,
+    title: direction.title,
+    subtitle: evidence.subtitle,
+    badges: [...evidence.badges],
+    sourceUrl: evidence.sourceUrl,
+  };
+});
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
 const profileRevealDelay = 120;
@@ -1593,7 +1597,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
             </>
           }
           referenceTitle="参考款式"
-          references={customerProposalReferenceStyles.map((item) => ({
+          references={(trendScanComplete ? customerProposalReferenceStyles : []).map((item) => ({
             id: item.id,
             label: item.title,
             href: item.sourceUrl ?? "#",

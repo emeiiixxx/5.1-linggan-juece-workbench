@@ -100,38 +100,42 @@ const resultDisplayLabels = [
   "Amazon US · 过渡季连衣裙改款",
 ] as const;
 
-const newProductReferenceItems: readonly ImageGalleryItem[] = [
-  {
-    id: "new-product-reference-01",
-    categoryId: "ruffle",
-    code: "REF 01",
-    title: "克制荷叶边实穿上衣",
+const directionReferenceEvidence = {
+  ruffle: {
     subtitle: "Google Trends · 2027年2月 · 趋势资料",
-    src: "assets/new-product/new-product-direction-07.jpg",
     badges: ["Google Trends", "过渡季", "荷叶边实穿化"],
     sourceUrl: "https://trends.google.com/trends/explore?cat=68&geo=US",
   },
-  {
-    id: "new-product-reference-02",
-    categoryId: "botanical",
-    code: "REF 02",
-    title: "传承植物印花更新",
+  botanical: {
     subtitle: "TikTok Creative Center · 2027年2月 · 社媒资料",
-    src: "assets/figma-confirmed/candidate-gallery-look-02.png",
     badges: ["TikTok", "社媒趋势", "植物印花"],
     sourceUrl: "https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en",
   },
-  {
-    id: "new-product-reference-03",
-    categoryId: "transition",
-    code: "REF 03",
-    title: "柔性结构与轻量层次",
-    subtitle: "Amazon US · 2027年2月 · 商品资料",
-    src: "assets/figma-confirmed/candidate-gallery-look-01.png",
-    badges: ["Amazon US", "轻结构", "通勤"],
+  tailoring: {
+    subtitle: "BELK · 2026年8月 · 品牌与零售资料",
+    badges: ["BELK", "轻结构", "通勤套装"],
+    sourceUrl: "https://www.belk.com/women/womens-clothing/",
+  },
+  transition: {
+    subtitle: "Amazon US · 2026年8月 · 商品资料",
+    badges: ["Amazon US", "过渡季", "连衣裙层次"],
     sourceUrl: "https://www.amazon.com/Best-Sellers-Womens-Fashion/zgbs/fashion/7147440011",
   },
-] as const;
+} as const;
+
+const newProductReferenceItems: readonly ImageGalleryItem[] = directions.map((direction, index) => {
+  const evidence = directionReferenceEvidence[direction.id];
+  return {
+    id: `new-product-reference-${String(index + 1).padStart(2, "0")}`,
+    categoryId: direction.id,
+    code: `REF ${String(index + 1).padStart(2, "0")}`,
+    title: direction.title,
+    subtitle: evidence.subtitle,
+    src: direction.src,
+    badges: [...evidence.badges],
+    sourceUrl: evidence.sourceUrl,
+  };
+});
 
 const lightboxCategories: readonly ImageGalleryCategory[] = directions.map((direction) => ({
   id: direction.id,
@@ -524,6 +528,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   };
 
   const composerRunning = regenerationBusy || ["analyzing", "research", "structure-planning", "ai-generating", "plan-generating"].includes(stage);
+  const researchReferencesReady = ["directions", "structure-planning", "structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage);
   const selectedDirectionLabels = directions.filter((item) => selectedDirections.includes(item.id)).map((item) => item.title);
   const researchPlatformOptions = getResearchPlatformOptions(markets);
   const researchReportHtml = useMemo(() => buildResearchReportHtml(markets, commerce, social), [commerce, markets, social]);
@@ -876,7 +881,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
             </>
           ) : <TaskArtifactRow kind="file">正在生成新品企划产物…</TaskArtifactRow>}
           referenceTitle="参考款式"
-          references={newProductReferenceItems.map((item) => ({
+          references={(researchReferencesReady ? newProductReferenceItems : []).map((item) => ({
             id: item.id,
             label: item.title,
             href: item.sourceUrl ?? "#",
