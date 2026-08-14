@@ -4,11 +4,12 @@ import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
 import { Button, QuickReplyButton } from "./Button";
-import { AnalysisStepIcon, ConversationFeed, ConversationFormTitle, ConversationStatusIcon as ApparelStatusIcon, ConversationTaskCompletion, ConversationUserMessage as UserMessage, TaskArtifactRow, TaskDisclosure, TaskProgressSummary, type ConversationStepStatus as StepState } from "./ConversationPrimitives";
+import { AnalysisStepIcon, ConversationFeed, ConversationFormTitle, ConversationStatusIcon as ApparelStatusIcon, ConversationTaskCompletion, ConversationUserMessage as UserMessage, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
 import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
 import { useGsapEntrance } from "../motion/gsap";
 import { SelectionCard, SelectionControl } from "./SelectionCard";
 import { ConversationUserAttachments } from "./ConversationUserAttachments";
+import type { InspirationDesignType } from "./InspirationDesignSelect";
 
 type ApparelStage =
   | "analyzing"
@@ -27,6 +28,10 @@ type ApparelStage =
 type Attachment = { name: string; previewUrl?: string };
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
+const inspirationReferenceLinks = [
+  { label: "Pinterest · 飞行员夹克廓形与细节参考", href: "https://www.pinterest.com/search/pins/?q=mens%20bomber%20jacket", thumbnail: "assets/apparel-design/reference-jacket.png" },
+  { label: "Vogue Runway · 男装系列与解构设计案例", href: "https://www.vogue.com/fashion-shows/menswear", thumbnail: "assets/apparel-design/reference-knit.png" },
+] as const;
 const referenceImage = "assets/apparel-design/candidate-jacket.png";
 const userReferences = [
   "assets/apparel-design/reference-jacket.png",
@@ -113,6 +118,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
   const [analysisExpanded, setAnalysisExpanded] = useState(true);
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [followUp, setFollowUp] = useState("");
+  const [inspirationDesignType, setInspirationDesignType] = useState<InspirationDesignType>("apparel");
   const [briefReply, setBriefReply] = useState("");
   const [quantityChoice, setQuantityChoice] = useState(quantityOptions[0]);
   const [styleChoices, setStyleChoices] = useState<string[]>([]);
@@ -192,14 +198,6 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
   const stageIndex = useMemo(() => [
     "analyzing", "brief", "directions-loading", "directions", "candidates-loading", "candidates", "candidate-confirmation", "candidate-analysis", "strategy", "matrix", "generating", "results",
   ].indexOf(stage), [stage]);
-
-  const taskStates: StepState[] = [
-    stage === "analyzing" ? "loading" : "complete",
-    stageIndex < 3 ? "pending" : stageIndex === 3 ? "loading" : "complete",
-    stageIndex < 4 ? "pending" : stageIndex < 6 ? "loading" : "complete",
-    stageIndex < 6 ? "pending" : stageIndex < 8 ? "loading" : "complete",
-    stage === "results" ? "complete" : stage === "generating" ? "loading" : "pending",
-  ];
 
   const submitMessage = (preset?: string, submittedAttachments: TaskConversationAttachment[] = []) => {
     const value = (preset ?? followUp).trim();
@@ -334,7 +332,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
               <span>{prompt}</span>
             </UserMessage>
 
-            <AssistantMessage>
+            <AssistantMessage className={stageIndex >= 1 ? "apparel-analysis-message is-complete" : "apparel-analysis-message"}>
               <p>我正在对你的款式设计需求进行解析，提取廓形、工艺、材质与商业定位。</p>
               <TaskDisclosure
                 title="图像解析"
@@ -739,27 +737,17 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
           onSubmit={(submittedAttachments) => submitMessage(undefined, submittedAttachments)}
           placeholder={composerPlaceholder[stage]}
           disabled={!composerEnabled}
+          inspirationDesignType={inspirationDesignType}
+          onInspirationDesignTypeChange={setInspirationDesignType}
         />
       </section>
 
       <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>
-        <div className="task-detail-panel apparel-task-detail" aria-label="款式设计任务概览">
-          <header><strong>概览</strong><button type="button" onClick={() => setDetailPanelOpen(false)} aria-label="收起概览"><FigmaIcon name="expand-window" size={20} /></button></header>
-          <section>
-            <h2 className="task-progress-heading">任务进展</h2>
-            <TaskProgressSummary labels={["需求解析与确认", "调研范围对齐", "趋势分析与确认", "候选参考与客户确认", "生成视觉素材（图片、图表等）"]} states={taskStates} completeLabel="系列设计图已生成" />
-          </section>
-          <section>
-            <h2>任务产物</h2>
-            <TaskArtifactRow kind="file">{stageIndex >= 8 ? "经典解构·飞行员皮夹克系列执行书" : "等待生成设计执行书…"}</TaskArtifactRow>
-            {stage === "results" && <TaskArtifactRow kind="image">8 款系列设计图</TaskArtifactRow>}
-          </section>
-          <section>
-            <h2>参考信息</h2>
-            <div className="task-detail-row"><FigmaIcon name="global" size={16} /><span>飞行员夹克廓形、门襟与工艺参考</span></div>
-            <div className="task-detail-row"><FigmaIcon name="global" size={16} /><span>经典男士皮衣与解构设计案例</span></div>
-          </section>
-        </div>
+        <TaskDetailPanel
+          ariaLabel="款式设计任务概览"
+          onCollapse={() => setDetailPanelOpen(false)}
+          references={inspirationReferenceLinks}
+        />
         <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
       </aside>
 

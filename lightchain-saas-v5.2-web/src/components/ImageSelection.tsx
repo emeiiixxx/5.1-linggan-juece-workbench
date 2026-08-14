@@ -187,6 +187,7 @@ export type ImageGalleryItem = {
   title: string;
   subtitle?: string;
   badges?: readonly string[];
+  sourceUrl?: string;
 };
 
 export function ImageGalleryLightbox({
@@ -196,6 +197,10 @@ export function ImageGalleryLightbox({
   activeItemId,
   selectedIds,
   selectionDisabled = false,
+  resultActions,
+  referenceActions,
+  hideSelection = false,
+  presentation = "gallery",
   showCategories = true,
   onCategoryChange,
   onNavigate,
@@ -208,6 +213,19 @@ export function ImageGalleryLightbox({
   activeItemId: string;
   selectedIds: readonly string[];
   selectionDisabled?: boolean;
+  resultActions?: {
+    onDownload: (item: ImageGalleryItem) => void;
+    onRegenerate: (item: ImageGalleryItem) => void;
+    regenerateDisabled?: boolean;
+    regenerating?: boolean;
+    regeneratingLabel?: string;
+  };
+  referenceActions?: {
+    onDownload: (item: ImageGalleryItem) => void;
+    onOpenSource: (item: ImageGalleryItem) => void;
+  };
+  hideSelection?: boolean;
+  presentation?: "gallery" | "reference";
   showCategories?: boolean;
   onCategoryChange: (categoryId: string) => void;
   onNavigate: (itemId: string) => void;
@@ -215,6 +233,7 @@ export function ImageGalleryLightbox({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const isReferencePresentation = presentation === "reference";
   const visibleItems = useMemo(
     () => showCategories ? items.filter((item) => item.categoryId === activeCategoryId) : items,
     [activeCategoryId, items, showCategories],
@@ -260,15 +279,21 @@ export function ImageGalleryLightbox({
     if (!backdrop || !card || !tip || prefersReducedMotion()) return;
     const timeline = gsap.timeline()
       .from(backdrop, { autoAlpha: 0, duration: gsapMotion.fast, ease: "power2.out" });
-    if (showCategories) {
+    if (showCategories && !isReferencePresentation) {
       timeline.from(".candidate-lightbox__tabs", { autoAlpha: 0, y: -8, duration: gsapMotion.duration, ease: gsapMotion.ease }, "<0.04");
     }
+    timeline.from(card, { autoAlpha: 0, y: 14, scale: 0.988, duration: 0.52, ease: gsapMotion.ease }, "<0.02");
+    if (!isReferencePresentation) {
+      timeline.from(
+        ".candidate-lightbox__previous, .candidate-lightbox__next",
+        { autoAlpha: 0, scale: 0.9, duration: 0.28, stagger: 0.04, ease: gsapMotion.ease },
+        "<0.12",
+      );
+    }
     timeline
-      .from(card, { autoAlpha: 0, y: 14, scale: 0.988, duration: 0.52, ease: gsapMotion.ease }, "<0.02")
-      .from(".candidate-lightbox__previous, .candidate-lightbox__next", { autoAlpha: 0, scale: 0.9, duration: 0.28, stagger: 0.04, ease: gsapMotion.ease }, "<0.12")
       .fromTo(tip, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.24, ease: "power2.out" }, "<")
       .to(tip, { autoAlpha: 0, duration: 0.28, ease: "power2.in", delay: 2.48 });
-  }, { scope: backdropRef, dependencies: [showCategories] });
+  }, { scope: backdropRef, dependencies: [isReferencePresentation, showCategories] });
 
   useGSAP(() => {
     if (!cardRef.current || prefersReducedMotion()) return;
@@ -283,6 +308,7 @@ export function ImageGalleryLightbox({
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
+      if (isReferencePresentation) return;
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       const nextIndex = activeIndex + (event.key === "ArrowLeft" ? -1 : 1);
       const nextItem = visibleItems[nextIndex];
@@ -295,7 +321,7 @@ export function ImageGalleryLightbox({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [activeIndex, onNavigate, visibleItems]);
+  }, [activeIndex, isReferencePresentation, onNavigate, visibleItems]);
 
   useEffect(() => {
     const thumbnails = thumbnailsRef.current;
@@ -344,7 +370,7 @@ export function ImageGalleryLightbox({
   return createPortal(
     <div
       ref={backdropRef}
-      className={`candidate-lightbox-backdrop ${showCategories ? "" : "candidate-lightbox-backdrop--flat"}`}
+      className={`candidate-lightbox-backdrop ${showCategories ? "" : "candidate-lightbox-backdrop--flat"} ${isReferencePresentation ? "candidate-lightbox-backdrop--reference" : ""}`.trim()}
       role="dialog"
       aria-modal="true"
       aria-label={`${t("查看大图")}：${activeItem.code} ${activeCategory?.label ?? activeItem.title}`}
@@ -354,7 +380,7 @@ export function ImageGalleryLightbox({
         <FigmaIcon name="close" size={20} />
       </IconControl>
 
-      {showCategories ? (
+      {showCategories && !isReferencePresentation ? (
         <div className="candidate-lightbox__tabs" role="tablist" aria-label={t("参考图类型")}>
           {categories.map((category) => (
             <button
@@ -372,7 +398,9 @@ export function ImageGalleryLightbox({
       ) : null}
 
       <span ref={tipRef} className="candidate-lightbox__tip" aria-live="polite">
-        💡 Tips：支持按键盘 ← → 键切换图片，按 Esc 退出查看大图
+        {isReferencePresentation
+          ? "💡Tips：支持按 esc 退出查看大图"
+          : "💡 Tips：支持按键盘 ← → 键切换图片，按 Esc 退出查看大图"}
       </span>
 
       <section
@@ -380,69 +408,110 @@ export function ImageGalleryLightbox({
         className={`candidate-lightbox__card ${selected ? "is-selected" : ""}`}
         role="document"
       >
-        <div className="candidate-lightbox__media">
+        <div className="candidate-lightbox__media" aria-busy={resultActions?.regenerating || undefined}>
           <img src={assetUrl(activeItem.src)} alt={`${activeItem.code} ${activeItem.title}`} />
-          <button
-            type="button"
-            className="candidate-lightbox__selection-toggle"
-            aria-label={`${t(selected ? "取消选择" : "选择")} ${activeItem.code}`}
-            aria-pressed={selected}
-            disabled={selectionDisabled}
-            onClick={() => onToggleSelection(activeItem.id)}
-          >
-            <CircleCheckbox checked={selected} />
-          </button>
+          {resultActions?.regenerating ? (
+            <span className="masonry-image-selection__loading" aria-live="polite">
+              <img src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" />
+              <span>{resultActions.regeneratingLabel ?? t("生成中...")}</span>
+            </span>
+          ) : null}
+          {!hideSelection ? (
+            <button
+              type="button"
+              className="candidate-lightbox__selection-toggle"
+              aria-label={`${t(selected ? "取消选择" : "选择")} ${activeItem.code}`}
+              aria-pressed={selected}
+              disabled={selectionDisabled}
+              onClick={() => onToggleSelection(activeItem.id)}
+            >
+              <CircleCheckbox checked={selected} />
+            </button>
+          ) : null}
         </div>
 
         <footer className="candidate-lightbox__information">
           <div className="candidate-lightbox__copy">
             <strong>{activeItem.code} · {activeItem.title}</strong>
             <span>{activeItem.subtitle ?? "TikTok Shop US · USD 20.00"}</span>
-            <div className="candidate-lightbox__badges" aria-label={t("素材标签")}>
-              {(activeItem.badges ?? ["Amazon US / TikTok Shop US", "2026年8月 / 2027年2月", activeCategory?.label ?? "连衣裙、裤装、上衣、套装"]).map((badge) => (
-                <small key={badge}>{badge}</small>
-              ))}
-            </div>
+            {!isReferencePresentation ? (
+              <div className="candidate-lightbox__badges" aria-label={t("素材标签")}>
+                {(activeItem.badges ?? ["Amazon US / TikTok Shop US", "2026年8月 / 2027年2月", activeCategory?.label ?? "连衣裙、裤装、上衣、套装"]).map((badge) => (
+                  <small key={badge}>{badge}</small>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="candidate-lightbox__actions">
-            <Button variant="outline">{t("查看来源")}</Button>
-            <Button
-              variant="outline"
-              className="candidate-lightbox__select-button"
-              data-node-id={selected ? "552:19802" : "568:69944"}
-              disabled={selectionDisabled}
-              aria-pressed={selected}
-              onClick={() => onToggleSelection(activeItem.id)}
-            >
-              <FigmaIcon name={selected ? "heart-filled" : "heart-outline"} size={20} />
-              {t(selected ? "取消喜欢" : "喜欢")}
-            </Button>
+            {resultActions ? (
+              <>
+                <Button variant="outline" onClick={() => resultActions.onDownload(activeItem)}>
+                  <FigmaIcon name="download" size={20} />
+                  {t("下载")}
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={resultActions.regenerateDisabled || resultActions.regenerating}
+                  onClick={() => resultActions.onRegenerate(activeItem)}
+                >
+                  <FigmaIcon name="regenerate-image" size={20} />
+                  {t("重新生成")}
+                </Button>
+              </>
+            ) : referenceActions ? (
+              <>
+                <Button variant="outline" onClick={() => referenceActions.onOpenSource(activeItem)}>
+                  {t("查看来源")}
+                </Button>
+                <Button variant="outline" onClick={() => referenceActions.onDownload(activeItem)}>
+                  <FigmaIcon name="download" size={20} />
+                  {t("下载")}
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline">{t("查看来源")}</Button>
+            )}
+            {!hideSelection ? (
+              <Button
+                variant="outline"
+                className="candidate-lightbox__select-button"
+                data-node-id={selected ? "552:19802" : "568:69944"}
+                disabled={selectionDisabled}
+                aria-pressed={selected}
+                onClick={() => onToggleSelection(activeItem.id)}
+              >
+                <FigmaIcon name={selected ? "heart-filled" : "heart-outline"} size={20} />
+                {t(selected ? "取消喜欢" : "喜欢")}
+              </Button>
+            ) : null}
           </div>
         </footer>
       </section>
 
-      <IconControl
-        className="candidate-lightbox__previous"
-        label={t("上一张")}
-        variant="tonal"
-        size="large"
-        disabled={activeIndex === 0}
-        onClick={() => move(-1)}
-      >
-        <FigmaIcon name="chevron-left" size={24} />
-      </IconControl>
-      <IconControl
-        className="candidate-lightbox__next"
-        label={t("下一张")}
-        variant="tonal"
-        size="large"
-        disabled={activeIndex === visibleItems.length - 1}
-        onClick={() => move(1)}
-      >
-        <FigmaIcon name="chevron-right" size={24} />
-      </IconControl>
+      {!isReferencePresentation ? (
+        <>
+          <IconControl
+            className="candidate-lightbox__previous"
+            label={t("上一张")}
+            variant="tonal"
+            size="large"
+            disabled={activeIndex === 0}
+            onClick={() => move(-1)}
+          >
+            <FigmaIcon name="chevron-left" size={24} />
+          </IconControl>
+          <IconControl
+            className="candidate-lightbox__next"
+            label={t("下一张")}
+            variant="tonal"
+            size="large"
+            disabled={activeIndex === visibleItems.length - 1}
+            onClick={() => move(1)}
+          >
+            <FigmaIcon name="chevron-right" size={24} />
+          </IconControl>
 
-      <div className={`candidate-lightbox__thumbnail-rail ${thumbnailOverflow.left ? "can-scroll-left" : ""} ${thumbnailOverflow.right ? "can-scroll-right" : ""}`}>
+          <div className={`candidate-lightbox__thumbnail-rail ${thumbnailOverflow.left ? "can-scroll-left" : ""} ${thumbnailOverflow.right ? "can-scroll-right" : ""}`}>
         {thumbnailOverflow.left ? (
           <IconControl className="candidate-lightbox__thumbnail-scroll candidate-lightbox__thumbnail-scroll--previous" label={t("向左查看更多缩略图")} variant="tonal" size="small" onClick={() => scrollThumbnails(-1)}>
             <FigmaIcon name="chevron-left" size={16} />
@@ -450,7 +519,7 @@ export function ImageGalleryLightbox({
         ) : null}
         <div ref={thumbnailsRef} className="candidate-lightbox__thumbnails" aria-label={t(showCategories ? "同类型参考图" : "全部改款结果")} onScroll={scheduleThumbnailOverflowUpdate}>
           {thumbnailItems.map((item) => {
-            const itemSelected = selectedIds.includes(item.id);
+            const itemSelected = !hideSelection && selectedIds.includes(item.id);
             return (
               <button
                 type="button"
@@ -471,7 +540,9 @@ export function ImageGalleryLightbox({
             <FigmaIcon name="chevron-right" size={16} />
           </IconControl>
         ) : null}
-      </div>
+          </div>
+        </>
+      ) : null}
     </div>,
     document.body,
   );

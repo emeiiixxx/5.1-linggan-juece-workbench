@@ -19,9 +19,8 @@ import {
   ConversationTaskCompletion,
   ConversationUserMessage,
   TaskArtifactRow,
+  TaskDetailPanel,
   TaskDisclosure,
-  TaskProgressSummary,
-  type ConversationStepStatus,
 } from "./ConversationPrimitives";
 import { FigmaIcon } from "./FigmaIcon";
 import { SelectionCard } from "./SelectionCard";
@@ -29,7 +28,7 @@ import { IconControl } from "./IconControl";
 import { ResearchScopeForm } from "./ResearchScopeForm";
 import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
 import { ConversationUserAttachments } from "./ConversationUserAttachments";
-import { getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
+import { getLocaleDefaultMarket, getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
 import { useI18n } from "../i18n";
 import { buildFashionProposalHtml, type FashionProposalPlan, type FashionProposalSource } from "../report/fashionProposalHtml";
 import { useModalFocus } from "../hooks/useModalFocus";
@@ -48,14 +47,6 @@ type PlanningStage =
   | "complete";
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
-const taskLabels = [
-  "需求解析与确认",
-  "调研范围对齐",
-  "趋势分析与确认",
-  "商品结构与 AI 改款",
-  "生成新品企划案",
-];
-
 const directions = [
   {
     id: "ruffle",
@@ -107,6 +98,39 @@ const resultDisplayLabels = [
   "TikTok Shop US · 柔性系列改款",
   "BELK · 过渡季上衣改款",
   "Amazon US · 过渡季连衣裙改款",
+] as const;
+
+const newProductReferenceItems: readonly ImageGalleryItem[] = [
+  {
+    id: "new-product-reference-01",
+    categoryId: "ruffle",
+    code: "REF 01",
+    title: "克制荷叶边实穿上衣",
+    subtitle: "Google Trends · 2027年2月 · 趋势资料",
+    src: "assets/new-product/new-product-direction-07.jpg",
+    badges: ["Google Trends", "过渡季", "荷叶边实穿化"],
+    sourceUrl: "https://trends.google.com/trends/explore?cat=68&geo=US",
+  },
+  {
+    id: "new-product-reference-02",
+    categoryId: "botanical",
+    code: "REF 02",
+    title: "传承植物印花更新",
+    subtitle: "TikTok Creative Center · 2027年2月 · 社媒资料",
+    src: "assets/figma-confirmed/candidate-gallery-look-02.png",
+    badges: ["TikTok", "社媒趋势", "植物印花"],
+    sourceUrl: "https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/en",
+  },
+  {
+    id: "new-product-reference-03",
+    categoryId: "transition",
+    code: "REF 03",
+    title: "柔性结构与轻量层次",
+    subtitle: "Amazon US · 2027年2月 · 商品资料",
+    src: "assets/figma-confirmed/candidate-gallery-look-01.png",
+    badges: ["Amazon US", "轻结构", "通勤"],
+    sourceUrl: "https://www.amazon.com/Best-Sellers-Womens-Fashion/zgbs/fashion/7147440011",
+  },
 ] as const;
 
 const lightboxCategories: readonly ImageGalleryCategory[] = directions.map((direction) => ({
@@ -346,6 +370,8 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     startsComplete ? resultItems.slice(0, 5).map((item) => item.id) : [],
   );
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [referencePreviewId, setReferencePreviewId] = useState<string | null>(null);
+  const [previewReadOnly, setPreviewReadOnly] = useState(false);
   const [activePreviewCategory, setActivePreviewCategory] = useState<string>(directions[0].id);
   const [regenerationPhase, setRegenerationPhase] = useState<"idle" | "queued" | "generating">("idle");
   const [regenerationTargetIds, setRegenerationTargetIds] = useState<string[]>([]);
@@ -415,7 +441,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
       setRegenerationPhase("idle");
       setRegenerationTargetIds([]);
       setRegenerationRound((value) => value + 1);
-      setSelectedResults([]);
+      setSelectedResults((current) => current.filter((id) => !regenerationTargetIds.includes(id)));
     }, reduceMotion ? 0 : 1700);
     return () => window.clearTimeout(timer);
   }, [reduceMotion, regenerationPhase, regenerationRound, regenerationTargetIds]);
@@ -430,18 +456,6 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   useEffect(() => {
     feedEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
   }, [reduceMotion, regenerationPhase, regenerationRound, selectedResults.length, stage]);
-
-  const taskStates = useMemo<ConversationStepStatus[]>(() => {
-    const order: PlanningStage[] = ["analyzing", "brief", "scope", "research", "directions", "structure-planning", "structure", "ai-generating", "results", "plan-generating", "complete"];
-    const index = order.indexOf(stage);
-    return [
-      stage === "analyzing" ? "loading" : "complete",
-      index < 2 ? "pending" : index < 4 ? "loading" : "complete",
-      index < 4 ? "pending" : index === 4 ? "loading" : "complete",
-      index < 5 ? "pending" : index < 9 ? "loading" : "complete",
-      stage === "complete" ? "complete" : stage === "plan-generating" ? "loading" : "pending",
-    ];
-  }, [stage]);
 
   const toggle = (value: string, setter: Dispatch<SetStateAction<string[]>>) => {
     setter((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
@@ -465,6 +479,21 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     if (!selectedResults.length || regenerationBusy) return;
     setRegenerationTargetIds([...selectedResults]);
     setRegenerationPhase("queued");
+  };
+
+  const regenerateResultItem = (item: ImageGalleryItem) => {
+    if (stage !== "results" || regenerationBusy) return;
+    setRegenerationTargetIds([item.id]);
+    setRegenerationPhase("queued");
+  };
+
+  const downloadGalleryItem = (item: ImageGalleryItem) => {
+    const source = assetUrl(item.src);
+    const extension = source.split("?")[0]?.match(/\.([a-z0-9]+)$/i)?.[1] ?? "jpg";
+    const link = document.createElement("a");
+    link.href = source;
+    link.download = `${item.code}.${extension}`;
+    link.click();
   };
 
   const submitFollowUp = (submittedAttachments: TaskConversationAttachment[]) => {
@@ -631,6 +660,12 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                     onToggleCommerce={(value) => toggle(value, setCommerce)}
                     onToggleSocial={(value) => toggle(value, setSocial)}
                     onOtherCommerceChange={setOtherCommerce}
+                    onReset={() => {
+                      setMarkets([getLocaleDefaultMarket(locale)]);
+                      setCommerce([]);
+                      setSocial([]);
+                      setOtherCommerce("");
+                    }}
                     onConfirm={() => setStage("research")}
                   />
                 </AssistantMessage>
@@ -682,7 +717,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                       );
                     })}
                   </div>
-                  {stage === "directions" ? <div className="new-product-form-actions"><Button variant="primary" size="small" disabled={!selectedDirections.length} onClick={() => setStage("structure-planning")}>确认并继续</Button></div> : null}
+                  {stage === "directions" ? <div className="new-product-form-actions"><Button variant="secondary" size="small" onClick={() => setSelectedDirections([])}>重置选择</Button><Button variant="primary" size="small" disabled={!selectedDirections.length} onClick={() => setStage("structure-planning")}>确认并继续</Button></div> : null}
                 </section>
               </AssistantMessage>
             ) : null}
@@ -754,7 +789,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                         loading={regenerationPhase === "generating" && regenerationTargetIds.includes(item.id)}
                         loadingLabel={t("生成中...")}
                         onSelect={() => toggleResult(item.id)}
-                        onPreview={() => { setPreviewId(item.id); setActivePreviewCategory(item.categoryId); }}
+                        onPreview={() => { setPreviewReadOnly(stage !== "results"); setPreviewId(item.id); setActivePreviewCategory(item.categoryId); }}
                       />
                     ))}
                   </div>
@@ -762,7 +797,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                     <span>{t("已选择")} <strong>{selectedResults.length}</strong> {t("张图片")}</span>
                     {stage === "results" ? (
                       <>
-                        <Button className="new-product-regenerate-button" disabled={!selectedResults.length || regenerationBusy} onClick={startRegeneration}>
+                        <Button variant="secondary" className="new-product-regenerate-button" disabled={!selectedResults.length || regenerationBusy} onClick={startRegeneration}>
                           <FigmaIcon name="regenerate-image" size={16} />
                           {t(regenerationBusy ? "重新生成中" : "重新生成")}
                         </Button>
@@ -825,18 +860,34 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
       </section>
 
       <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>
-        <div className="task-detail-panel" aria-label="新品企划任务概览">
-          <header><strong>概览</strong><button type="button" onClick={() => setDetailPanelOpen(false)} aria-label="收起概览"><FigmaIcon name="expand-window" size={20} /></button></header>
-          <section>
-            <h2 className="task-progress-heading">任务进展</h2>
-            <TaskProgressSummary labels={taskLabels} states={taskStates} completeLabel="新品企划案已生成" />
-          </section>
-          <section>
-            <h2>任务产物</h2>
-            <TaskArtifactRow kind="file">{stage === "complete" ? "新品企划案.html" : "正在生成新品企划产物…"}</TaskArtifactRow>
-          </section>
-          <section><h2>参考信息</h2><p className="new-product-reference-copy">电商、社媒、品牌公开站与趋势资料按来源保留，不合并为虚构销量。</p></section>
-        </div>
+        <TaskDetailPanel
+          ariaLabel="新品企划任务概览"
+          onCollapse={() => setDetailPanelOpen(false)}
+          artifacts={stage === "complete" ? (
+            <>
+              <TaskArtifactRow kind="file" onClick={() => setReportPreview({ name: "新品企划案.html", html: newProductPlanHtml })}>新品企划案.html</TaskArtifactRow>
+              <TaskArtifactRow kind="image" onClick={() => {
+                const firstResult = displayedResultItems.find((item) => selectedResults.includes(item.id));
+                if (!firstResult) return;
+                setPreviewReadOnly(true);
+                setActivePreviewCategory(firstResult.categoryId);
+                setPreviewId(firstResult.id);
+              }}>新品企划图集（{selectedResults.length}张）</TaskArtifactRow>
+            </>
+          ) : <TaskArtifactRow kind="file">正在生成新品企划产物…</TaskArtifactRow>}
+          referenceTitle="参考款式"
+          references={newProductReferenceItems.map((item) => ({
+            id: item.id,
+            label: item.title,
+            href: item.sourceUrl ?? "#",
+            thumbnail: item.src,
+            meta: item.subtitle,
+            date: "2026-08-06",
+          }))}
+          onReferenceSelect={(reference) => {
+            if (reference.id) setReferencePreviewId(reference.id);
+          }}
+        />
         <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
       </aside>
 
@@ -890,8 +941,14 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
           items={displayedResultItems}
           activeCategoryId={activePreviewCategory}
           activeItemId={previewId}
-          selectedIds={selectedResults}
-          selectionDisabled={stage !== "results" || regenerationBusy}
+          selectedIds={previewReadOnly ? [] : selectedResults}
+          selectionDisabled={previewReadOnly || stage !== "results" || regenerationBusy}
+          resultActions={{
+            onDownload: downloadGalleryItem,
+            onRegenerate: regenerateResultItem,
+            regenerateDisabled: previewReadOnly || stage !== "results" || regenerationBusy,
+            regenerating: regenerationBusy && regenerationTargetIds.includes(previewId),
+          }}
           showCategories={false}
           onCategoryChange={(categoryId) => {
             setActivePreviewCategory(categoryId);
@@ -900,7 +957,30 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
           }}
           onNavigate={setPreviewId}
           onToggleSelection={toggleResult}
-          onClose={() => setPreviewId(null)}
+          onClose={() => { setPreviewId(null); setPreviewReadOnly(false); }}
+        />
+      ) : null}
+      {referencePreviewId ? (
+        <ImageGalleryLightbox
+          categories={lightboxCategories}
+          items={newProductReferenceItems}
+          activeCategoryId={newProductReferenceItems.find((item) => item.id === referencePreviewId)?.categoryId ?? lightboxCategories[0].id}
+          activeItemId={referencePreviewId}
+          selectedIds={[]}
+          selectionDisabled
+          referenceActions={{
+            onDownload: downloadGalleryItem,
+            onOpenSource: (item) => {
+              if (item.sourceUrl) window.open(item.sourceUrl, "_blank", "noopener,noreferrer");
+            },
+          }}
+          hideSelection
+          presentation="reference"
+          showCategories={false}
+          onCategoryChange={() => undefined}
+          onNavigate={setReferencePreviewId}
+          onToggleSelection={() => undefined}
+          onClose={() => setReferencePreviewId(null)}
         />
       ) : null}
     </motion.main>

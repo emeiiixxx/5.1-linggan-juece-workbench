@@ -12,9 +12,8 @@ import {
   ConversationFormTitle,
   ConversationSingleChoiceList,
   ConversationTaskCompletion,
-  TaskProgressSummary,
   ConversationUserMessage,
-  TaskArtifactRow,
+  TaskDetailPanel,
   TaskDisclosure,
 } from "./ConversationPrimitives";
 import { useGsapEntrance } from "../motion/gsap";
@@ -49,6 +48,11 @@ const themeGroups = [
     ["urban-sojourn", "都市旅居", "Urban Sojourn"],
     ["neo-collegiate", "新经典运动", "Neo Collegiate"],
   ],
+] as const;
+
+const planReferenceLinks = [
+  { label: "GAP · 男装系列与品牌公开资料", href: "https://www.gap.com/browse/category.do?cid=1127944", thumbnail: "assets/plan-flow/reference-01.jpg" },
+  { label: "Vogue Runway · 男装秀场与造型资料", href: "https://www.vogue.com/fashion-shows/menswear", thumbnail: "assets/plan-flow/reference-08.jpg" },
 ] as const;
 
 const referenceImages = Array.from({ length: 12 }, (_, index) => `assets/plan-flow/reference-${String(index + 1).padStart(2, "0")}.jpg`);
@@ -375,14 +379,6 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
     URL.revokeObjectURL(url);
   };
 
-  const taskStates = [
-    stageIndex > 0 ? "complete" : "loading",
-    stageIndex > 3 ? "complete" : stageIndex > 0 ? "loading" : "pending",
-    stageIndex > 5 ? "complete" : stageIndex >= 4 ? "loading" : "pending",
-    stageIndex > 6 ? "complete" : stageIndex === 6 ? "loading" : "pending",
-    stage === "complete" ? "complete" : stage === "exporting" ? "loading" : "pending",
-  ] as const;
-
   return (
     <motion.main className={`workspace-region workspace-region--conversation plan-workspace ${detailPanelOpen ? "has-detail-panel" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
       <section className="conversation-stage" aria-label="企划案任务对话">
@@ -411,7 +407,7 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
                   ariaLabel="选择设计主题"
                   onChange={setTheme}
                 />
-                {stage === "theme" ? <div className="plan-form-actions"><Button variant="outline" size="small" onClick={refreshThemes}>都不喜欢，重新推荐</Button><Button variant="primary" disabled={!theme} onClick={() => setStage("references")}>提交需求</Button></div> : null}
+                {stage === "theme" ? <div className="plan-form-actions"><Button variant="secondary" size="small" onClick={refreshThemes}>都不喜欢，重新推荐</Button><Button variant="primary" disabled={!theme} onClick={() => setStage("references")}>提交需求</Button></div> : null}
               </section>
             </AssistantMessage> : null}
 
@@ -441,7 +437,7 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
                       key={`${src}-${index}`}
                     />)}
                   </div>
-                  {stage === "references" ? <div className="plan-form-actions"><Button variant="outline" size="small" onClick={() => { setRequestedMore(true); setStage("more-loading"); }}>需要更多参考图片</Button><BusinessButton points={300} disabled={!firstSelection.length} onClick={() => setStage("analysis-loading")}>生成企划</BusinessButton></div> : null}
+                  {stage === "references" ? <div className="plan-form-actions"><Button variant="secondary" size="small" onClick={() => { setRequestedMore(true); setStage("more-loading"); }}>需要更多参考图片</Button><BusinessButton points={300} disabled={!firstSelection.length} onClick={() => setStage("analysis-loading")}>生成企划</BusinessButton></div> : null}
                 </section>
               </AssistantMessage>
             ) : null}
@@ -472,7 +468,7 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
                       key={`${src}-${index}`}
                     />)}
                   </div>
-                  {stage === "more-references" ? <div className="plan-form-actions"><Button variant="outline" size="small" onClick={() => setMoreSelection((current) => current.length ? current : [0])}>需要更多参考图片</Button><BusinessButton points={300} disabled={!moreSelection.length} onClick={() => setStage("analysis-loading")}>生成企划</BusinessButton></div> : null}
+                  {stage === "more-references" ? <div className="plan-form-actions"><Button variant="secondary" size="small" onClick={() => setMoreSelection((current) => current.length ? current : [0])}>需要更多参考图片</Button><BusinessButton points={300} disabled={!moreSelection.length} onClick={() => setStage("analysis-loading")}>生成企划</BusinessButton></div> : null}
                 </section>
               </AssistantMessage>
             ) : null}
@@ -530,12 +526,11 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
       </section>
 
       <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>
-        <div className="task-detail-panel" aria-label="企划案任务概览">
-          <header><strong>概览</strong><button type="button" onClick={() => setDetailPanelOpen(false)} aria-label="收起概览"><FigmaIcon name="expand-window" size={20} /></button></header>
-          <section><h2 className="task-progress-heading">任务进展</h2><TaskProgressSummary labels={["确认设计主题", "搜集系列资料", "分析趋势与搭配方向", "确认导出格式", "生成最终企划案"]} states={taskStates} completeLabel="最终企划案已生成" /></section>
-          <section><h2>任务产物</h2>{stage === "complete" ? <>{exportFormat.includes("PPT") ? <TaskArtifactRow kind="file">巴洛克航海梦设计企划案.ppt</TaskArtifactRow> : null}{exportFormat.includes("HTML") ? <TaskArtifactRow kind="file">巴洛克航海梦设计企划案.html</TaskArtifactRow> : null}</> : <TaskArtifactRow kind="file">等待生成最终企划案…</TaskArtifactRow>}</section>
-          <section><h2>参考信息</h2><div className="task-detail-row"><FigmaIcon name="global" size={16} /><span>Gap SPRING-SUMMER 2026 男装系列</span></div><div className="task-detail-row"><FigmaIcon name="global" size={16} /><span>品牌秀场、街拍与零售造型资料</span></div></section>
-        </div>
+        <TaskDetailPanel
+          ariaLabel="企划案任务概览"
+          onCollapse={() => setDetailPanelOpen(false)}
+          references={planReferenceLinks}
+        />
         <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
       </aside>
       {preview ? <ImageLightbox src={assetUrl(preview)} alt="企划案参考图片" onClose={() => setPreview(null)} /> : null}

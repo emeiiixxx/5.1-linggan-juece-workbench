@@ -16,6 +16,7 @@ type ResearchScopeFormProps = {
   onToggleCommerce: (platform: string) => void;
   onToggleSocial: (platform: string) => void;
   onOtherCommerceChange: (value: string) => void;
+  onReset: () => void;
   onConfirm: () => void;
 };
 
@@ -66,6 +67,7 @@ export function ResearchScopeForm({
   onToggleCommerce,
   onToggleSocial,
   onOtherCommerceChange,
+  onReset,
   onConfirm,
 }: ResearchScopeFormProps) {
   const prefillBadge = profileLinked
@@ -143,6 +145,7 @@ export function ResearchScopeForm({
 
       {!confirmed ? (
         <div className="research-scope-actions">
+          <Button type="button" variant="secondary" size="small" onClick={onReset}>重置选择</Button>
           <Button type="submit" variant="primary" size="small" disabled={!canSubmit}>确认并开始调研</Button>
         </div>
       ) : null}

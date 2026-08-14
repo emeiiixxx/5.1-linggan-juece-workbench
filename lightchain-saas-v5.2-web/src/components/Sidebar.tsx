@@ -17,6 +17,7 @@ import { assetUrl } from "../utils/assets";
 type SidebarProps = {
   expanded: boolean;
   onToggle: () => void;
+  pageTitle?: string;
   activeView?: "workspace" | "preferences";
   activeTaskId?: number | null;
   onOpenWorkspace?: () => void;
@@ -63,6 +64,7 @@ type SelectedRow =
 export function Sidebar({
   expanded,
   onToggle,
+  pageTitle = "灵感决策工作台",
   activeView = "workspace",
   activeTaskId = null,
   onOpenWorkspace,
@@ -689,7 +691,7 @@ export function Sidebar({
               >
                 <FigmaIcon name="chevron-left" size={16} />
               </IconControl>
-              <span title={t("灵感决策工作台")}>{t("灵感决策工作台")}</span>
+              <span title={t(pageTitle)}>{t(pageTitle)}</span>
             </div>
             <div className="sidebar__header-actions">
               <IconControl

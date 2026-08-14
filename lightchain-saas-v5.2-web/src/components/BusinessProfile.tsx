@@ -498,7 +498,7 @@ function CreatePage({ form, setForm, uploadState, complete, canSave, parsing, ed
         <SelectField label="渠道" values={form.channels} placeholder="选择平台" options={["ZOZOTOWN", "Rakuten Fashion", "天猫", "京东", "抖音"]} onChange={(value) => change("channels", value)} />
         <SelectField label="参考品牌" values={form.brands} placeholder="输入品牌名称" options={["优衣库", "GU", "GAP", "COS", "ZARA"]} onChange={(value) => change("brands", value)} />
       </motion.form>
-      <motion.footer className="profile-form-footer" variants={primaryPageEntranceFadeItem}><button className="profile-button profile-button--outline" type="button" disabled={complete === 0} onClick={() => setForm(blankForm())}><FigmaIcon name="reset" size={20} />{t("重置")}</button><span>{t("已完成")} <b>{complete} / 5</b> {t("项必填内容")}</span><div><button className="profile-button profile-button--outline" type="button" onClick={onCancel}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" disabled={!canSave} onClick={onSave}>{t(editing ? "保存修改" : "保存档案")}</button></div></motion.footer>
+      <motion.footer className="profile-form-footer" variants={primaryPageEntranceFadeItem}><button className="profile-button profile-button--secondary" type="button" disabled={complete === 0} onClick={() => setForm(blankForm())}><FigmaIcon name="reset" size={20} />{t("重置")}</button><span>{t("已完成")} <b>{complete} / 5</b> {t("项必填内容")}</span><div><button className="profile-button profile-button--secondary" type="button" onClick={onCancel}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" disabled={!canSave} onClick={onSave}>{t(editing ? "保存修改" : "保存档案")}</button></div></motion.footer>
     </motion.div></main>
   );
 }

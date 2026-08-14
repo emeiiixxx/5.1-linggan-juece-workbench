@@ -319,74 +319,6 @@ export function ConversationStatusIcon({ status }: { status: ConversationStepSta
   return <span className="conversation-status-icon is-pending" aria-label={t("待处理")} />;
 }
 
-export function TaskProgressSummary({ labels, states, completeLabel = "任务已完成" }: { labels: readonly string[]; states: readonly ConversationStepStatus[]; completeLabel?: string }) {
-  const reduceMotion = useReducedMotion();
-  const [historyExpanded, setHistoryExpanded] = useState(false);
-  const loadingIndex = states.findIndex((status) => status === "loading");
-  const pendingIndex = states.findIndex((status) => status === "pending");
-  const completedCount = states.filter((status) => status === "complete").length;
-  const complete = completedCount === labels.length;
-  const currentIndex = loadingIndex >= 0 ? loadingIndex : Math.max(pendingIndex, 0);
-  const nextIndex = currentIndex >= 0 ? currentIndex + 1 : -1;
-  const completedLabels = labels.filter((_, index) => states[index] === "complete");
-
-  return (
-    <div className="task-progress-summary" data-message-meta="disabled" data-copy-exclude="true">
-      <div className="task-progress-summary__primary">
-        <ConversationStatusIcon status={complete ? "complete" : states[currentIndex]} />
-        <span><small>{complete ? "已完成" : "当前"}</small><strong>{complete ? completeLabel : labels[currentIndex]}</strong></span>
-      </div>
-      {!complete && nextIndex < labels.length ? (
-        <div className="task-progress-summary__next">
-          <ConversationStatusIcon status="pending" />
-          <span><small>下一步</small><strong>{labels[nextIndex]}</strong></span>
-        </div>
-      ) : null}
-      {completedCount > 0 ? (
-        <div className="task-progress-summary__history-group">
-          <button
-            type="button"
-            className="task-progress-summary__history-toggle"
-            aria-expanded={historyExpanded}
-            onClick={() => setHistoryExpanded((expanded) => !expanded)}
-          >
-            <motion.span
-              className="task-progress-summary__history-chevron"
-              animate={{ rotate: historyExpanded ? 90 : 0 }}
-              transition={{ duration: reduceMotion ? 0 : 0.24, ease: revealEase }}
-            >
-              <FigmaIcon name="chevron-right" size={16} />
-            </motion.span>
-            <span>已完成 {completedCount} 项</span>
-          </button>
-          <AnimatePresence initial={false}>
-            {historyExpanded ? (
-              <motion.div
-                className="task-progress-summary__history-clip"
-                initial={reduceMotion ? false : { height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
-                transition={{ duration: reduceMotion ? 0 : 0.24, ease: revealEase }}
-              >
-                <div className="task-progress-summary__history">
-                  {completedLabels.map((label) => (
-                    <div className="task-progress-summary__history-row" key={label}>
-                      <span className="task-progress-summary__history-leading" aria-hidden="true">
-                        <FigmaIcon name="dot" size={16} />
-                      </span>
-                      <span>{label}</span>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export function AnalysisStepIcon({ complete, delay = 0 }: { complete: boolean; delay?: number }) {
   const reduceMotion = useReducedMotion();
   const taskComplete = useContext(TaskDisclosureCompleteContext);
@@ -591,14 +523,147 @@ export function ConversationFileCard({
 export function TaskArtifactRow({
   kind,
   children,
+  onClick,
+  disabled = false,
 }: {
   kind: "file" | "image";
   children: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
 }) {
-  return (
-    <div className="task-detail-row task-detail-row--artifact">
+  const content = (
+    <>
       <FigmaIcon name={kind === "file" ? "add-file" : "image-generation"} size={16} />
       <span>{children}</span>
+    </>
+  );
+
+  return onClick ? (
+    <button
+      type="button"
+      className="task-detail-row task-detail-row--artifact task-detail-row--interactive"
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {content}
+    </button>
+  ) : <div className="task-detail-row task-detail-row--artifact">{content}</div>;
+}
+
+export type TaskDetailReferenceLink = {
+  id?: string;
+  label: string;
+  href: string;
+  thumbnail?: string;
+  meta?: string;
+  date?: string;
+};
+
+export function TaskDetailPanel({
+  ariaLabel,
+  onCollapse,
+  artifacts,
+  references,
+  referenceTitle = "参考信息",
+  onReferenceSelect,
+}: {
+  ariaLabel: string;
+  onCollapse: () => void;
+  artifacts?: ReactNode;
+  references: readonly TaskDetailReferenceLink[];
+  referenceTitle?: string;
+  onReferenceSelect?: (reference: TaskDetailReferenceLink) => void;
+}) {
+  const [referenceExpanded, setReferenceExpanded] = useState(false);
+  const isReferenceGallery = referenceTitle === "参考款式" && references.some((reference) => reference.thumbnail);
+
+  const renderReference = (reference: TaskDetailReferenceLink, expanded = false) => {
+    const content = (
+      <>
+        {reference.thumbnail ? (
+          <img
+            className="task-detail-reference-thumbnail"
+            src={assetUrl(reference.thumbnail)}
+            alt=""
+            aria-hidden="true"
+          />
+        ) : <FigmaIcon name="global" size={16} />}
+        <span className="task-detail-reference-copy">
+          <span className="task-detail-reference-label" title={reference.label}>{reference.label}</span>
+          {expanded && reference.meta ? <span className="task-detail-reference-meta">{reference.meta}</span> : null}
+          {expanded && reference.date ? <span className="task-detail-reference-date">{reference.date}</span> : null}
+        </span>
+        {!reference.thumbnail ? <FigmaIcon name="arrow-up-right" size={16} /> : null}
+      </>
+    );
+    const className = `task-detail-row task-detail-row--reference ${reference.thumbnail ? "task-detail-row--reference-media" : ""} ${expanded ? "task-detail-row--reference-expanded" : ""}`;
+
+    return reference.thumbnail && onReferenceSelect ? (
+      <button
+        type="button"
+        className={className}
+        onClick={() => onReferenceSelect(reference)}
+        key={reference.id ?? reference.href}
+      >
+        {content}
+      </button>
+    ) : (
+      <a
+        className={className}
+        href={reference.href}
+        target="_blank"
+        rel="noreferrer"
+        key={reference.id ?? reference.href}
+      >
+        {content}
+      </a>
+    );
+  };
+
+  return (
+    <div className={`task-detail-panel ${referenceExpanded ? "is-reference-expanded" : ""}`} aria-label={ariaLabel}>
+      <div className="task-detail-panel__view task-detail-panel__overview-view">
+        <header>
+          <strong>概览</strong>
+          <button type="button" onClick={onCollapse} aria-label="收起概览"><FigmaIcon name="expand-window" size={20} /></button>
+        </header>
+        {artifacts !== undefined ? (
+          <section>
+            <h2>任务产物</h2>
+            {artifacts}
+          </section>
+        ) : null}
+        <section>
+          {isReferenceGallery ? (
+            <div className="task-detail-reference-heading">
+              <h2>{referenceTitle}</h2>
+              <button type="button" onClick={() => setReferenceExpanded(true)}>
+                <span>查看全部</span>
+                <FigmaIcon name="chevron-right" size={16} />
+              </button>
+            </div>
+          ) : <h2>{referenceTitle}</h2>}
+          <div className="task-detail-reference-list">
+            {references.map((reference) => renderReference(reference))}
+          </div>
+        </section>
+      </div>
+      {isReferenceGallery ? (
+        <div className="task-detail-panel__view task-detail-panel__reference-view">
+          <header className="task-detail-reference-view-header">
+            <span>
+              <strong>{referenceTitle}</strong>
+              <small>共 {references.length} 条 · 按最近获取时间排序</small>
+            </span>
+            <button type="button" onClick={() => setReferenceExpanded(false)} aria-label="关闭参考款式列表">
+              <FigmaIcon name="close" size={20} />
+            </button>
+          </header>
+          <div className="task-detail-reference-list task-detail-reference-list--expanded">
+            {references.map((reference) => renderReference(reference, true))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

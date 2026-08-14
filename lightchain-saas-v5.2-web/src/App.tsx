@@ -25,6 +25,13 @@ type TaskRecord = {
   initialState?: "default" | "complete";
 };
 
+const workflowPageTitles: Record<TaskRecord["workflow"], string> = {
+  "new-product": "新品企划",
+  default: "客户提案",
+  apparel: "灵感设计",
+  plan: "企划案",
+};
+
 export default function App() {
   const appShellRef = useGsapStaggerEntrance<HTMLDivElement>(".topbar, .sidebar", { y: -8 });
   const [theme, setTheme] = useState<Theme>("dark");
@@ -36,6 +43,11 @@ export default function App() {
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
   const [newTaskKey, setNewTaskKey] = useState(0);
   const activeTask = taskRecords.find((task) => task.id === activeTaskId) ?? null;
+  const sidebarPageTitle = activeView === "preferences"
+    ? "业务偏好档案"
+    : activeTask
+      ? workflowPageTitles[activeTask.workflow]
+      : "灵感决策工作台";
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -53,6 +65,7 @@ export default function App() {
         <Sidebar
           expanded={sidebarExpanded}
           onToggle={() => setSidebarExpanded((value) => !value)}
+          pageTitle={sidebarPageTitle}
           activeView={activeView}
           activeTaskId={activeTaskId}
           onOpenWorkspace={() => {
