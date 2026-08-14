@@ -19,6 +19,7 @@ import {
   ConversationTaskCompletion,
   ConversationUserMessage,
   ImageSelectionActions,
+  SelectAllControl,
   TaskArtifactRow,
   TaskDetailPanel,
   TaskDisclosure,
@@ -29,10 +30,11 @@ import { IconControl } from "./IconControl";
 import { ResearchScopeForm } from "./ResearchScopeForm";
 import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
 import { ConversationUserAttachments } from "./ConversationUserAttachments";
-import { getLocaleDefaultMarket, getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
+import { getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
 import { useI18n } from "../i18n";
 import { buildFashionProposalHtml, type FashionProposalPlan, type FashionProposalSource } from "../report/fashionProposalHtml";
 import { useModalFocus } from "../hooks/useModalFocus";
+import { extractPromptContext, getPromptExclusions } from "../utils/promptContext";
 
 type PlanningStage =
   | "analyzing"
@@ -355,7 +357,14 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   initialState?: "default" | "complete";
 }) {
   const { locale, t } = useI18n();
-  const scopeDefaults = getResearchScopeDefaults(profileName, locale);
+  const scopeDefaults = getResearchScopeDefaults(profileName, locale, prompt);
+  const promptContext = useMemo(() => extractPromptContext(prompt), [prompt]);
+  const promptExclusions = useMemo(() => getPromptExclusions(prompt), [prompt]);
+  const briefCategory = promptContext.garment ?? "未指定";
+  const briefAudience = promptContext.audience ?? "未指定";
+  const briefMarket = promptContext.market ?? "未指定";
+  const briefSeason = promptContext.season ?? "未指定";
+  const briefChannels = scopeDefaults.commerce.length ? scopeDefaults.commerce.join("、") : "未指定";
   const startsComplete = initialState === "complete";
   const [stage, setStage] = useState<PlanningStage>(startsComplete ? "complete" : "analyzing");
   const [analysisExpanded, setAnalysisExpanded] = useState(!startsComplete);
@@ -534,8 +543,14 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
   const composerRunning = regenerationBusy || ["analyzing", "research", "structure-planning", "ai-generating", "plan-generating"].includes(stage);
   const researchReferencesReady = ["directions", "structure-planning", "structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage);
+  const productStructureReady = ["structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage);
+  const aiResultsReady = ["results", "plan-generating", "complete"].includes(stage);
   const selectedDirectionLabels = directions.filter((item) => selectedDirections.includes(item.id)).map((item) => item.title);
   const researchPlatformOptions = getResearchPlatformOptions(markets);
+  const allResearchPlatformOptions = getResearchPlatformOptions(researchMarkets);
+  const researchScopeAllSelected = researchMarkets.every((market) => markets.includes(market))
+    && allResearchPlatformOptions.commerce.every((platform) => commerce.includes(platform))
+    && allResearchPlatformOptions.social.every((platform) => social.includes(platform));
   const researchReportHtml = useMemo(() => buildResearchReportHtml(markets, commerce, social), [commerce, markets, social]);
   const confirmedDirections = useMemo(
     () => directions.filter((direction) => selectedDirections.includes(direction.id)),
@@ -578,15 +593,32 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
       { value: String(merchandisingPlan.assortment.length), label: "规划品类" },
     ],
   }), [confirmedDirectionReportItems, confirmedDirections, merchandisingPlan, planSources]);
+  const aiResultsHtml = useMemo(() => buildFashionProposalHtml({
+    kind: "package",
+    title: "AI 改款结果",
+    deck: "汇总本轮基于已确认视觉方向、参考商品与商品结构生成的 AI 改款图，供筛选与后续新品企划使用。",
+    kicker: "AI DESIGN VARIATIONS",
+    topbarMeta: `${briefMarket} / ${briefCategory} / ${briefSeason}`,
+    directions: confirmedDirectionReportItems,
+    references: displayedResultItems.map((item) => ({
+      code: item.code,
+      title: item.subtitle ?? item.title,
+      category: directions.find((direction) => direction.id === item.categoryId)?.title ?? item.title,
+      imageUrl: assetUrl(item.src),
+    })),
+    categoryCount: new Set(displayedResultItems.map((item) => item.categoryId)).size,
+    directionLabel: confirmedDirections.map((direction) => direction.title).join("、") || "方向待确认",
+    sources: planSources,
+  }), [briefCategory, briefMarket, briefSeason, confirmedDirectionReportItems, confirmedDirections, displayedResultItems, planSources]);
   const newProductPlanHtml = useMemo(() => {
     const confirmedResults = displayedResultItems.filter((item) => selectedResults.includes(item.id));
 
     return buildFashionProposalHtml({
       kind: "plan",
-      title: "2026 秋季女装新品企划案",
-      deck: "面向 Amazon US 与 TikTok Shop US 的过渡季女装方案，以成熟花卉、克制女性化与轻松廓形建立可销售、可传播的系列结构。",
+      title: `${briefSeason === "未指定" ? "待确认季节" : briefSeason} ${briefCategory}新品企划案`,
+      deck: `面向${briefMarket}与${briefChannels}的${briefCategory}方案，所有未提供的经营条件继续标记为待确认。`,
       kicker: "NEW PRODUCT MERCHANDISING PLAN",
-      topbarMeta: "United States / Womenswear / Fall Transition 2026",
+      topbarMeta: `${briefMarket} / ${briefCategory} / ${briefSeason}`,
       directions: confirmedDirectionReportItems,
       references: confirmedResults.map((item) => ({
         code: item.code,
@@ -595,11 +627,11 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
         imageUrl: assetUrl(item.src),
       })),
       categoryCount: merchandisingPlan.assortment.length,
-      directionLabel: `${confirmedDirections.map((direction) => direction.title).join("、") || "方向待确认"}；渠道：Amazon US、TikTok Shop US`,
+      directionLabel: `${confirmedDirections.map((direction) => direction.title).join("、") || "方向待确认"}；渠道：${briefChannels}`,
       sources: planSources,
       plan: merchandisingPlan,
     });
-  }, [confirmedDirectionReportItems, confirmedDirections, displayedResultItems, merchandisingPlan, planSources, selectedResults]);
+  }, [briefCategory, briefChannels, briefMarket, briefSeason, confirmedDirectionReportItems, confirmedDirections, displayedResultItems, merchandisingPlan, planSources, selectedResults]);
 
   const stopCurrentTask = () => {
     if (regenerationBusy) {
@@ -625,17 +657,17 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
             <AssistantMessage actions={false}>
               <p>{stage === "analyzing" ? "正在读取需求资料并整理企划边界。" : "已完成需求解析，并保留所有未提供字段为未指定。"}</p>
               <TaskDisclosure title="解析新品企划需求" expanded={analysisExpanded} complete={stage !== "analyzing"} controlsId="new-product-analysis" onToggle={() => setAnalysisExpanded((value) => !value)}>
-                {["读取本次文字、图片和文档", "读取已应用的业务偏好档案", "识别品类、人群、价格、渠道、波段与排除条件", "记录缺失信息，不补造未提供内容"].map((line, index) => <div key={line}><AnalysisStepIcon complete={stage !== "analyzing"} delay={index * 0.06} /><span>{line}</span></div>)}
+                {["读取本次文字、图片和文档", profileName ? "读取已应用的业务偏好档案" : "确认本任务未应用业务偏好档案", "识别品类、人群、价格、渠道、波段与排除条件", "记录缺失信息，不补造未提供内容"].map((line, index) => <div key={line}><AnalysisStepIcon complete={stage !== "analyzing"} delay={index * 0.06} /><span>{line}</span></div>)}
               </TaskDisclosure>
             </AssistantMessage>
 
             {stage !== "analyzing" ? (
               <AssistantMessage className="new-product-brief">
                 <p><strong>我已整理本次新品企划需求：</strong></p>
-                <p>品类：连衣裙、裤装、上衣、套装、卫衣；目标人群：Amazon 30 岁以上，TikTok Shop 20–35 岁初入职场。</p>
-                <p>价格段：USD 10–20；市场与渠道：美国，Amazon US、TikTok Shop US。</p>
-                <p>波段：2026 年 8 月、2027 年 2 月；计划款数：未指定，将在商品结构中给出待确认建议。</p>
-                <p>排除条件：过度年轻/辣妹风、皮衣、瑜伽、牛仔、外套、皮草、棉服。</p>
+                <p>品类：{briefCategory}；目标人群：{briefAudience}。</p>
+                <p>价格段：未指定；市场与渠道：{briefMarket}，{briefChannels}。</p>
+                <p>波段：{briefSeason}；计划款数：未指定，将在商品结构中给出待确认建议。</p>
+                <p>排除条件：{promptExclusions.length ? promptExclusions.join("、") : "未指定"}。</p>
                 <p>资料缺口：无历史销售、旧企划、OTB 预算和真实供应商报价。缺失内容不会补造。</p>
                 {stage === "brief" ? (
                   <div className="new-product-quick-replies">
@@ -670,10 +702,15 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                     onToggleCommerce={(value) => toggle(value, setCommerce)}
                     onToggleSocial={(value) => toggle(value, setSocial)}
                     onOtherCommerceChange={setOtherCommerce}
+                    onToggleAll={() => {
+                      setMarkets(researchScopeAllSelected ? scopeDefaults.markets : [...researchMarkets]);
+                      setCommerce(researchScopeAllSelected ? scopeDefaults.commerce : [...allResearchPlatformOptions.commerce]);
+                      setSocial(researchScopeAllSelected ? scopeDefaults.social : [...allResearchPlatformOptions.social]);
+                    }}
                     onReset={() => {
-                      setMarkets([getLocaleDefaultMarket(locale)]);
-                      setCommerce([]);
-                      setSocial([]);
+                      setMarkets(scopeDefaults.markets);
+                      setCommerce(scopeDefaults.commerce);
+                      setSocial(scopeDefaults.social);
                       setOtherCommerce("");
                     }}
                     onConfirm={() => setStage("research")}
@@ -727,7 +764,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                       );
                     })}
                   </div>
-                  {stage === "directions" ? <div className="new-product-form-actions"><Button variant="secondary" size="small" onClick={() => setSelectedDirections([])}>重置选择</Button><Button variant="primary" size="small" disabled={!selectedDirections.length} onClick={() => setStage("structure-planning")}>确认并继续</Button></div> : null}
+                  {stage === "directions" ? <div className="new-product-form-actions"><SelectAllControl selected={selectedDirections.length === directions.length} className="selection-select-all--leading" onToggle={() => setSelectedDirections(selectedDirections.length === directions.length ? [] : directions.map((direction) => direction.id))} /><Button variant="secondary" size="small" onClick={() => setSelectedDirections([])}>重置选择</Button><Button variant="primary" size="small" disabled={!selectedDirections.length} onClick={() => setStage("structure-planning")}>确认并继续</Button></div> : null}
                 </section>
               </AssistantMessage>
             ) : null}
@@ -778,7 +815,12 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
             {["results", "plan-generating", "complete"].includes(stage) ? (
               <AssistantMessage actions={false}>
                 <p>8 张 AI 改款图已生成。它们继承已确认视觉方向、参考商品特征和商品结构，并按渠道客群区分廓形与表达。</p>
-                <DownloadableFile name="AI 改款结果.html" description="刚刚 · 专业服装提示词已通过完整性检查 · AI 概念表达" />
+                <DownloadableFile
+                  name="AI 改款结果.html"
+                  description="刚刚 · 专业服装提示词已通过完整性检查 · AI 概念表达"
+                  html={aiResultsHtml}
+                  onPreview={() => setReportPreview({ name: "AI 改款结果.html", html: aiResultsHtml })}
+                />
                 <p>{t("请从改款结果中，选择你喜欢的图片")}</p>
                 <section className="new-product-results-form">
                   <ConversationFormTitle
@@ -889,9 +931,26 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
         <TaskDetailPanel
           ariaLabel="新品企划任务概览"
           onCollapse={() => setDetailPanelOpen(false)}
-          artifacts={stage === "complete" ? (
-            <TaskArtifactRow kind="file" onClick={() => setReportPreview({ name: "新品企划案.html", html: newProductPlanHtml })}>新品企划案.html</TaskArtifactRow>
-          ) : <TaskArtifactRow kind="file">正在生成新品企划产物…</TaskArtifactRow>}
+          artifacts={(
+            <>
+              {researchReferencesReady ? (
+                <TaskArtifactRow kind="file" onClick={() => setReportPreview({ name: "调研与视觉方向报告.html", html: researchReportHtml })}>调研与视觉方向报告.html</TaskArtifactRow>
+              ) : null}
+              {productStructureReady ? (
+                <TaskArtifactRow kind="file" onClick={() => setReportPreview({ name: "商品结构规划.html", html: productStructureHtml })}>商品结构规划.html</TaskArtifactRow>
+              ) : null}
+              {aiResultsReady ? (
+                <TaskArtifactRow kind="file" onClick={() => setReportPreview({ name: "AI 改款结果.html", html: aiResultsHtml })}>AI 改款结果.html</TaskArtifactRow>
+              ) : null}
+              {stage === "complete" ? (
+                <TaskArtifactRow kind="file" onClick={() => setReportPreview({ name: "新品企划案.html", html: newProductPlanHtml })}>新品企划案.html</TaskArtifactRow>
+              ) : null}
+              {!researchReferencesReady ? <TaskArtifactRow kind="file">正在生成调研与视觉方向报告.html…</TaskArtifactRow> : null}
+              {stage === "structure-planning" ? <TaskArtifactRow kind="file">正在生成商品结构规划.html…</TaskArtifactRow> : null}
+              {stage === "ai-generating" ? <TaskArtifactRow kind="file">正在生成 AI 改款结果.html…</TaskArtifactRow> : null}
+              {stage === "plan-generating" ? <TaskArtifactRow kind="file">正在生成新品企划案.html…</TaskArtifactRow> : null}
+            </>
+          )}
           referenceTitle="参考款式"
           references={(researchReferencesReady ? newProductReferenceItems : []).map((item) => ({
             id: item.id,

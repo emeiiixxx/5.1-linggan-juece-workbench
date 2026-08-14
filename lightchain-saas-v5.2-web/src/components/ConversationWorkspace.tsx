@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
@@ -11,11 +11,12 @@ import { TaskConversationComposer, type TaskConversationAttachment } from "./Tas
 import { ConversationUserAttachments, type ConversationUserAttachment } from "./ConversationUserAttachments";
 import { ResearchScopeForm } from "./ResearchScopeForm";
 import { SelectionCard } from "./SelectionCard";
-import { AnalysisStepIcon, ConversationFeed, ConversationFileCard, ConversationFormTitle, ConversationTaskCompletion, ConversationUserMessage, ImageSelectionActions, TaskArtifactRow, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
+import { AnalysisStepIcon, ConversationFeed, ConversationFileCard, ConversationFormTitle, ConversationTaskCompletion, ConversationUserMessage, ImageSelectionActions, SelectAllControl, TaskArtifactRow, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
 import { candidateCategories, candidatePageCount, candidateReferenceImages, formatCandidateSelection, formatTrendDirectionSelection, getCandidateCategoryLabel, getCandidateReference, trendDirections, trendReportDetails, type CandidateCategoryId } from "../data/referenceCatalog";
 import { buildFashionProposalHtml } from "../report/fashionProposalHtml";
 import { useI18n } from "../i18n";
-import { getLocaleDefaultMarket, getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
+import { extractPromptContext } from "../utils/promptContext";
+import { getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
 import { useModalFocus } from "../hooks/useModalFocus";
 
 type AnalysisPhase = "parsing" | "complete";
@@ -86,6 +87,13 @@ const customerAiResultImages = candidateCategories.flatMap((category) =>
 
 function StreamingText({ children }: { children: string; delay?: number }) {
   return <span className="conversation-streaming-text">{children}</span>;
+}
+
+function getProfileSummary(profileName: string) {
+  if (profileName.includes("卡宾")) return "品类：鞋袋　价格段：CNY 200–1,000　市场：中国、欧美　年龄段：3–18岁";
+  if (profileName.includes("日本")) return "品类：女装　价格段：JPY 8,000–18,000　市场：日本、韩国、美国　年龄段：25–34岁、35–44岁";
+  if (profileName.includes("灭霸") || profileName.includes("Thanos")) return "品类：女装、男装、童装　价格段：USD 1,000–999,999,999　市场：日本、韩国、美国　年龄段：多年龄段";
+  return "已应用该档案中保存的品类、价格、市场与年龄范围";
 }
 
 function buildTrendReportHtml(kind: TrendPreviewKind, selectedDirectionIds: string[] = [], selectedCandidateIds: string[] = []) {
@@ -216,12 +224,14 @@ function TrendDirectionSelectionForm({
   selectedIds,
   confirmed,
   onToggle,
+  onToggleAll,
   onReset,
   onConfirm,
 }: {
   selectedIds: string[];
   confirmed: boolean;
   onToggle: (directionId: string) => void;
+  onToggleAll: () => void;
   onReset: () => void;
   onConfirm: () => void;
 }) {
@@ -253,6 +263,7 @@ function TrendDirectionSelectionForm({
       </div>
       {!confirmed ? (
         <div className="new-product-form-actions">
+          <SelectAllControl selected={selectedIds.length === trendDirections.length} className="selection-select-all--leading" onToggle={onToggleAll} />
           <Button variant="secondary" size="small" onClick={onReset}>重置选择</Button>
           <Button variant="primary" size="small" disabled={!selectedIds.length} onClick={onConfirm}>确认并继续</Button>
         </div>
@@ -269,11 +280,17 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
 }) {
   const { locale, t } = useI18n();
   const startsComplete = initialState === "complete";
-  const profileScopeDefaults = getResearchScopeDefaults(profileName, locale);
+  const profileScopeDefaults = getResearchScopeDefaults(profileName, locale, prompt);
+  const promptContext = useMemo(() => extractPromptContext(prompt), [prompt]);
+  const parsedMarket = promptContext.market ?? (profileName ? profileScopeDefaults.markets.join("、") : "未指定");
+  const parsedAudience = promptContext.audience ?? (profileName ? "25-34岁" : "未指定");
+  const parsedCategory = promptContext.garment ?? (profileName ? "女装" : "未指定");
+  const parsedSeason = promptContext.season ?? "待补充";
+  const missingSummary = promptContext.season ? "当前描述未发现必须补充项" : "已确认缺失信息：季节";
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [analysisExpanded, setAnalysisExpanded] = useState(!startsComplete);
   const [analysisPhase, setAnalysisPhase] = useState<AnalysisPhase>(startsComplete ? "complete" : "parsing");
-  const [profileVisible, setProfileVisible] = useState(startsComplete);
+  const [profileVisible, setProfileVisible] = useState(startsComplete && Boolean(profileName));
   const [analysisVisible, setAnalysisVisible] = useState(startsComplete);
   const [followUp, setFollowUp] = useState("");
   const [composerFocusRequest, setComposerFocusRequest] = useState(0);
@@ -343,13 +360,13 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   useEffect(() => {
     if (startsComplete) return;
     if (reduceMotion) {
-      setProfileVisible(true);
+      setProfileVisible(Boolean(profileName));
       setAnalysisVisible(true);
       setAnalysisPhase("complete");
       return;
     }
     const profileTimer = window.setTimeout(
-      () => setProfileVisible(true),
+      () => setProfileVisible(Boolean(profileName)),
       profileRevealDelay,
     );
     const analysisTimer = window.setTimeout(
@@ -365,15 +382,16 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
       window.clearTimeout(analysisTimer);
       window.clearTimeout(completionTimer);
     };
-  }, [reduceMotion, startsComplete]);
+  }, [profileName, reduceMotion, startsComplete]);
 
   useEffect(() => {
     if (profileName || scopeConfirmed || scopeTouchedRef.current) return;
-    setSelectedResearchMarkets([getLocaleDefaultMarket(locale)]);
-    setSelectedCommerce([]);
-    setSelectedSocial([]);
+    const defaults = getResearchScopeDefaults(undefined, locale, prompt);
+    setSelectedResearchMarkets(defaults.markets);
+    setSelectedCommerce(defaults.commerce);
+    setSelectedSocial(defaults.social);
     setOtherCommerce("");
-  }, [locale, profileName, scopeConfirmed]);
+  }, [locale, profileName, prompt, scopeConfirmed]);
 
   useEffect(() => {
     if (!trendPreviewOpen) return;
@@ -562,8 +580,8 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     setFollowUp("");
   };
 
-  const useSeasonQuickReply = (message: "继续" | "跳过" | "没有补充，继续") => {
-    if (message === "继续" || message === "没有补充，继续") {
+  const useSeasonQuickReply = (message: "继续" | "跳过" | "没有补充，继续" | "确认需求，继续") => {
+    if (message !== "跳过") {
       setScopeEntryMessage(message);
       setScopeEntryAttachments([]);
       setScopeFormVisible(true);
@@ -714,6 +732,10 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const confirmedMarkets = selectedResearchMarkets.join("、");
   const confirmedSocial = selectedSocial.join("、");
   const researchPlatformOptions = getResearchPlatformOptions(selectedResearchMarkets);
+  const allResearchPlatformOptions = getResearchPlatformOptions(researchMarkets);
+  const researchScopeAllSelected = researchMarkets.every((market) => selectedResearchMarkets.includes(market))
+    && allResearchPlatformOptions.commerce.every((platform) => selectedCommerce.includes(platform))
+    && allResearchPlatformOptions.social.every((platform) => selectedSocial.includes(platform));
   const scopeCanSubmit = selectedResearchMarkets.length > 0 && selectedCommerce.length > 0 && selectedSocial.length > 0;
   const activeCandidatePage = candidatePages[activeCandidateCategory];
   const visibleCandidateImages = candidateReferenceImages.filter((candidate) =>
@@ -787,8 +809,8 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     transition={{ duration: reduceMotion ? 0 : 0.38, delay: reduceMotion ? 0 : 0.3, ease: revealEase }}
                   >
-                    <strong>{profileName ?? "灭霸毁灭宇宙回忆录"}</strong>
-                    <span>品类：女装　价格段：JPY 8,000–18,000　国家：日本　年龄段：25-34岁、35-44岁</span>
+                    <strong>{profileName}</strong>
+                    <span>{profileName ? getProfileSummary(profileName) : null}</span>
                   </motion.div>
                 </motion.article>
               ) : null}
@@ -819,14 +841,14 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                 >
                       <div>
                         <AnalysisStepIcon complete />
-                        <span>读取业务偏好档案</span>
+                        <span>{profileName ? "读取业务偏好档案" : "检查业务偏好档案"}</span>
                       </div>
-                      <p>已读取并理解业务偏好档案内容</p>
+                      <p>{profileName ? "已读取并理解业务偏好档案内容" : "本任务未应用业务偏好档案，将仅使用当前描述。"}</p>
                       <div>
                         <AnalysisStepIcon complete={analysisComplete} delay={0.02} />
                         <span>解析客户资料与首轮描述</span>
                       </div>
-                      <p>{analysisComplete ? "已收集" : "收集"}各大品牌的2025/26冬季系列发布信息，以获得市场趋势的全面了解。</p>
+                      <p>{analysisComplete ? "已整理" : "正在整理"}{parsedSeason === "待补充" ? "目标季节" : parsedSeason}相关公开资料，以建立本次需求语境。</p>
                       <div>
                         <AnalysisStepIcon complete={analysisComplete} delay={0.1} />
                         <span>识别参考图特征</span>
@@ -842,7 +864,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                       </div>
                       {analysisComplete ? (
                         <motion.p initial={reduceMotion ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.24, delay: reduceMotion ? 0 : 0.38, ease: revealEase }}>
-                          已确认缺失信息：季节
+                          {missingSummary}
                         </motion.p>
                       ) : null}
                 </TaskDisclosure>
@@ -877,12 +899,12 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                       <strong><StreamingText delay={0.82}>本次需求理解：</StreamingText></strong>
                       <ul>
                         <li><StreamingText delay={0.94}>目标：根据当前描述形成客户可评审的方向方案</StreamingText></li>
-                        <li><StreamingText delay={1.08}>市场：日本　人群：25-34岁</StreamingText></li>
-                        <li><StreamingText delay={1.22}>品类：女装　季节：待补充</StreamingText></li>
-                        <li><StreamingText delay={1.36}>价格：JPY 8,000-18,000　设计方向：待补充</StreamingText></li>
+                        <li><StreamingText delay={1.08}>{`市场：${parsedMarket}　人群：${parsedAudience}`}</StreamingText></li>
+                        <li><StreamingText delay={1.22}>{`品类：${parsedCategory}　季节：${parsedSeason}`}</StreamingText></li>
+                        <li><StreamingText delay={1.36}>{`价格：${profileName ? "JPY 8,000-18,000" : "未指定"}　设计方向：待补充`}</StreamingText></li>
                         <li><StreamingText delay={1.5}>参考图特征：未上传，待补充</StreamingText></li>
                         <li><StreamingText delay={1.64}>保留元素：待补充　排除元素：待补充</StreamingText></li>
-                        <li><StreamingText delay={1.78}>待补充：季节</StreamingText></li>
+                        <li><StreamingText delay={1.78}>{promptContext.season ? "必要字段已从当前描述中识别" : "待补充：季节"}</StreamingText></li>
                       </ul>
                     </motion.div>
                   </motion.article>
@@ -893,7 +915,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                     variants={conversationBlockReveal}
                     transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : 0.18, ease: revealEase }}
                   >
-                    <p><StreamingText delay={2.02}>请确认【季节】，可直接补充；没有补充时可继续进入调研范围。</StreamingText></p>
+                    <p><StreamingText delay={2.02}>{promptContext.season ? `已识别季节为【${promptContext.season}】，确认后进入调研范围。` : "请确认【季节】，可直接补充；没有补充时可继续进入调研范围。"}</StreamingText></p>
                     {!scopeFormVisible && !seasonSkipped ? (
                       <motion.div
                         className="conversation-quick-actions"
@@ -903,13 +925,11 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                         animate="visible"
                         variants={{ visible: { transition: { delayChildren: reduceMotion ? 0 : 0.24, staggerChildren: reduceMotion ? 0 : 0.06 } } }}
                       >
+                        {!promptContext.season ? <motion.span className="conversation-quick-action" variants={quickActionReveal}>
+                          <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>补充条件</Button>
+                        </motion.span> : null}
                         <motion.span className="conversation-quick-action" variants={quickActionReveal}>
-                          <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>
-                            补充条件
-                          </Button>
-                        </motion.span>
-                        <motion.span className="conversation-quick-action" variants={quickActionReveal}>
-                          <QuickReplyButton onClick={() => useSeasonQuickReply("没有补充，继续")}>没有补充，继续</QuickReplyButton>
+                          <QuickReplyButton onClick={() => useSeasonQuickReply(promptContext.season ? "确认需求，继续" : "没有补充，继续")}>{promptContext.season ? "确认需求，继续" : "没有补充，继续"}</QuickReplyButton>
                         </motion.span>
                       </motion.div>
                     ) : null}
@@ -976,11 +996,17 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                       onToggleCommerce={(platform) => toggleSelection(platform, setSelectedCommerce)}
                       onToggleSocial={(platform) => toggleSelection(platform, setSelectedSocial)}
                       onOtherCommerceChange={updateOtherCommerce}
+                      onToggleAll={() => {
+                        scopeTouchedRef.current = true;
+                        setSelectedResearchMarkets(researchScopeAllSelected ? profileScopeDefaults.markets : [...researchMarkets]);
+                        setSelectedCommerce(researchScopeAllSelected ? profileScopeDefaults.commerce : [...allResearchPlatformOptions.commerce]);
+                        setSelectedSocial(researchScopeAllSelected ? profileScopeDefaults.social : [...allResearchPlatformOptions.social]);
+                      }}
                       onReset={() => {
                         scopeTouchedRef.current = true;
-                        setSelectedResearchMarkets([getLocaleDefaultMarket(locale)]);
-                        setSelectedCommerce([]);
-                        setSelectedSocial([]);
+                        setSelectedResearchMarkets(profileScopeDefaults.markets);
+                        setSelectedCommerce(profileScopeDefaults.commerce);
+                        setSelectedSocial(profileScopeDefaults.social);
                         setOtherCommerce("");
                       }}
                       onConfirm={confirmResearchScope}
@@ -1114,6 +1140,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                               selectedIds={selectedTrendIds}
                               confirmed={trendDirectionsConfirmed}
                               onToggle={toggleTrendDirection}
+                              onToggleAll={() => setSelectedTrendIds(selectedTrendIds.length === trendDirections.length ? [] : trendDirections.map((direction) => direction.id))}
                               onReset={() => setSelectedTrendIds([])}
                               onConfirm={confirmTrendDirections}
                             />
@@ -1261,6 +1288,13 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                         </div>
                                         {!candidateSelectionConfirmed ? (
                                           <>
+                                            <SelectAllControl
+                                              selected={selectedCandidateIds.length === candidateReferenceImages.length}
+                                              className="selection-select-all--leading"
+                                              onToggle={() => setSelectedCandidateIds(selectedCandidateIds.length === candidateReferenceImages.length
+                                                ? []
+                                                : candidateReferenceImages.map((candidate) => candidate.id))}
+                                            />
                                             <span className="conversation-form-selection-count" aria-live="polite">
                                               <span>已选择</span>
                                               <strong>{selectedCandidateIds.length}</strong>

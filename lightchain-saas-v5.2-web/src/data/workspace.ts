@@ -34,7 +34,7 @@ export const completedCustomerProposalExample = {
   title: "27年颜色流行趋势",
   projectId: 0,
   prompt: "围绕 2027 年颜色流行趋势，结合目标市场、客户需求与公开行业资料，整理视觉方向、参考素材和 AI 改款结果，并生成一份完整客户提案。",
-  profileName: "灭霸毁灭宇宙回忆录",
+  profileName: "灭霸毁灭世界回忆录",
   workflow: "default" as const,
   status: "completed" as const,
   initialState: "complete" as const,

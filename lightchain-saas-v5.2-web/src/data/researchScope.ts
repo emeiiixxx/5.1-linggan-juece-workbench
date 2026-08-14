@@ -1,4 +1,5 @@
 import type { Locale } from "../i18n";
+import { extractPromptContext } from "../utils/promptContext";
 
 export type ResearchMarket = "中国" | "日本" | "北美" | "欧洲";
 
@@ -35,8 +36,22 @@ export function getLocaleDefaultMarket(locale: Locale): ResearchMarket {
   return "中国";
 }
 
-export function getResearchScopeDefaults(profileName: string | undefined, locale: Locale): ResearchScopeDefaults {
-  if (!profileName) return { markets: [getLocaleDefaultMarket(locale)], commerce: [], social: [] };
+export function getResearchScopeDefaults(profileName: string | undefined, locale: Locale, prompt = ""): ResearchScopeDefaults {
+  if (!profileName) {
+    const promptMarket = extractPromptContext(prompt).market as ResearchMarket | undefined;
+    const markets = promptMarket && researchMarkets.includes(promptMarket)
+      ? [promptMarket]
+      : [getLocaleDefaultMarket(locale)];
+    const available = getResearchPlatformOptions(markets);
+    const commerce = available.commerce.filter((platform) => prompt.toLocaleLowerCase().includes(platform.toLocaleLowerCase()));
+    const social = available.social.filter((platform) => {
+      if (platform === "TikTok" && /TikTok\s*Shop/i.test(prompt)) return false;
+      if (platform === "抖音" && /抖音(?:商城|电商|店铺)/.test(prompt)) return false;
+      return prompt.toLocaleLowerCase().includes(platform.toLocaleLowerCase());
+    });
+    if (promptMarket === "北美" && /TikTok\s*Shop/i.test(prompt) && !social.includes("TikTok")) social.push("TikTok");
+    return { markets, commerce, social };
+  }
   if (profileName.includes("卡宾")) return { markets: ["中国", "北美", "欧洲"], commerce: ["淘宝"], social: ["小红书"] };
   if (profileName.includes("灭霸") || profileName.includes("Thanos")) {
     return { markets: ["日本", "北美"], commerce: ["ZOZOTOWN"], social: ["Instagram", "TikTok"] };

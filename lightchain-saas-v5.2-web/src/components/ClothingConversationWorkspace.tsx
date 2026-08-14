@@ -4,12 +4,13 @@ import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
 import { Button, QuickReplyButton } from "./Button";
-import { AnalysisStepIcon, ConversationFeed, ConversationFormTitle, ConversationStatusIcon as ApparelStatusIcon, ConversationTaskCompletion, ConversationUserMessage as UserMessage, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
+import { AnalysisStepIcon, ConversationFeed, ConversationFormTitle, ConversationStatusIcon as ApparelStatusIcon, ConversationTaskCompletion, ConversationUserMessage as UserMessage, SelectAllControl, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
 import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
 import { useGsapEntrance } from "../motion/gsap";
 import { SelectionCard, SelectionControl } from "./SelectionCard";
 import { ConversationUserAttachments } from "./ConversationUserAttachments";
 import type { InspirationDesignType } from "./InspirationDesignSelect";
+import { extractPromptContext, getPromptExclusions } from "../utils/promptContext";
 
 type ApparelStage =
   | "analyzing"
@@ -61,6 +62,13 @@ const designDirections = [
   },
 ];
 
+const knitCardiganDirections = [
+  { id: "A", title: "轻盈通勤基础", description: "围绕针织开衫的轻薄层次、利落门襟与日常通勤比例建立核心款。" },
+  { id: "B", title: "细腻肌理升级", description: "通过细针组织、局部纹理和克制包边提升米白针织的质感层次。" },
+  { id: "C", title: "柔性结构塑形", description: "利用肩线、腰节和下摆收束形成有结构但不厚重的春季廓形。" },
+  { id: "D", title: "模块化轻搭", description: "加入可拆领巾、局部系带或双穿细节，扩展通勤与休闲搭配场景。" },
+] as const;
+
 const skuPlan = [
   ["01", "经典复刻 · 原版致敬", "Image_1", "装饰减少法 + 改变形式法", "完整保留立领、插肩袖、罗纹收口与翻盖贴袋，辅料升级为黄铜拉丝质感。"],
   ["02", "毛领奢华 · 冬季升级", "Image_1", "部位增加法", "在立领内侧增加可翻折羊羔绒毛领衬里，保持原有门襟和收口结构。"],
@@ -70,6 +78,17 @@ const skuPlan = [
   ["06", "环绕式门襟 · 围裹结构", "Image_1", "逆向改款法 + 部位增加法", "取消正面门襟，以腰部皮带与肩部暗扣形成环绕式围裹结构。"],
   ["07", "茧型廓形 · 体积实验", "Image_1", "廓形限定法", "采用茧型廓形强化肩部收窄、胸腹膨胀与下摆收拢。"],
   ["08", "撞色拼接 · 运动解构", "Image_1 + Image_3", "品类转移法 + 组合更换法", "融合米白羊皮衣身与黑色皮革袖部，加入运动棒球夹克逻辑。"],
+] as const;
+
+const knitCardiganSkuPlan = [
+  ["01", "轻薄圆领 · 通勤基础", "Image_1", "比例调整法", "以细针组织和短款比例形成轻盈通勤开衫。"],
+  ["02", "V 领门襟 · 纵向延伸", "Image_1", "改变形式法", "以窄 V 领和精细门襟拉长上身比例。"],
+  ["03", "局部罗纹 · 肌理对比", "Image_1 + Image_2", "细节转移法", "在袖口与侧片加入同色罗纹，维持米白色整体感。"],
+  ["04", "柔性收腰 · 轻结构", "Image_1", "廓形限定法", "通过腰节收束形成有结构但不紧绷的春季廓形。"],
+  ["05", "双层门襟 · 精致层次", "Image_1 + Image_2", "部位增加法", "使用同色双层门襟增加细节，不引入外套式厚重结构。"],
+  ["06", "可拆领巾 · 场景切换", "Image_1", "模块组合方法", "加入可拆卸轻薄领巾，支持通勤与休闲切换。"],
+  ["07", "短袖开衫 · 春夏过渡", "Image_1", "品类延展法", "保留针织开衫语言并转为短袖比例，扩展温暖天气场景。"],
+  ["08", "微透叠穿 · 轻盈表达", "Image_1 + Image_3", "材质替换法", "采用疏密变化的同色针织组织形成克制的透气层次。"],
 ] as const;
 
 const candidateIds = Array.from({ length: 16 }, (_, index) => `R${String(index + 1).padStart(2, "0")}`);
@@ -114,6 +133,19 @@ function ApparelQuickReply({ children, onClick }: { children: ReactNode; onClick
 }
 
 export function ClothingConversationWorkspace({ prompt, attachments = [] }: { prompt: string; attachments?: Attachment[] }) {
+  const promptContext = useMemo(() => extractPromptContext(prompt), [prompt]);
+  const promptExclusions = useMemo(() => getPromptExclusions(prompt), [prompt]);
+  const isKnitCardigan = /(?:针织|开衫)/.test(prompt);
+  const apparelItem = promptContext.garment ?? "服装款式";
+  const activeDesignDirections = isKnitCardigan ? knitCardiganDirections : designDirections;
+  const activeSkuPlan = isKnitCardigan ? knitCardiganSkuPlan : skuPlan;
+  const activeReferenceImage = isKnitCardigan ? "assets/apparel-design/reference-knit.png" : referenceImage;
+  const materialSummary = isKnitCardigan ? "识别针织组织、纱线质感、门襟、肩线与收口结构" : "识别皮革质感、金属辅料、车缝和口袋结构";
+  const seriesTitle = isKnitCardigan ? `轻盈通勤·${apparelItem}系列` : "经典解构·飞行员皮夹克系列";
+  const exclusionSummary = promptExclusions.length ? `；排除条件：${promptExclusions.join("、")}` : "";
+  const phaseTitles = isKnitCardigan
+    ? ["轻盈基础款", "肌理升级款", "场景延展款"]
+    : ["经典传承款", "门襟革新款", "解构实验款"];
   const [stage, setStage] = useState<ApparelStage>("analyzing");
   const [analysisExpanded, setAnalysisExpanded] = useState(true);
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
@@ -198,7 +230,10 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
   const stageIndex = useMemo(() => [
     "analyzing", "brief", "directions-loading", "directions", "candidates-loading", "candidates", "candidate-confirmation", "candidate-analysis", "strategy", "matrix", "generating", "results",
   ].indexOf(stage), [stage]);
-  const visibleInspirationReferences = stageIndex >= 5 ? inspirationReferenceLinks : [];
+  const visibleInspirationReferences = stageIndex >= 5 ? (isKnitCardigan ? [
+    { label: "pinterest.com", href: "https://www.pinterest.com/search/pins/?q=knit%20cardigan%20design", meta: "针织开衫廓形、组织、门襟与搭配参考" },
+    { label: "vogue.com", href: "https://www.vogue.com/fashion-shows", meta: "春季针织造型与系列搭配参考" },
+  ] : inspirationReferenceLinks) : [];
 
   const submitMessage = (preset?: string, submittedAttachments: TaskConversationAttachment[] = []) => {
     const value = (preset ?? followUp).trim();
@@ -252,8 +287,8 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
 
   const downloadCandidate = (candidateId: string) => {
     const link = document.createElement("a");
-    link.href = assetUrl(referenceImage);
-    link.download = `${candidateId}-飞行员夹克参考.png`;
+    link.href = assetUrl(activeReferenceImage);
+    link.download = `${candidateId}-${apparelItem}参考.png`;
     link.click();
   };
 
@@ -263,7 +298,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
 
   const downloadResult = (skuId: string, skuName: string) => {
     const link = document.createElement("a");
-    link.href = assetUrl(referenceImage);
+    link.href = assetUrl(activeReferenceImage);
     link.download = `SKU-${skuId}-${skuName}.png`;
     link.click();
   };
@@ -277,10 +312,10 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
 
   const confirmDirections = () => {
     if (!selectedDirectionIds.length || (selectedDirectionIds.includes("OTHER") && !customDirection.trim())) return;
-    const selection = selectedDirectionIds
-      .map((directionId) => designDirections.find((direction) => direction.id === directionId))
-      .filter((direction): direction is (typeof designDirections)[number] => Boolean(direction));
-    const labels = selection.map((direction) => `${direction.id} · ${direction.title}`);
+    const labels = selectedDirectionIds.flatMap((directionId) => {
+      const direction = activeDesignDirections.find((item) => item.id === directionId);
+      return direction ? [`${direction.id} · ${direction.title}`] : [];
+    });
     if (selectedDirectionIds.includes("OTHER")) labels.push(`其他 · ${customDirection.trim()}`);
     setDirectionReply(labels.join(" + "));
     setStage("candidates-loading");
@@ -343,9 +378,9 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                 onToggle={() => setAnalysisExpanded((expanded) => !expanded)}
               >
                 <div><AnalysisStepIcon complete={stage !== "analyzing"} /><span>识别参考款式的廓形与结构</span></div>
-                <p>提取立领、门襟、插肩袖与罗纹收口等版型特征</p>
+                <p>{isKnitCardigan ? `提取${apparelItem}的领型、门襟、肩线、针织组织与收口特征` : "提取立领、门襟、插肩袖与罗纹收口等版型特征"}</p>
                 <div><AnalysisStepIcon complete={stage !== "analyzing"} delay={0.06} /><span>提取工艺、辅料与材质要素</span></div>
-                <p>识别皮革质感、金属辅料、车缝和口袋结构</p>
+                <p>{materialSummary}</p>
                 <div><AnalysisStepIcon complete={stage !== "analyzing"} delay={0.12} /><span>检查待确认的设计参数</span></div>
                 <p>确认出款数量、风格方向、商业定位与改款幅度</p>
               </TaskDisclosure>
@@ -429,7 +464,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                     statusLabel={stage === "directions" ? "待确认" : "已确认"}
                   />
                   <div className="apparel-direction-options">
-                    {designDirections.map((direction) => {
+                    {activeDesignDirections.map((direction) => {
                       const selected = selectedDirectionIds.includes(direction.id);
                       return (
                         <SelectionCard
@@ -445,7 +480,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                     })}
                     <div className={`selection-card selection-card--checkbox selection-card--text apparel-direction-card apparel-direction-card--other ${selectedDirectionIds.includes("OTHER") ? "is-selected" : ""}`}>
                       <span className="apparel-direction-option__copy">
-                        <strong>D · 其他</strong>
+                        <strong>其他</strong>
                         <input
                           type="text"
                           value={customDirection}
@@ -470,7 +505,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                       </button>
                     </div>
                   </div>
-                  {stage === "directions" && <div className="research-scope-actions"><Button variant="primary" size="small" disabled={!selectedDirectionIds.length || (selectedDirectionIds.includes("OTHER") && !customDirection.trim())} onClick={confirmDirections}>确认并继续</Button></div>}
+                  {stage === "directions" && <div className="research-scope-actions"><SelectAllControl selected={activeDesignDirections.every((direction) => selectedDirectionIds.includes(direction.id))} className="selection-select-all--leading" onToggle={() => setSelectedDirectionIds(activeDesignDirections.every((direction) => selectedDirectionIds.includes(direction.id)) ? [] : activeDesignDirections.map((direction) => direction.id))} /><Button variant="primary" size="small" disabled={!selectedDirectionIds.length || (selectedDirectionIds.includes("OTHER") && !customDirection.trim())} onClick={confirmDirections}>确认并继续</Button></div>}
                 </div>
               </AssistantMessage>
             )}
@@ -478,7 +513,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
             {(directionReply || replyAttachments.directions?.length) && <UserMessage entrance><ConversationUserAttachments attachments={replyAttachments.directions ?? []} />{directionReply && <span>{directionReply}</span>}</UserMessage>}
 
             {stage === "candidates-loading" && (
-              <AssistantMessage><LoadingTask title="候选参考素材检索" lines={["检索飞行员夹克与解构门襟参考", "筛选可落地工艺与材质案例", "整理候选图集"]} /></AssistantMessage>
+              <AssistantMessage><LoadingTask title="候选参考素材检索" lines={[`检索${apparelItem}与相关结构参考`, "筛选可落地工艺与材质案例", "整理候选图集"]} /></AssistantMessage>
             )}
 
             {stageIndex >= 5 && (
@@ -495,8 +530,8 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                       const selected = selectedCandidates.includes(candidateId);
                       return (
                         <ImageSelection
-                          src={assetUrl(referenceImage)}
-                          alt={`飞行员夹克候选参考 ${index + 1}`}
+                          src={assetUrl(activeReferenceImage)}
+                          alt={`${apparelItem}候选参考 ${index + 1}`}
                           selected={selected}
                           favorited={favoriteCandidates.includes(candidateId)}
                           disabled={stage !== "candidates"}
@@ -509,7 +544,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                       );
                     })}
                   </div>
-                  {stage === "candidates" && <div className="research-scope-actions"><Button variant="primary" size="small" disabled={!selectedCandidates.length} onClick={() => submitMessage(`已选择 ${selectedCandidates.length} 张参考素材`)}>下一步</Button></div>}
+                  {stage === "candidates" && <div className="research-scope-actions"><SelectAllControl selected={selectedCandidates.length === candidateIds.length} className="selection-select-all--leading" onToggle={() => setSelectedCandidates(selectedCandidates.length === candidateIds.length ? [] : [...candidateIds])} /><Button variant="primary" size="small" disabled={!selectedCandidates.length} onClick={() => submitMessage(`已选择 ${selectedCandidates.length} 张参考素材`)}>下一步</Button></div>}
                 </div>
               </AssistantMessage>
             )}
@@ -523,11 +558,11 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
 
             {stageIndex >= 6 && (
               <AssistantMessage className="conversation-analysis-confirmation">
-                <p>您已选择了 {selectedCandidates.length} 张参考图像，加上您最初上传的飞行员皮夹克图，共 {selectedCandidates.length + 1} 张作为设计素材基底。</p>
+                <p>您已选择了 {selectedCandidates.length} 张参考图像，加上最初的{apparelItem}需求，共 {selectedCandidates.length + 1} 组信息作为设计素材基底{exclusionSummary}。</p>
                 <p>请确认：</p>
                 <ul>
                   <li>满意当前选择 → 我将对这 {selectedCandidates.length + 1} 张图进行深度解析，进入设计执行阶段</li>
-                  <li>需要补充更多图像 → 请告诉我希望补充的方向（如更多毛领细节、更多解构设计或其他）</li>
+                  <li>需要补充更多图像 → 请告诉我希望补充的材质、结构或细节方向</li>
                 </ul>
                 <p>请回复“满意”或具体补充需求。</p>
                 {stage === "candidate-confirmation" ? (
@@ -557,10 +592,10 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
 
             {stageIndex >= 8 && (
               <AssistantMessage className="apparel-document">
-                <h2>《经典解构·飞行员皮夹克系列》设计执行书</h2>
+                <h2>《{seriesTitle}》设计执行书</h2>
                 <h3>第一部分：策略综述 (WHAT)</h3>
                 <h4>设计方向声明</h4>
-                <p>基于用户确认的方案 A（传家宝经典复刻）与方案 D（解构门襟创新）双轨融合方向，在延续经典飞行员皮夹克投资价值的基础上，注入门襟解构与结构创新，形成兼具传承价值与个性表达的男士皮外套系列。</p>
+                <p>{isKnitCardigan ? `基于已确认方向，围绕${apparelItem}的轻盈针织、通勤比例与细腻肌理建立系列；严格保留“${promptExclusions.join("、") || "无额外"}”排除条件。` : "基于用户确认的经典复刻与门襟创新方向，在延续飞行员夹克投资价值的基础上，形成兼具传承价值与个性表达的男士皮外套系列。"}</p>
                 <h4>起始复杂度判断</h4>
                 <p>用户需求以商业实穿为导向，同时选择了解构创新元素，因此系列从中等偏经典的复杂度起步：先完成稳健改良，再逐步推演至门襟解构与结构实验。</p>
                 <h4>三波段规划</h4>
@@ -572,31 +607,31 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                 <h3>第二部分：设计推演 (WHY)</h3>
                 <h4>素材资源盘点</h4>
                 <ul>
-                  <li><strong>Image_1：</strong>黑色粒面皮革飞行员夹克，作为核心廓形基底与经典细节库。</li>
-                  <li><strong>Image_2：</strong>黑色大翻领拉链皮夹克，提供领型变体与门襟形式参考。</li>
-                  <li><strong>Image_3：</strong>黑白拼接棒球领皮夹克，提供材质拼接与撞色逻辑。</li>
+                  <li><strong>Image_1：</strong>{isKnitCardigan ? `${apparelItem}基础参考，提供针织组织与比例基底。` : "黑色粒面皮革飞行员夹克，作为核心廓形基底与经典细节库。"}</li>
+                  <li><strong>Image_2：</strong>{isKnitCardigan ? "轻薄针织参考，提供门襟与肩线变化。" : "黑色大翻领拉链皮夹克，提供领型变体与门襟形式参考。"}</li>
+                  <li><strong>Image_3：</strong>{isKnitCardigan ? "同色肌理参考，提供组织与局部细节逻辑。" : "黑白拼接棒球领皮夹克，提供材质拼接与撞色逻辑。"}</li>
                 </ul>
                 <h4>决策冲突与解决</h4>
                 <ul>
                   <li><strong>经典传承与解构创新：</strong>采用渐进式推演。Phase 1 尊重经典基因，Phase 2 专攻门襟单点突破，Phase 3 再释放结构实验。</li>
-                  <li><strong>三张参考图的风格差异：</strong>统一以 Image_1 的短款飞行员廓形为系列 DNA，Image_2 与 Image_3 仅作为局部设计工具。</li>
+                  <li><strong>参考图风格差异：</strong>统一以 Image_1 的{apparelItem}比例为系列 DNA，其他图片仅作为局部设计工具。</li>
                   <li><strong>投资传承与商业可行性：</strong>用 3 款走量、3 款利润、2 款形象建立产品金字塔，控制创新工艺与库存风险。</li>
                 </ul>
                 <h4>公式组合策略</h4>
                 <table><thead><tr><th>波段</th><th>主办公式</th><th>辅助公式</th><th>选择理由</th></tr></thead><tbody>
-                  <tr><td>Phase 1</td><td>细节转移法、改变形式法</td><td>部位增加法</td><td>在经典廓形内完成辅料、毛领与门襟升级，建立稳定系列基因。</td></tr>
+                  <tr><td>Phase 1</td><td>细节转移法、改变形式法</td><td>部位增加法</td><td>{isKnitCardigan ? "在轻盈针织廓形内完成组织、收口与门襟升级，建立稳定系列基因。" : "在经典廓形内完成辅料、毛领与门襟升级，建立稳定系列基因。"}</td></tr>
                   <tr><td>Phase 2</td><td>逆向改款法、款式组合方法</td><td>细节延伸法</td><td>集中突破门襟结构，在实穿边界内制造高识别度与利润空间。</td></tr>
-                  <tr><td>Phase 3</td><td>廓形限定法、品类转移法</td><td>组合更换法</td><td>通过体积与材质冲突承担品牌形象表达，同时保留飞行员夹克核心 DNA。</td></tr>
+                  <tr><td>Phase 3</td><td>廓形限定法、品类转移法</td><td>组合更换法</td><td>通过比例与材质变化承担品牌形象表达，同时保留{apparelItem}核心 DNA。</td></tr>
                 </tbody></table>
               </AssistantMessage>
             )}
 
             {stageIndex >= 8 && (
               <AssistantMessage>
-                <p>以上是《经典解构·飞行员皮夹克系列》的战略规划：</p>
+                <p>以上是《{seriesTitle}》的战略规划：</p>
                 <ul>
                   <li>三波段架构：经典传承款（3款）→ 门襟革新款（3款）→ 解构实验款（2款）</li>
-                  <li>核心逻辑：以您上传的飞行员夹克为廓形基底，渐进式融入解构门襟创新</li>
+                  <li>核心逻辑：以{apparelItem}需求为基底，渐进式融入已确认方向{exclusionSummary}</li>
                   <li>公式组合：细节转移、逆向改款、廓形限定等多公式协同</li>
                 </ul>
                 <p>请问这个战略方向是否认可？确认后我将制定每款 SKU 的具体执行细节。如有调整意见，请直接告诉我。</p>
@@ -613,16 +648,16 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                 <h3>第三部分：执行矩阵 (HOW)</h3>
                 <h4>素材编号对照</h4>
                 <ul>
-                  <li>Image_1：用户上传的黑色粒面皮革飞行员夹克</li>
-                  <li>Image_2：黑色大翻领、拉链门襟皮革夹克</li>
-                  <li>Image_3：黑白撞色、皮革拼接棒球夹克</li>
+                  <li>Image_1：{apparelItem}核心比例与结构参考</li>
+                  <li>Image_2：领型、门襟与局部结构参考</li>
+                  <li>Image_3：材质、肌理与细节参考</li>
                 </ul>
                 <p>以下 8 个 SKU 均明确素材调用、设计公式、操作细节与预期效果。</p>
-                {skuPlan.map((sku, index) => (
+                {activeSkuPlan.map((sku, index) => (
                   <section className="apparel-sku" key={sku[0]}>
-                    {index === 0 && <h4>【Phase 1：经典传承款】SKU #01-03</h4>}
-                    {index === 3 && <h4>【Phase 2：门襟革新款】SKU #04-06</h4>}
-                    {index === 6 && <h4>【Phase 3：解构实验款】SKU #07-08</h4>}
+                    {index === 0 && <h4>【Phase 1：{phaseTitles[0]}】SKU #01-03</h4>}
+                    {index === 3 && <h4>【Phase 2：{phaseTitles[1]}】SKU #04-06</h4>}
+                    {index === 6 && <h4>【Phase 3：{phaseTitles[2]}】SKU #07-08</h4>}
                     <strong>SKU #{sku[0]}：{sku[1]}</strong>
                     <table><tbody>
                       <tr><th>素材调用</th><td>{sku[2]}</td></tr>
@@ -664,7 +699,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                       <div className="apparel-generation-grid">
                         {Array.from({ length: end - start + 1 }, (_, itemIndex) => (
                           <div className={complete ? "is-complete" : "is-loading"} key={itemIndex}>
-                            <img src={assetUrl(referenceImage)} alt={`生成款式 SKU ${start + itemIndex}`} />
+                            <img src={assetUrl(activeReferenceImage)} alt={`生成款式 SKU ${start + itemIndex}`} />
                             {!complete && (
                               <span className="conversation-analysis-loading apparel-generation-loading" aria-label="正在生成">
                                 <img className="conversation-analysis-spinner" src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" />
@@ -682,13 +717,13 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
             {stage === "results" && (
               <>
                 <AssistantMessage className="apparel-document apparel-result-review">
-                  <h2>经典解构·飞行员皮夹克系列——设计成果展示</h2>
-                  <p>全部 8 款男士皮外套设计已生成完毕。以下按三个设计波段回溯每款的设计逻辑：</p>
-                  {skuPlan.map((sku, index) => (
+                  <h2>{seriesTitle}——设计成果展示</h2>
+                  <p>全部 8 款{apparelItem}设计已生成完毕。以下按三个设计波段回溯每款的设计逻辑：</p>
+                  {activeSkuPlan.map((sku, index) => (
                     <section className="apparel-result-logic" key={sku[0]}>
-                      {index === 0 && <h3>Phase 1：经典传承款</h3>}
-                      {index === 3 && <h3>Phase 2：门襟革新款</h3>}
-                      {index === 6 && <h3>Phase 3：解构实验款</h3>}
+                      {index === 0 && <h3>Phase 1：{phaseTitles[0]}</h3>}
+                      {index === 3 && <h3>Phase 2：{phaseTitles[1]}</h3>}
+                      {index === 6 && <h3>Phase 3：{phaseTitles[2]}</h3>}
                       <h4>SKU #{sku[0]}：{sku[1]}</h4>
                       <p><strong>设计逻辑回溯：</strong>{sku[3]}。{sku[4]}</p>
                     </section>
@@ -696,12 +731,12 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                 </AssistantMessage>
 
                 <AssistantMessage className="apparel-results">
-                  <p>系列总结：本系列从经典传承出发，经由门襟革新的单点突破，最终抵达解构实验的创意边界。8 款设计覆盖商业走量、风格利润、品牌形象三个层次，形成完整的产品金字塔。</p>
+                  <p>系列总结：本系列围绕{apparelItem}需求与已确认方向逐步展开。8 款设计覆盖商业基础、风格升级和形象表达三个层次，并保留所有排除条件。</p>
                   <div className="apparel-result-grid">
-                    {skuPlan.map((sku, index) => (
+                    {activeSkuPlan.map((sku, index) => (
                       <figure key={sku[0]}>
                         <div className="apparel-result-media">
-                          <img src={assetUrl(referenceImage)} alt={`SKU ${sku[0]} ${sku[1]}`} style={{ objectPosition: `${42 + (index % 4) * 4}% center` }} />
+                          <img src={assetUrl(activeReferenceImage)} alt={`SKU ${sku[0]} ${sku[1]}`} style={{ objectPosition: `${42 + (index % 4) * 4}% center` }} />
                           <ImageActionBar
                             favorited={favoriteResults.includes(sku[0])}
                             onPreview={() => setPreviewResult(sku[0])}
@@ -754,15 +789,15 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
 
       {previewCandidate ? (
         <ImageLightbox
-          src={assetUrl(referenceImage)}
-          alt={`${previewCandidate}-飞行员夹克候选参考.png`}
+          src={assetUrl(activeReferenceImage)}
+          alt={`${previewCandidate}-${apparelItem}候选参考.png`}
           onClose={() => setPreviewCandidate(null)}
         />
       ) : null}
       {previewResult ? (
         <ImageLightbox
-          src={assetUrl(referenceImage)}
-          alt={`SKU-${previewResult}-${skuPlan.find((sku) => sku[0] === previewResult)?.[1] ?? "款式设计"}.png`}
+          src={assetUrl(activeReferenceImage)}
+          alt={`SKU-${previewResult}-${activeSkuPlan.find((sku) => sku[0] === previewResult)?.[1] ?? "款式设计"}.png`}
           onClose={() => setPreviewResult(null)}
         />
       ) : null}

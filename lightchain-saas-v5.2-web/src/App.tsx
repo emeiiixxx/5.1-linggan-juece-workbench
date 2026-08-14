@@ -105,6 +105,9 @@ export default function App() {
               task.id === taskId ? { ...task, projectId } : task,
             ));
           }}
+          onDeleteProject={(projectId) => {
+            setSelectedProject((current) => current?.id === projectId ? null : current);
+          }}
         />
         {activeView === "preferences" ? (
           <Suspense fallback={<main className="workspace-region" aria-busy="true" />}>

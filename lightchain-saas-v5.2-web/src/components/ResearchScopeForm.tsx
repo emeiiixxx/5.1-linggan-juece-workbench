@@ -1,5 +1,6 @@
 import { assetUrl } from "../utils/assets";
 import { Button } from "./Button";
+import { SelectAllControl } from "./ConversationPrimitives";
 
 type ResearchScopeFormProps = {
   confirmed: boolean;
@@ -16,6 +17,7 @@ type ResearchScopeFormProps = {
   onToggleCommerce: (platform: string) => void;
   onToggleSocial: (platform: string) => void;
   onOtherCommerceChange: (value: string) => void;
+  onToggleAll: () => void;
   onReset: () => void;
   onConfirm: () => void;
 };
@@ -67,6 +69,7 @@ export function ResearchScopeForm({
   onToggleCommerce,
   onToggleSocial,
   onOtherCommerceChange,
+  onToggleAll,
   onReset,
   onConfirm,
 }: ResearchScopeFormProps) {
@@ -76,6 +79,12 @@ export function ResearchScopeForm({
   const guidance = profileLinked
     ? "💡已关联业务偏好档案，已提供默认调研范围，所有选项仍可调整。"
     : "💡未关联业务偏好档案，已根据当前语言预选地区，其余选项请按需选择。";
+  const allSelected = markets.length > 0
+    && commerceOptions.length > 0
+    && socialOptions.length > 0
+    && markets.every((option) => selectedMarkets.includes(option))
+    && commerceOptions.every((option) => selectedCommerce.includes(option))
+    && socialOptions.every((option) => selectedSocial.includes(option));
 
   return (
     <form
@@ -145,6 +154,7 @@ export function ResearchScopeForm({
 
       {!confirmed ? (
         <div className="research-scope-actions">
+          <SelectAllControl selected={allSelected} className="selection-select-all--leading" onToggle={onToggleAll} />
           <Button type="button" variant="secondary" size="small" onClick={onReset}>重置选择</Button>
           <Button type="submit" variant="primary" size="small" disabled={!canSubmit}>确认并开始调研</Button>
         </div>

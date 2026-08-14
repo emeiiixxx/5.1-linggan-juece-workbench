@@ -28,6 +28,7 @@ type SidebarProps = {
   onSelectStaticRow?: () => void;
   onDeleteTask?: (taskId: number) => void;
   onMoveTask?: (taskId: number, projectId: number | null) => void;
+  onDeleteProject?: (projectId: number) => void;
 };
 
 type ActionTarget =
@@ -75,6 +76,7 @@ export function Sidebar({
   onSelectStaticRow,
   onDeleteTask,
   onMoveTask,
+  onDeleteProject,
 }: SidebarProps) {
   const { t } = useI18n();
   const [projectsExpanded, setProjectsExpanded] = useState(true);
@@ -449,6 +451,26 @@ export function Sidebar({
       const taskId = taskKey ? createdTaskIdsRef.current.get(taskKey) : undefined;
       if (taskKey) createdTaskIdsRef.current.delete(taskKey);
       if (taskId !== undefined) onDeleteTask?.(taskId);
+    }
+
+    if (target.kind === "group") {
+      const group = groups[target.groupIndex];
+      if (group?.items.length) {
+        setTasks((current) => [
+          ...group.items,
+          ...current.filter((task) => !group.items.includes(task)),
+        ]);
+        group.items.forEach((taskTitle) => {
+          const sourceKey = `${group.id}:${taskTitle}`;
+          const taskId = createdTaskIdsRef.current.get(sourceKey);
+          if (taskId === undefined) return;
+          createdTaskIdsRef.current.delete(sourceKey);
+          createdTaskIdsRef.current.set(`task:${taskTitle}`, taskId);
+          onMoveTask?.(taskId, null);
+        });
+        setTasksExpanded(true);
+      }
+      if (group) onDeleteProject?.(group.id);
     }
 
     setGroups((current) => {
@@ -1533,7 +1555,7 @@ export function Sidebar({
             </form>
           ) : (
             <div className="sidebar-dialog__delete-content">
-              <p>{t("删除后不可恢复，您确定删除吗？")}</p>
+              <p>{t(dialog.target.kind === "group" ? "项目中的任务将移至任务列表，项目删除后不可恢复。" : "删除后不可恢复，您确定删除吗？")}</p>
               <footer className="sidebar-dialog__footer">
                 <button className="sidebar-dialog__button sidebar-dialog__button--secondary" type="button" autoFocus onClick={() => setDialog(null)}>
                   {t("取消")}

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type HTMLAttributes, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type HTMLAttributes, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion, type HTMLMotionProps } from "motion/react";
 import { assetUrl } from "../utils/assets";
@@ -19,7 +19,7 @@ const revealEase = [0.22, 1, 0.36, 1] as const;
 const conversationMetaClaimEvent = "lightchain:conversation-meta-claim";
 const TaskDisclosureCompleteContext = createContext<boolean | null>(null);
 
-type MessageMetaPosition = { left: number; top: number; side: "assistant" | "user" };
+type MessageMetaPosition = { left: number; top: number; side: "assistant" | "user"; copyEnabled: boolean };
 type MessageFeedback = {
   reaction: "like" | "dislike";
   reasons?: string[];
@@ -27,9 +27,8 @@ type MessageFeedback = {
 };
 
 const feedbackReasons = ["不正确 / 不完整", "没有遵循我的指示", "速度慢", "偏题 / 超出范围", "其他"];
-const conversationNonTextRegionSelector = [
+const conversationMetaDisabledRegionSelector = [
   '[data-message-meta="disabled"]',
-  '[data-copy-exclude="true"]',
   "form",
   ".research-scope-form",
   ".plan-choice-form",
@@ -45,10 +44,14 @@ const conversationNonTextRegionSelector = [
   ".conversation-quick-actions",
   ".new-product-quick-replies",
 ].join(", ");
+const conversationCopyExcludedRegionSelector = [
+  conversationMetaDisabledRegionSelector,
+  '[data-copy-exclude="true"]',
+].join(", ");
 
 function getCopyableMessageText(message: HTMLElement) {
   const copy = message.cloneNode(true) as HTMLElement;
-  copy.querySelectorAll(`${conversationNonTextRegionSelector}, button, [role="button"], input, textarea, select, img, picture, video, canvas`).forEach((element) => element.remove());
+  copy.querySelectorAll(`${conversationCopyExcludedRegionSelector}, button, [role="button"], input, textarea, select, img, picture, video, canvas`).forEach((element) => element.remove());
   copy.style.cssText = "position:fixed;left:-100000px;top:0;width:" + message.getBoundingClientRect().width + "px;pointer-events:none;";
   document.body.appendChild(copy);
   const text = copy.innerText.trim();
@@ -82,16 +85,27 @@ async function writeClipboardText(text: string) {
   return copied;
 }
 
-function getMessageMetaPosition(message: HTMLElement): MessageMetaPosition {
+function getMessageMetaPosition(message: HTMLElement, metaSize?: { width: number; height: number }): MessageMetaPosition {
   const isUserMessage = message.classList.contains("conversation-message--user");
+  const copyEnabled = !message.matches('[data-message-copy="disabled"]')
+    && !message.querySelector('[data-message-copy="disabled"]');
   const anchor = isUserMessage
     ? message.querySelector<HTMLElement>(".conversation-user-bubble") ?? message
     : message;
   const rect = anchor.getBoundingClientRect();
+  const viewportPadding = 8;
+  const metaWidth = metaSize?.width ?? (isUserMessage ? 64 : copyEnabled ? 112 : 88);
+  const metaHeight = metaSize?.height ?? 28;
+  const desiredLeft = isUserMessage ? rect.right : rect.left;
+  const left = isUserMessage
+    ? Math.min(Math.max(desiredLeft, viewportPadding + metaWidth), window.innerWidth - viewportPadding)
+    : Math.min(Math.max(desiredLeft, viewportPadding), window.innerWidth - metaWidth - viewportPadding);
+  const top = Math.min(Math.max(rect.bottom + 4, viewportPadding), window.innerHeight - metaHeight - viewportPadding);
   return {
-    left: isUserMessage ? rect.right : rect.left,
-    top: rect.bottom + 4,
+    left,
+    top,
     side: isUserMessage ? "user" : "assistant",
+    copyEnabled,
   };
 }
 
@@ -100,6 +114,8 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
   const reduceMotion = useReducedMotion();
   const metaOwnerRef = useRef(Symbol("conversation-feed-meta"));
   const hoveredMessageRef = useRef<HTMLElement | null>(null);
+  const metaElementRef = useRef<HTMLDivElement>(null);
+  const metaResizeObserverRef = useRef<ResizeObserver | null>(null);
   const hideTimerRef = useRef<number | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const feedbackByMessageRef = useRef(new WeakMap<HTMLElement, MessageFeedback>());
@@ -111,6 +127,20 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
   const [feedbackDetail, setFeedbackDetail] = useState("");
   const [toast, setToast] = useState("");
 
+  const measureMessageMetaPosition = useCallback((message: HTMLElement) => {
+    const meta = metaElementRef.current;
+    return getMessageMetaPosition(message, meta ? { width: meta.offsetWidth, height: meta.offsetHeight } : undefined);
+  }, []);
+
+  const dismissMessageMeta = useCallback(() => {
+    if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = null;
+    metaResizeObserverRef.current?.disconnect();
+    metaResizeObserverRef.current = null;
+    hoveredMessageRef.current = null;
+    setMetaPosition(null);
+  }, []);
+
   const keepMetaOpen = () => {
     if (hideTimerRef.current === null) return;
     window.clearTimeout(hideTimerRef.current);
@@ -119,26 +149,19 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
 
   const scheduleMetaHide = () => {
     if (hideTimerRef.current !== null) return;
-    hideTimerRef.current = window.setTimeout(() => {
-      hideTimerRef.current = null;
-      hoveredMessageRef.current = null;
-      setMetaPosition(null);
-    }, 220);
+    hideTimerRef.current = window.setTimeout(dismissMessageMeta, 220);
   };
 
   const showMessageMeta = (event: ReactPointerEvent<HTMLDivElement>) => {
     const eventTarget = event.target as HTMLElement;
     const message = eventTarget.closest<HTMLElement>('[data-message-actions="true"]')
       ?? eventTarget.closest<HTMLElement>(".conversation-message--user");
-    const messageContainsNonTextRegion = Boolean(
-      message?.matches(conversationNonTextRegionSelector)
-      || message?.querySelector(conversationNonTextRegionSelector),
+    const messageContainsMetaDisabledRegion = Boolean(
+      message?.matches(conversationMetaDisabledRegionSelector)
+      || message?.querySelector(conversationMetaDisabledRegionSelector),
     );
-    if (eventTarget.closest<HTMLElement>(conversationNonTextRegionSelector) || messageContainsNonTextRegion) {
-      if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-      hoveredMessageRef.current = null;
-      setMetaPosition(null);
+    if (eventTarget.closest<HTMLElement>(conversationMetaDisabledRegionSelector) || messageContainsMetaDisabledRegion) {
+      dismissMessageMeta();
       return;
     }
     if (!message) {
@@ -147,9 +170,26 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
     }
     window.dispatchEvent(new CustomEvent(conversationMetaClaimEvent, { detail: metaOwnerRef.current }));
     keepMetaOpen();
-    if (hoveredMessageRef.current === message && metaPosition) return;
+    if (hoveredMessageRef.current === message && metaPosition) {
+      setMetaPosition(measureMessageMetaPosition(message));
+      return;
+    }
+    metaResizeObserverRef.current?.disconnect();
     hoveredMessageRef.current = message;
-    setMetaPosition(getMessageMetaPosition(message));
+    setMetaPosition(measureMessageMetaPosition(message));
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => {
+        if (!message.isConnected) {
+          dismissMessageMeta();
+          return;
+        }
+        if (hoveredMessageRef.current === message) setMetaPosition(measureMessageMetaPosition(message));
+      });
+      observer.observe(message);
+      const feed = message.closest<HTMLElement>(".conversation-feed");
+      if (feed && feed !== message) observer.observe(feed);
+      metaResizeObserverRef.current = observer;
+    }
   };
 
   const copyHoveredMessage = async () => {
@@ -209,32 +249,53 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
   useEffect(() => {
     const dismissOtherFeedMeta = (event: Event) => {
       if ((event as CustomEvent<symbol>).detail === metaOwnerRef.current) return;
-      if (hideTimerRef.current !== null) {
-        window.clearTimeout(hideTimerRef.current);
-        hideTimerRef.current = null;
-      }
-      hoveredMessageRef.current = null;
-      setMetaPosition(null);
+      dismissMessageMeta();
     };
     const reposition = () => {
       const message = hoveredMessageRef.current;
-      if (message) setMetaPosition(getMessageMetaPosition(message));
+      if (!message?.isConnected) {
+        dismissMessageMeta();
+        return;
+      }
+      setMetaPosition(measureMessageMetaPosition(message));
     };
-    const hideWhileScrolling = () => {
-      hoveredMessageRef.current = null;
-      setMetaPosition(null);
+    const dismissOnOutsideInteraction = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".conversation-message-meta--floating")) return;
+      dismissMessageMeta();
     };
     window.addEventListener(conversationMetaClaimEvent, dismissOtherFeedMeta);
     window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", hideWhileScrolling, true);
+    window.addEventListener("scroll", dismissMessageMeta, true);
+    document.addEventListener("pointerdown", dismissOnOutsideInteraction, true);
+    document.addEventListener("focusin", dismissOnOutsideInteraction, true);
+    document.addEventListener("keydown", dismissOnOutsideInteraction, true);
     return () => {
       window.removeEventListener(conversationMetaClaimEvent, dismissOtherFeedMeta);
       window.removeEventListener("resize", reposition);
-      window.removeEventListener("scroll", hideWhileScrolling, true);
+      window.removeEventListener("scroll", dismissMessageMeta, true);
+      document.removeEventListener("pointerdown", dismissOnOutsideInteraction, true);
+      document.removeEventListener("focusin", dismissOnOutsideInteraction, true);
+      document.removeEventListener("keydown", dismissOnOutsideInteraction, true);
+      metaResizeObserverRef.current?.disconnect();
       if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current);
       if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
     };
-  }, []);
+  }, [dismissMessageMeta, measureMessageMetaPosition]);
+
+  useEffect(() => {
+    const message = hoveredMessageRef.current;
+    const meta = metaElementRef.current;
+    if (!message || !meta) return;
+    const next = getMessageMetaPosition(message, { width: meta.offsetWidth, height: meta.offsetHeight });
+    setMetaPosition((current) => current
+      && current.left === next.left
+      && current.top === next.top
+      && current.side === next.side
+      && current.copyEnabled === next.copyEnabled
+      ? current
+      : next);
+  }, [measureMessageMetaPosition, metaPosition?.side, metaPosition?.copyEnabled]);
 
   const currentFeedback = hoveredMessageRef.current
     ? feedbackByMessageRef.current.get(hoveredMessageRef.current)
@@ -247,6 +308,7 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
       </div>
       {metaPosition && typeof document !== "undefined" && createPortal(
         <div
+          ref={metaElementRef}
           className={`conversation-message-meta conversation-message-meta--floating is-${metaPosition.side}`}
           style={{ left: metaPosition.left, top: metaPosition.top }}
           onPointerEnter={keepMetaOpen}
@@ -260,7 +322,7 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
           ) : (
             <>
               <div>
-                <IconControl label={t("复制消息")} variant="bare" size="xsmall" onClick={copyHoveredMessage}><FigmaIcon name="copy" size={16} /></IconControl>
+                {metaPosition.copyEnabled ? <IconControl label={t("复制消息")} variant="bare" size="xsmall" onClick={copyHoveredMessage}><FigmaIcon name="copy" size={16} /></IconControl> : null}
                 <IconControl label={t("赞同消息")} variant="bare" size="xsmall" aria-pressed={currentFeedback?.reaction === "like"} onClick={likeHoveredMessage}>
                   <AnimatePresence initial={false} mode="wait">
                     <motion.span className="conversation-feedback-icon" key={currentFeedback?.reaction === "like" ? "like-filled" : "like"} initial={reduceMotion ? false : { opacity: 0, scale: 0.72, rotate: -8 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} exit={reduceMotion ? undefined : { opacity: 0, scale: 0.84 }} transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}>
@@ -514,7 +576,7 @@ export function ConversationFileCard({
   children: ReactNode;
 }) {
   return (
-    <section className="trend-file-card">
+    <section className="trend-file-card" data-copy-exclude="true">
       <span className="trend-file-card__icon" aria-hidden="true"><span /><img src={assetUrl(`assets/figma-icons/file-${icon}.svg`)} alt="" /></span>
       <div className="trend-file-card__info"><strong>{name}</strong><span>{description}</span></div>
       <div className="trend-file-card__actions">{children}</div>
@@ -540,21 +602,43 @@ export function ImageSelectionActions({
   const allSelected = totalCount > 0 && selectedCount === totalCount;
   return (
     <div className="new-product-results-actions">
-      <button
-        type="button"
-        className="image-selection-select-all"
-        aria-pressed={allSelected}
+      <SelectAllControl
+        selected={allSelected}
         disabled={disabled || totalCount === 0}
-        onClick={onToggleAll}
-      >
-        <CircleCheckbox checked={allSelected} size="small" />
-        <span>全选</span>
-      </button>
+        className="image-selection-select-all"
+        onToggle={onToggleAll}
+      />
       <span className="image-selection-actions-divider" aria-hidden="true" />
       <span className="image-selection-count">已选择 <strong>{selectedCount}</strong> 张图片</span>
       <span className="image-selection-actions-hint">{hint}</span>
       {children}
     </div>
+  );
+}
+
+export function SelectAllControl({
+  selected,
+  disabled = false,
+  onToggle,
+  className = "",
+}: {
+  selected: boolean;
+  disabled?: boolean;
+  onToggle: () => void;
+  className?: string;
+}) {
+  const { t } = useI18n();
+  return (
+    <button
+      type="button"
+      className={`selection-select-all ${className}`.trim()}
+      aria-pressed={selected}
+      disabled={disabled}
+      onClick={onToggle}
+    >
+      <CircleCheckbox checked={selected} size="small" />
+      <span>{t("全选")}</span>
+    </button>
   );
 }
 
@@ -612,6 +696,7 @@ export function TaskDetailPanel({
   referenceTitle?: string;
   onReferenceSelect?: (reference: TaskDetailReferenceLink) => void;
 }) {
+  const { t } = useI18n();
   const [referenceExpanded, setReferenceExpanded] = useState(false);
   const [referenceDownloading, setReferenceDownloading] = useState(false);
   const isReferenceGallery = referenceTitle === "参考款式" && references.some((reference) => reference.thumbnail);
@@ -678,7 +763,7 @@ export function TaskDetailPanel({
         };
       }));
     } catch {
-      window.alert("参考图下载失败，请稍后重试。");
+      window.alert(t("参考图下载失败，请稍后重试。"));
     } finally {
       setReferenceDownloading(false);
     }
@@ -701,9 +786,24 @@ export function TaskDetailPanel({
           <section>
             {isReferenceGallery ? (
               <div className="task-detail-reference-heading">
-                <h2>{referenceTitle}</h2>
-                <button type="button" onClick={() => setReferenceExpanded(true)}>
-                  <span>查看全部</span>
+                <span className="task-detail-reference-heading-title">
+                  <h2>{referenceTitle}</h2>
+                  <IconControl
+                    label={t("下载全部参考图")}
+                    size="xsmall"
+                    variant="bare"
+                    disabled={referenceDownloading}
+                    onClick={downloadAllReferenceImages}
+                  >
+                    <FigmaIcon name="download" size={16} />
+                  </IconControl>
+                </span>
+                <button
+                  className="task-detail-reference-view-all"
+                  type="button"
+                  onClick={() => setReferenceExpanded(true)}
+                >
+                  <span>{t("查看全部")}</span>
                   <FigmaIcon name="chevron-right" size={16} />
                 </button>
               </div>
@@ -719,18 +819,18 @@ export function TaskDetailPanel({
           <header className="task-detail-reference-view-header">
             <span>
               <strong>{referenceTitle}</strong>
-              <small>共 {references.length} 条 · 按最近获取时间排序</small>
+              <small>{t("共 {count} 条 · 按最近获取时间排序", { count: references.length })}</small>
             </span>
             <span className="task-detail-reference-view-actions">
               <IconControl
-                label="下载全部参考图"
+                label={t("下载全部参考图")}
                 tooltipPlacement="bottom"
                 disabled={referenceDownloading}
                 onClick={downloadAllReferenceImages}
               >
                 <FigmaIcon name="download" size={20} />
               </IconControl>
-              <IconControl label="关闭参考款式列表" tooltipPlacement="bottom" onClick={() => setReferenceExpanded(false)}>
+              <IconControl label={t("关闭参考款式列表")} tooltipPlacement="bottom" onClick={() => setReferenceExpanded(false)}>
                 <FigmaIcon name="close" size={20} />
               </IconControl>
             </span>
@@ -756,7 +856,7 @@ export function ConversationTaskCompletion({
   children?: ReactNode;
 }) {
   return (
-    <div className="conversation-task-completion">
+    <div className="conversation-task-completion" data-message-copy={suggestions.length ? "disabled" : undefined}>
       <p>{message}</p>
       {children}
       {suggestions.length ? (

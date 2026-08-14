@@ -93,7 +93,7 @@ const semanticSlotFromNode = (node: Node | null) => {
 
 const profileOptions: ProfileOption[] = [
   { id: 1001, name: "日本通勤女装" },
-  { id: 1002, name: "灭霸毁灭宇宙回忆录" },
+  { id: 1002, name: "灭霸毁灭世界回忆录" },
   { id: 1003, name: "卡宾童装" },
 ];
 

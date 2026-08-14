@@ -13,10 +13,13 @@ import {
   ConversationSingleChoiceList,
   ConversationTaskCompletion,
   ConversationUserMessage,
+  SelectAllControl,
+  TaskArtifactRow,
   TaskDetailPanel,
   TaskDisclosure,
 } from "./ConversationPrimitives";
 import { useGsapEntrance } from "../motion/gsap";
+import { extractPromptContext } from "../utils/promptContext";
 
 type PlanStage =
   | "theme"
@@ -51,8 +54,8 @@ const themeGroups = [
 ] as const;
 
 const planReferenceLinks = [
-  { label: "gap.com", href: "https://www.gap.com/browse/category.do?cid=1127944", meta: "男装系列、商品结构与品牌公开资料" },
-  { label: "vogue.com", href: "https://www.vogue.com/fashion-shows/menswear", meta: "男装秀场、造型搭配与趋势参考" },
+  { label: "vogue.com", href: "https://www.vogue.com/fashion-shows", meta: "品牌秀场、造型搭配与趋势参考" },
+  { label: "gq.com", href: "https://www.gq.com/style", meta: "服装系列、商品结构与公开评论参考" },
 ] as const;
 
 const referenceImages = Array.from({ length: 12 }, (_, index) => `assets/plan-flow/reference-${String(index + 1).padStart(2, "0")}.jpg`);
@@ -180,26 +183,26 @@ function ReferenceAnalysisStep({ complete }: { complete: boolean }) {
   );
 }
 
-function LegacyThemeAnalysis() {
+function LegacyThemeAnalysis({ subject, brand }: { subject: string; brand: string }) {
   return (
     <div className="plan-legacy-analysis">
-      <p>根据对 Gap SPRING-SUMMER 2026 系列的相关主题内容、灵感和评论的收集与分析，以下是其核心概括及四个类似的设计主题扩写：</p>
+      <p>根据对 {subject} 相关主题、灵感与公开评论的收集和分析，以下是核心概括及四个可延展的设计主题：</p>
 
       <section>
-        <h3>Gap SPRING-SUMMER 2026 系列核心主题、灵感与评论：</h3>
-        <p>Gap 2026 春夏系列以“Move forward in GAP.”（走出这一刻）为核心主张，旨在鼓励人们在快节奏的当下，敢于停下，聆听内心，重新蓄力，然后更加坚定地向前迈进。这一主题通过品牌代言人成毅的广告大片进行诠释，片中成毅置身于“安全屋”中，展现了在停顿中重整自我的理念。</p>
+        <h3>{subject} 核心主题、灵感与评论：</h3>
+        <p>当前分析围绕 {brand} 的品牌语言、目标季节、品类结构和公开造型资料展开；未在用户需求中出现的信息不会替换为其他品牌或季节。</p>
         <h4>主要灵感和特点：</h4>
         <ul>
-          <li><strong>「GAP Boyfriend」：</strong>灵感来源于成毅干净克制的少年感，主打“松弛有度，简约有魂”，包含衬衫、卫衣和牛仔裤，以宽松利落的廓形保留身体的自由。</li>
+          <li><strong>品牌廓形语言：</strong>从 {brand} 的公开造型中提取比例、层次和搭配关系，不套用其他品牌的固定主题。</li>
           <li><strong>90 年代复古风潮：</strong>系列融入了 90 年代的流行元素，如修身直筒牛仔裤、低腰宽松牛仔裤、渔夫帽、阔腿裤、系带背心等，并结合了巴黎粉等流行色彩。</li>
           <li><strong>面料与细节：</strong>注重优质面料的使用，如亚麻混纺、100% 纯棉，强调舒适性与质感。例如亚麻系列手感扎实、垂坠感出色；丹宁布料增加微弹力以提升穿着舒适度。</li>
         </ul>
-        <p><strong>评论：</strong>消费者普遍认为 Gap 提供可靠、舒适的日常基础款，尤其在牛仔、T 恤和童装方面表现出色。其服装品质优良，穿着舒适，设计经典，尺码稳定。然而，也有评论指出 Gap 的尺码偏大，部分款式可能显得较为普通，有时存在品控不一的现象（如针织衫起球、领口变形），以及品牌 Logo 使用过于频繁的问题。尽管如此，随着新的设计方向和 Zac Posen 的加入，Gap 的系列开始显得更具新鲜感和时尚关联性。</p>
+        <p><strong>评论：</strong>公开评论仅作为设计语境参考，后续会把品牌采用、材质表现和消费者反馈分开呈现，不把单一评论写成确定的市场结论。</p>
       </section>
 
       <section>
         <h3>扩写 4 个类似的设计主题：</h3>
-        <p>基于 Gap SPRING-SUMMER 2026 的核心理念，以下扩写四个类似的设计主题，以提供更多元化的灵感和方向：</p>
+        <p>基于 {subject} 的核心要求，以下扩写四个相近设计主题，以提供更多元的灵感和方向：</p>
         <ol className="plan-theme-analysis-list">
           <li>
             <h4>“慢活节奏（Mindful Rhythm）”</h4>
@@ -221,7 +224,7 @@ function LegacyThemeAnalysis() {
           </li>
           <li>
             <h4>“怀旧新语（Nostalgic Nouveau）”</h4>
-            <p><strong>主题内容：</strong>延续 Gap 对 90 年代复古潮流的致敬，但将其视野扩展至更广阔的复古年代（如 70、80 年代），并结合现代审美进行创新，创造出既有历史韵味又不失前卫的风格。</p>
+            <p><strong>主题内容：</strong>从 {brand} 已有品牌语言出发，将经典年代元素与现代审美结合，创造既有历史质感又符合当前需求的风格。</p>
             <ul>
               <li><strong>色彩：</strong>复古大地色系（焦糖色、深棕色）、暖色调（芥末黄、锈红色）、饱和度较高的宝石色（祖母绿、宝蓝），以及经典的水洗丹宁蓝。</li>
               <li><strong>材质：</strong>做旧丹宁、灯芯绒、麂皮绒、带有微闪的针织、印花雪纺、柔软棉布。</li>
@@ -244,6 +247,12 @@ function LegacyThemeAnalysis() {
 }
 
 export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
+  const promptContext = useMemo(() => extractPromptContext(prompt), [prompt]);
+  const planBrand = promptContext.brand ?? "目标品牌";
+  const planSeason = promptContext.season ?? "目标季节";
+  const planAudience = promptContext.audience ?? "目标客群";
+  const planSubject = `${planBrand} ${planSeason} ${planAudience}`;
+  const planName = `${planBrand} ${planSeason}设计企划案`;
   const [stage, setStage] = useState<PlanStage>("theme");
   const [theme, setTheme] = useState("");
   const [themeGroupIndex, setThemeGroupIndex] = useState(0);
@@ -353,7 +362,7 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
   };
 
   const createHtmlPlanUrl = () => {
-    const html = `<!doctype html><meta charset="utf-8"><title>巴洛克航海梦设计企划案</title><h1>巴洛克航海梦设计企划案</h1><p>主题：${themeLabel}</p><p>Gap Spring-Summer 2026 男装系列视觉企划。</p>`;
+    const html = `<!doctype html><meta charset="utf-8"><title>${planName}</title><h1>${planName}</h1><p>主题：${themeLabel}</p><p>${planSubject}系列视觉企划。</p>`;
     return URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
   };
 
@@ -367,19 +376,25 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
     const url = createHtmlPlanUrl();
     const link = document.createElement("a");
     link.href = url;
-    link.download = "巴洛克航海梦设计企划案.html";
+    link.download = `${planName}.html`;
+    link.style.display = "none";
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
   const downloadPptPlan = () => {
-    const presentation = `巴洛克航海梦设计企划案\n\n主题：${themeLabel}\nGap Spring-Summer 2026 男装系列视觉企划。`;
+    const presentation = `${planName}\n\n主题：${themeLabel}\n${planSubject}系列视觉企划。`;
     const url = URL.createObjectURL(new Blob([presentation], { type: "application/vnd.ms-powerpoint;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = "巴洛克航海梦设计企划案.ppt";
+    link.download = `${planName}.ppt`;
+    link.style.display = "none";
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
   return (
@@ -389,14 +404,14 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
           <ConversationFeed className="plan-conversation-feed">
             <ConversationUserMessage entrance>{prompt}</ConversationUserMessage>
             <AssistantMessage actions={false}>
-              <p>我正在从网络上搜索 Gap SPRING-SUMMER 2026 的最新流行趋势信息，以便为您拓展设计主题。</p>
+              <p>我正在搜索 {planSubject} 的相关趋势与公开资料，以便为你拓展设计主题。</p>
               <ToolProgress id="plan-initial-trend-tools" complete={initialTrendReady} lines={["工具调用详情", "工具调用详情", "工具调用详情", "工具调用详情"]} />
             </AssistantMessage>
             {initialTrendReady ? <AssistantMessage className="plan-brief-copy">
-              <LegacyThemeAnalysis />
+              <LegacyThemeAnalysis subject={planSubject} brand={planBrand} />
             </AssistantMessage> : null}
             {initialTrendReady ? <AssistantMessage actions={false}>
-              <p>我正在搜集一些 Gap SPRING-SUMMER 2026 男装系列的图片。</p>
+              <p>我正在搜集一些 {planSubject} 系列的图片。</p>
               <ToolProgress id="plan-initial-image-tools" complete={initialImageReady} lines={["工具调用详情", "工具调用详情", "工具调用详情"]} />
             </AssistantMessage> : null}
             {initialImageReady ? <AssistantMessage>
@@ -417,7 +432,7 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
             {stageIndex >= 1 ? <ConversationUserMessage>{themeLabel}</ConversationUserMessage> : null}
             {stageIndex >= 1 ? (
               <AssistantMessage actions={false}>
-                <p>我正在搜集更多 Gap SPRING-SUMMER 2026 男装系列的图片。</p>
+                <p>我正在搜集更多 {planSubject} 系列的图片。</p>
                 <ToolProgress id="plan-initial-reference-tools" complete={referenceToolsReady} lines={["搜索品牌秀场与造型资料", "整理面料、廓形与配色参考"]} />
               </AssistantMessage>
             ) : null}
@@ -429,7 +444,7 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
                   <div className="image-selection-grid" role="group" aria-label="企划案参考图片，支持多选">
                     {jacketImages.map((src, index) => <ImageSelection
                       src={assetUrl(src)}
-                      alt={`Gap 2026 春夏男装参考 ${index + 1}`}
+                      alt={`${planSubject}参考 ${index + 1}`}
                       selected={firstSelection.includes(index)}
                       favorited={favoriteImages.has(src)}
                       disabled={stage !== "references"}
@@ -440,7 +455,7 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
                       key={`${src}-${index}`}
                     />)}
                   </div>
-                  {stage === "references" ? <div className="plan-form-actions"><Button variant="secondary" size="small" onClick={() => { setRequestedMore(true); setStage("more-loading"); }}>需要更多参考图片</Button><BusinessButton points={300} disabled={!firstSelection.length} onClick={() => setStage("analysis-loading")}>生成企划</BusinessButton></div> : null}
+                  {stage === "references" ? <div className="plan-form-actions"><SelectAllControl selected={firstSelection.length === jacketImages.length} className="selection-select-all--leading" onToggle={() => setFirstSelection(firstSelection.length === jacketImages.length ? [] : jacketImages.map((_, index) => index))} /><Button variant="secondary" size="small" onClick={() => { setRequestedMore(true); setStage("more-loading"); }}>需要更多参考图片</Button><BusinessButton points={300} disabled={!firstSelection.length} onClick={() => setStage("analysis-loading")}>生成企划</BusinessButton></div> : null}
                 </section>
               </AssistantMessage>
             ) : null}
@@ -448,7 +463,7 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
             {requestedMore && stageIndex >= 2 && stage !== "references" ? <ConversationUserMessage>{stageIndex >= 4 ? "图片名字图片名字图片名字。需要更多参考图" : "需要更多参考图片"}</ConversationUserMessage> : null}
             {requestedMore && stageIndex >= 2 ? (
               <AssistantMessage actions={false}>
-                <p>我正在搜集更多 Gap SPRING-SUMMER 2026 男装系列的图片。</p>
+                <p>我正在搜集更多 {planSubject} 系列的图片。</p>
                 <ToolProgress id="plan-expanded-reference-tools" complete={stage !== "more-loading"} lines={["扩大品牌、街拍与零售造型检索", "过滤重复图片并整理新候选"]} />
               </AssistantMessage>
             ) : null}
@@ -460,7 +475,7 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
                   <div className="image-selection-grid" role="group" aria-label="企划案参考图片，支持多选">
                     {referenceImages.map((src, index) => <ImageSelection
                       src={assetUrl(src)}
-                      alt={`Gap 2026 春夏男装参考 ${index + 1}`}
+                      alt={`${planSubject}参考 ${index + 1}`}
                       selected={moreSelection.includes(index)}
                       favorited={favoriteImages.has(src)}
                       disabled={stage !== "more-references"}
@@ -471,7 +486,7 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
                       key={`${src}-${index}`}
                     />)}
                   </div>
-                  {stage === "more-references" ? <div className="plan-form-actions"><Button variant="secondary" size="small" onClick={() => setMoreSelection((current) => current.length ? current : [0])}>需要更多参考图片</Button><BusinessButton points={300} disabled={!moreSelection.length} onClick={() => setStage("analysis-loading")}>生成企划</BusinessButton></div> : null}
+                  {stage === "more-references" ? <div className="plan-form-actions"><SelectAllControl selected={moreSelection.length === referenceImages.length} className="selection-select-all--leading" onToggle={() => setMoreSelection(moreSelection.length === referenceImages.length ? [] : referenceImages.map((_, index) => index))} /><Button variant="secondary" size="small" onClick={() => setMoreSelection((current) => current.length ? current : [0])}>需要更多参考图片</Button><BusinessButton points={300} disabled={!moreSelection.length} onClick={() => setStage("analysis-loading")}>生成企划</BusinessButton></div> : null}
                 </section>
               </AssistantMessage>
             ) : null}
@@ -517,8 +532,8 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
             {stage === "complete" ? (
               <AssistantMessage>
                 <div className="plan-delivery-list" data-message-meta="disabled" data-copy-exclude="true">
-                  {exportFormat.includes("PPT") ? <div className="plan-delivery-card"><span className="plan-file-icons"><span className="plan-file-icon"><img src={planFileIcons.PPT} alt="" /></span></span><strong>巴洛克航海梦设计企划案.ppt</strong><div><button type="button" onClick={downloadPptPlan}>下载</button></div></div> : null}
-                  {exportFormat.includes("HTML") ? <div className="plan-delivery-card"><span className="plan-file-icons"><span className="plan-file-icon"><img src={planFileIcons.HTML} alt="" /></span></span><strong>巴洛克航海梦设计企划案.html</strong><div><button type="button" onClick={previewPlan}>在线查看</button><button type="button" onClick={downloadHtmlPlan}>下载</button></div></div> : null}
+                  {exportFormat.includes("PPT") ? <div className="plan-delivery-card"><span className="plan-file-icons"><span className="plan-file-icon"><img src={planFileIcons.PPT} alt="" /></span></span><strong>{planName}.ppt</strong><div><button type="button" onClick={downloadPptPlan}>下载</button></div></div> : null}
+                  {exportFormat.includes("HTML") ? <div className="plan-delivery-card"><span className="plan-file-icons"><span className="plan-file-icon"><img src={planFileIcons.HTML} alt="" /></span></span><strong>{planName}.html</strong><div><button type="button" onClick={previewPlan}>在线查看</button><button type="button" onClick={downloadHtmlPlan}>下载</button></div></div> : null}
                 </div>
                 <ConversationTaskCompletion message="该任务已完成。" suggestions={[]} />
               </AssistantMessage>
@@ -532,6 +547,11 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
         <TaskDetailPanel
           ariaLabel="企划案任务概览"
           onCollapse={() => setDetailPanelOpen(false)}
+          artifacts={exportFormat.includes("HTML") && stage === "complete" ? (
+            <TaskArtifactRow kind="file" onClick={previewPlan}>{planName}.html</TaskArtifactRow>
+          ) : exportFormat.includes("HTML") && stage === "exporting" ? (
+            <TaskArtifactRow kind="file">正在生成 {planName}.html…</TaskArtifactRow>
+          ) : undefined}
           references={visiblePlanReferences}
         />
         <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
