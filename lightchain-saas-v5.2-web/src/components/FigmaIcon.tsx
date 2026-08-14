@@ -38,7 +38,7 @@ const ART_INSETS: Record<string, string> = {
   clear: "6.25%",
   copy: "12.5% 12.5% 12.5% 18.75%",
   delete: "12.5%",
-  download: "18.75% 15%",
+  download: "9.38% 6.25% 12.5%",
   dot: "37.5%",
   close: "13.54%",
   "company-info": "14.92% 12.5% 12.5%",

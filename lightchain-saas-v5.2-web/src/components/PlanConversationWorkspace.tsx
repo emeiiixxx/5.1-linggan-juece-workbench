@@ -51,8 +51,8 @@ const themeGroups = [
 ] as const;
 
 const planReferenceLinks = [
-  { label: "GAP · 男装系列与品牌公开资料", href: "https://www.gap.com/browse/category.do?cid=1127944", thumbnail: "assets/plan-flow/reference-01.jpg" },
-  { label: "Vogue Runway · 男装秀场与造型资料", href: "https://www.vogue.com/fashion-shows/menswear", thumbnail: "assets/plan-flow/reference-08.jpg" },
+  { label: "gap.com", href: "https://www.gap.com/browse/category.do?cid=1127944", meta: "男装系列、商品结构与品牌公开资料" },
+  { label: "vogue.com", href: "https://www.vogue.com/fashion-shows/menswear", meta: "男装秀场、造型搭配与趋势参考" },
 ] as const;
 
 const referenceImages = Array.from({ length: 12 }, (_, index) => `assets/plan-flow/reference-${String(index + 1).padStart(2, "0")}.jpg`);
@@ -263,6 +263,9 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
   const toastTimerRef = useRef<number | null>(null);
   const reduceMotion = useReducedMotion();
   const stageIndex = stageOrder.indexOf(stage);
+  const visiblePlanReferences = initialTrendReady
+    ? planReferenceLinks.slice(0, initialImageReady ? planReferenceLinks.length : 1)
+    : [];
   const availableThemes = themeGroups[themeGroupIndex % themeGroups.length];
   const themeLabel = useMemo(() => {
     const selected = availableThemes.find(([id]) => id === theme) ?? availableThemes[0];
@@ -529,7 +532,7 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
         <TaskDetailPanel
           ariaLabel="企划案任务概览"
           onCollapse={() => setDetailPanelOpen(false)}
-          references={planReferenceLinks}
+          references={visiblePlanReferences}
         />
         <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
       </aside>

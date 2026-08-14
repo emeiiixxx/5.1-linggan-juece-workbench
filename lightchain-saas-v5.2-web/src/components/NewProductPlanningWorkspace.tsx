@@ -18,6 +18,7 @@ import {
   ConversationStatusIcon,
   ConversationTaskCompletion,
   ConversationUserMessage,
+  ImageSelectionActions,
   TaskArtifactRow,
   TaskDetailPanel,
   TaskDisclosure,
@@ -479,6 +480,10 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     setSelectedResults((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   };
 
+  const toggleAllResults = () => {
+    setSelectedResults((current) => current.length === displayedResultItems.length ? [] : displayedResultItems.map((item) => item.id));
+  };
+
   const startRegeneration = () => {
     if (!selectedResults.length || regenerationBusy) return;
     setRegenerationTargetIds([...selectedResults]);
@@ -798,8 +803,12 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                       />
                     ))}
                   </div>
-                  <div className="new-product-results-actions">
-                    <span>{t("已选择")} <strong>{selectedResults.length}</strong> {t("张图片")}</span>
+                  <ImageSelectionActions
+                    selectedCount={selectedResults.length}
+                    totalCount={displayedResultItems.length}
+                    disabled={regenerationBusy || stage !== "results"}
+                    onToggleAll={toggleAllResults}
+                  >
                     {stage === "results" ? (
                       <>
                         <Button variant="secondary" className="new-product-regenerate-button" disabled={!selectedResults.length || regenerationBusy} onClick={startRegeneration}>
@@ -809,7 +818,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                         <Button variant="primary" disabled={!selectedResults.length || regenerationBusy} onClick={() => setStage("plan-generating")}>{t("生成企划")}</Button>
                       </>
                     ) : null}
-                  </div>
+                  </ImageSelectionActions>
                 </section>
               </AssistantMessage>
             ) : null}
@@ -836,19 +845,31 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
             ) : null}
 
             {stage === "complete" ? (
-              <AssistantMessage>
-                <ConversationTaskCompletion
-                  message={<>新品企划案已完成，已写入 {selectedResults.length} 张你确认的 AI 款式图，并保留调研依据、视觉方向和商品结构。所有内容只读；需要修改时系统会生成新版本并只重跑受影响步骤。</>}
-                  suggestions={["推荐后续：分析可持续丹宁面料", "基于这份报告制作客户提案"]}
-                >
-                  <DownloadableFile
-                    name="新品企划案.html"
-                    description="刚刚 · 商品结构、渠道策略、确认方向与 AI 款式图 · 只读演示版"
-                    html={newProductPlanHtml}
-                    onPreview={() => setReportPreview({ name: "新品企划案.html", html: newProductPlanHtml })}
+              <>
+                <AssistantMessage>
+                  <ConversationTaskCompletion
+                    message={<>新品企划案已完成，已写入 {selectedResults.length} 张你确认的 AI 款式图，并保留调研依据、视觉方向和商品结构。所有内容只读；需要修改时请在输入框提出，系统会生成新版本并只重跑受影响步骤。</>}
+                    suggestions={[]}
+                  >
+                    <DownloadableFile
+                      name="新品企划案.html"
+                      description="刚刚 · 统一 HTML 查看器 · 可下载 HTML / PPT / PDF · 不支持在线编辑"
+                      html={newProductPlanHtml}
+                      onPreview={() => setReportPreview({ name: "新品企划案.html", html: newProductPlanHtml })}
+                    />
+                  </ConversationTaskCompletion>
+                </AssistantMessage>
+                <AssistantMessage>
+                  <ConversationTaskCompletion
+                    message="任务已完成。"
+                    suggestions={["分析企划中采用的面料与工艺细节", "基于这份企划制作客户提案", "整理确认款的后续开发清单"]}
+                    onSuggestion={(suggestion) => {
+                      setFollowUp(suggestion);
+                      setComposerFocusRequest((request) => request + 1);
+                    }}
                   />
-                </ConversationTaskCompletion>
-              </AssistantMessage>
+                </AssistantMessage>
+              </>
             ) : null}
             {additionalMessages.map((message, index) => (
               <ConversationUserMessage key={`${message.text}-${index}`}>
@@ -869,16 +890,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
           ariaLabel="新品企划任务概览"
           onCollapse={() => setDetailPanelOpen(false)}
           artifacts={stage === "complete" ? (
-            <>
-              <TaskArtifactRow kind="file" onClick={() => setReportPreview({ name: "新品企划案.html", html: newProductPlanHtml })}>新品企划案.html</TaskArtifactRow>
-              <TaskArtifactRow kind="image" onClick={() => {
-                const firstResult = displayedResultItems.find((item) => selectedResults.includes(item.id));
-                if (!firstResult) return;
-                setPreviewReadOnly(true);
-                setActivePreviewCategory(firstResult.categoryId);
-                setPreviewId(firstResult.id);
-              }}>新品企划图集（{selectedResults.length}张）</TaskArtifactRow>
-            </>
+            <TaskArtifactRow kind="file" onClick={() => setReportPreview({ name: "新品企划案.html", html: newProductPlanHtml })}>新品企划案.html</TaskArtifactRow>
           ) : <TaskArtifactRow kind="file">正在生成新品企划产物…</TaskArtifactRow>}
           referenceTitle="参考款式"
           references={(researchReferencesReady ? newProductReferenceItems : []).map((item) => ({

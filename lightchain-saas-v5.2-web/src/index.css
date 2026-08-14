@@ -4194,7 +4194,7 @@ a:focus-visible {
   display: flex;
   width: 100%;
   flex-direction: column;
-  row-gap: 0;
+  row-gap: 12px;
 }
 
 .conversation-task-completion > p {
@@ -4203,7 +4203,7 @@ a:focus-visible {
 }
 
 .conversation-task-completion > .conversation-suggestion-list {
-  margin: 12px 0 0;
+  margin: 0;
 }
 
 .conversation-task-completion > .conversation-suggestion-list > .conversation-suggestion-button {
@@ -4213,20 +4213,25 @@ a:focus-visible {
 .conversation-suggestion-button {
   width: fit-content;
   max-width: 100%;
-  height: auto;
-  min-height: 32px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
   justify-content: flex-start;
-  white-space: normal;
+  padding-inline: 16px;
+  border-radius: var(--radius-base);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+  white-space: nowrap;
   text-align: left;
 }
 
 .conversation-suggestion-button > span:first-child {
   min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .conversation-suggestion-button > .figma-icon {
-  flex: 0 0 auto;
+  flex: 0 0 20px;
 }
 
 .apparel-composer {
@@ -4528,15 +4533,51 @@ button.selection-card:not(:disabled):active { transform: scale(0.995); }
   object-fit: cover;
 }
 
-.new-product-results-actions > span {
-  margin-right: auto;
+.image-selection-select-all {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  color: var(--text-tertiary, #aab8b6);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.image-selection-select-all:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.image-selection-actions-divider {
+  width: 1px;
+  height: 16px;
+  flex: 0 0 1px;
+  background: var(--border-weak, rgba(255, 255, 255, 0.1));
+}
+
+.new-product-results-actions > .image-selection-count {
   color: var(--text-tertiary, #aab8b6);
   font-size: 12px;
 }
 
-.new-product-results-actions > span strong {
+.new-product-results-actions > .image-selection-count strong {
   color: var(--text-brand, #20d0c4);
-  font-size: 14px;
+  font-size: 12px;
+}
+
+.image-selection-actions-hint {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--text-placeholder, #7b8a88);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .new-product-reference-copy {
@@ -8363,6 +8404,10 @@ img.trend-direction-media__slide {
 }
 .task-detail-panel h2 { margin: 0 8px 8px; }
 
+.task-detail-panel.is-reference-information h2 {
+  color: var(--text-primary);
+}
+
 .task-detail-panel h2.task-progress-heading {
   color: var(--text-primary);
 }
@@ -8405,6 +8450,15 @@ img.trend-direction-media__slide {
 .task-detail-row--reference > .figma-icon:last-child {
   margin-left: auto;
   color: var(--text-tertiary);
+}
+
+.task-detail-row.task-detail-row--reference:not(.task-detail-row--reference-media) {
+  align-items: flex-start;
+  border-radius: var(--radius-base);
+}
+
+.task-detail-row.task-detail-row--reference:not(.task-detail-row--reference-media) > .figma-icon:first-child {
+  margin-top: 2px;
 }
 
 .task-detail-row--reference > span:not(.figma-icon) {
@@ -8484,6 +8538,15 @@ img.trend-direction-media__slide {
   gap: 2px;
 }
 
+.task-detail-row.task-detail-row--reference:not(.task-detail-row--reference-media) .task-detail-reference-copy {
+  overflow: hidden;
+}
+
+.task-detail-row.task-detail-row--reference:not(.task-detail-row--reference-media) .task-detail-reference-label {
+  font-family: "Noto Sans", "Noto Sans SC", sans-serif;
+  font-weight: 400;
+}
+
 .task-detail-reference-label {
   overflow: hidden;
   color: var(--text-secondary);
@@ -8504,6 +8567,14 @@ img.trend-direction-media__slide {
   display: grid;
   min-width: 0;
   gap: 0;
+}
+
+.task-detail-reference-view-header > .task-detail-reference-view-actions {
+  display: flex;
+  flex: 0 0 auto;
+  grid-auto-flow: initial;
+  align-items: center;
+  gap: 8px;
 }
 
 .task-detail-reference-view-header strong {

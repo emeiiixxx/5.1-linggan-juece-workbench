@@ -29,8 +29,8 @@ type Attachment = { name: string; previewUrl?: string };
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
 const inspirationReferenceLinks = [
-  { label: "Pinterest · 飞行员夹克廓形与细节参考", href: "https://www.pinterest.com/search/pins/?q=mens%20bomber%20jacket", thumbnail: "assets/apparel-design/reference-jacket.png" },
-  { label: "Vogue Runway · 男装系列与解构设计案例", href: "https://www.vogue.com/fashion-shows/menswear", thumbnail: "assets/apparel-design/reference-knit.png" },
+  { label: "pinterest.com", href: "https://www.pinterest.com/search/pins/?q=mens%20bomber%20jacket", meta: "飞行员夹克廓形、领部、门襟与辅料细节参考" },
+  { label: "vogue.com", href: "https://www.vogue.com/fashion-shows/menswear", meta: "男装系列、秀场造型与解构设计案例" },
 ] as const;
 const referenceImage = "assets/apparel-design/candidate-jacket.png";
 const userReferences = [
@@ -198,6 +198,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
   const stageIndex = useMemo(() => [
     "analyzing", "brief", "directions-loading", "directions", "candidates-loading", "candidates", "candidate-confirmation", "candidate-analysis", "strategy", "matrix", "generating", "results",
   ].indexOf(stage), [stage]);
+  const visibleInspirationReferences = stageIndex >= 5 ? inspirationReferenceLinks : [];
 
   const submitMessage = (preset?: string, submittedAttachments: TaskConversationAttachment[] = []) => {
     const value = (preset ?? followUp).trim();
@@ -407,7 +408,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                         </div>
                       </fieldset>
                     </div>
-                    {!briefReply && <div className="research-scope-actions"><button type="button" disabled={!briefCanSubmit} onClick={confirmBrief}>确认并继续</button></div>}
+                    {!briefReply && <div className="research-scope-actions"><Button variant="primary" size="small" disabled={!briefCanSubmit} onClick={confirmBrief}>确认并继续</Button></div>}
                   </div>
               </AssistantMessage>
             )}
@@ -469,7 +470,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                       </button>
                     </div>
                   </div>
-                  {stage === "directions" && <div className="research-scope-actions"><button type="button" disabled={!selectedDirectionIds.length || (selectedDirectionIds.includes("OTHER") && !customDirection.trim())} onClick={confirmDirections}>确认并继续</button></div>}
+                  {stage === "directions" && <div className="research-scope-actions"><Button variant="primary" size="small" disabled={!selectedDirectionIds.length || (selectedDirectionIds.includes("OTHER") && !customDirection.trim())} onClick={confirmDirections}>确认并继续</Button></div>}
                 </div>
               </AssistantMessage>
             )}
@@ -508,7 +509,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                       );
                     })}
                   </div>
-                  {stage === "candidates" && <div className="research-scope-actions"><button type="button" disabled={!selectedCandidates.length} onClick={() => submitMessage(`已选择 ${selectedCandidates.length} 张参考素材`)}>下一步</button></div>}
+                  {stage === "candidates" && <div className="research-scope-actions"><Button variant="primary" size="small" disabled={!selectedCandidates.length} onClick={() => submitMessage(`已选择 ${selectedCandidates.length} 张参考素材`)}>下一步</Button></div>}
                 </div>
               </AssistantMessage>
             )}
@@ -746,7 +747,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
         <TaskDetailPanel
           ariaLabel="款式设计任务概览"
           onCollapse={() => setDetailPanelOpen(false)}
-          references={inspirationReferenceLinks}
+          references={visibleInspirationReferences}
         />
         <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
       </aside>

@@ -10,6 +10,8 @@ import { useI18n } from "../i18n";
 import { useModalFocus } from "../hooks/useModalFocus";
 import { Toast } from "./Toast";
 import { SelectionCard } from "./SelectionCard";
+import { CircleCheckbox } from "./CircleCheckbox";
+import { downloadImageZip } from "../utils/downloadZip";
 
 export type ConversationStepStatus = "complete" | "loading" | "pending";
 
@@ -520,6 +522,42 @@ export function ConversationFileCard({
   );
 }
 
+export function ImageSelectionActions({
+  selectedCount,
+  totalCount,
+  disabled = false,
+  hint = "重新生成只针对选中的图片",
+  onToggleAll,
+  children,
+}: {
+  selectedCount: number;
+  totalCount: number;
+  disabled?: boolean;
+  hint?: string;
+  onToggleAll: () => void;
+  children?: ReactNode;
+}) {
+  const allSelected = totalCount > 0 && selectedCount === totalCount;
+  return (
+    <div className="new-product-results-actions">
+      <button
+        type="button"
+        className="image-selection-select-all"
+        aria-pressed={allSelected}
+        disabled={disabled || totalCount === 0}
+        onClick={onToggleAll}
+      >
+        <CircleCheckbox checked={allSelected} size="small" />
+        <span>全选</span>
+      </button>
+      <span className="image-selection-actions-divider" aria-hidden="true" />
+      <span className="image-selection-count">已选择 <strong>{selectedCount}</strong> 张图片</span>
+      <span className="image-selection-actions-hint">{hint}</span>
+      {children}
+    </div>
+  );
+}
+
 export function TaskArtifactRow({
   kind,
   children,
@@ -575,6 +613,7 @@ export function TaskDetailPanel({
   onReferenceSelect?: (reference: TaskDetailReferenceLink) => void;
 }) {
   const [referenceExpanded, setReferenceExpanded] = useState(false);
+  const [referenceDownloading, setReferenceDownloading] = useState(false);
   const isReferenceGallery = referenceTitle === "参考款式" && references.some((reference) => reference.thumbnail);
 
   useEffect(() => {
@@ -594,10 +633,9 @@ export function TaskDetailPanel({
         ) : <FigmaIcon name="global" size={16} />}
         <span className="task-detail-reference-copy">
           <span className="task-detail-reference-label" title={reference.label}>{reference.label}</span>
-          {expanded && reference.meta ? <span className="task-detail-reference-meta">{reference.meta}</span> : null}
+          {(expanded || !reference.thumbnail) && reference.meta ? <span className="task-detail-reference-meta">{reference.meta}</span> : null}
           {expanded && reference.date ? <span className="task-detail-reference-date">{reference.date}</span> : null}
         </span>
-        {!reference.thumbnail ? <FigmaIcon name="arrow-up-right" size={16} /> : null}
       </>
     );
     const className = `task-detail-row task-detail-row--reference ${reference.thumbnail ? "task-detail-row--reference-media" : ""} ${expanded ? "task-detail-row--reference-expanded" : ""}`;
@@ -624,8 +662,30 @@ export function TaskDetailPanel({
     );
   };
 
+  const downloadAllReferenceImages = async () => {
+    if (referenceDownloading) return;
+    const imageReferences = references.filter((reference) => reference.thumbnail);
+    if (!imageReferences.length) return;
+    setReferenceDownloading(true);
+    try {
+      await downloadImageZip(`${referenceTitle}-全部参考图.zip`, imageReferences.map((reference, index) => {
+        const thumbnail = reference.thumbnail!;
+        const extension = thumbnail.split("?")[0].match(/\.([a-z0-9]+)$/i)?.[1] ?? "jpg";
+        const safeLabel = reference.label.replace(/[\\/:*?"<>|]/g, "-");
+        return {
+          name: `${String(index + 1).padStart(2, "0")}-${safeLabel}.${extension}`,
+          url: assetUrl(thumbnail),
+        };
+      }));
+    } catch {
+      window.alert("参考图下载失败，请稍后重试。");
+    } finally {
+      setReferenceDownloading(false);
+    }
+  };
+
   return (
-    <div className={`task-detail-panel ${referenceExpanded ? "is-reference-expanded" : ""}`} aria-label={ariaLabel}>
+    <div className={`task-detail-panel ${referenceTitle === "参考信息" ? "is-reference-information" : ""} ${referenceExpanded ? "is-reference-expanded" : ""}`} aria-label={ariaLabel}>
       <div className="task-detail-panel__view task-detail-panel__overview-view">
         <header>
           <strong>概览</strong>
@@ -661,9 +721,19 @@ export function TaskDetailPanel({
               <strong>{referenceTitle}</strong>
               <small>共 {references.length} 条 · 按最近获取时间排序</small>
             </span>
-            <button type="button" onClick={() => setReferenceExpanded(false)} aria-label="关闭参考款式列表">
-              <FigmaIcon name="close" size={20} />
-            </button>
+            <span className="task-detail-reference-view-actions">
+              <IconControl
+                label="下载全部参考图"
+                tooltipPlacement="bottom"
+                disabled={referenceDownloading}
+                onClick={downloadAllReferenceImages}
+              >
+                <FigmaIcon name="download" size={20} />
+              </IconControl>
+              <IconControl label="关闭参考款式列表" tooltipPlacement="bottom" onClick={() => setReferenceExpanded(false)}>
+                <FigmaIcon name="close" size={20} />
+              </IconControl>
+            </span>
           </header>
           <div className="task-detail-reference-list task-detail-reference-list--expanded">
             {references.map((reference) => renderReference(reference, true))}

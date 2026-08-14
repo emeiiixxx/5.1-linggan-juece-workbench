@@ -11,7 +11,7 @@ import { TaskConversationComposer, type TaskConversationAttachment } from "./Tas
 import { ConversationUserAttachments, type ConversationUserAttachment } from "./ConversationUserAttachments";
 import { ResearchScopeForm } from "./ResearchScopeForm";
 import { SelectionCard } from "./SelectionCard";
-import { AnalysisStepIcon, ConversationFeed, ConversationFileCard, ConversationFormTitle, ConversationTaskCompletion, ConversationUserMessage, TaskArtifactRow, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
+import { AnalysisStepIcon, ConversationFeed, ConversationFileCard, ConversationFormTitle, ConversationTaskCompletion, ConversationUserMessage, ImageSelectionActions, TaskArtifactRow, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
 import { candidateCategories, candidatePageCount, candidateReferenceImages, formatCandidateSelection, formatTrendDirectionSelection, getCandidateCategoryLabel, getCandidateReference, trendDirections, trendReportDetails, type CandidateCategoryId } from "../data/referenceCatalog";
 import { buildFashionProposalHtml } from "../report/fashionProposalHtml";
 import { useI18n } from "../i18n";
@@ -310,7 +310,6 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   );
   const [aiResultsConfirmed, setAiResultsConfirmed] = useState(startsComplete);
   const [aiResultPreviewId, setAiResultPreviewId] = useState<string | null>(null);
-  const [aiGalleryReadOnly, setAiGalleryReadOnly] = useState(false);
   const [customerRegenerationPhase, setCustomerRegenerationPhase] = useState<"idle" | "queued" | "generating">("idle");
   const [customerRegenerationTargetIds, setCustomerRegenerationTargetIds] = useState<string[]>([]);
   const [customerRegeneratedSources, setCustomerRegeneratedSources] = useState<Record<string, string>>({});
@@ -724,6 +723,10 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     ...item,
     src: customerRegeneratedSources[item.id] ?? item.src,
   }));
+  const toggleAllAiResults = () => {
+    if (aiResultsConfirmed || customerProposalRunning) return;
+    setSelectedAiResultIds((current) => current.length === displayedCustomerAiResults.length ? [] : displayedCustomerAiResults.map((item) => item.id));
+  };
   const conversationPlaceholder = !analysisComplete
     ? "Agent 正在解析需求，请稍候..."
     : !scopeFormVisible
@@ -1423,14 +1426,17 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                           loadingLabel="生成中..."
                                           onSelect={() => toggleAiResult(item.id)}
                                           onPreview={() => {
-                                            setAiGalleryReadOnly(false);
                                             setAiResultPreviewId(item.id);
                                           }}
                                         />
                                       ))}
                                     </div>
-                                    <div className="new-product-results-actions">
-                                      <span>已选择 <strong>{selectedAiResultIds.length}</strong> 张图片</span>
+                                    <ImageSelectionActions
+                                      selectedCount={selectedAiResultIds.length}
+                                      totalCount={displayedCustomerAiResults.length}
+                                      disabled={aiResultsConfirmed || customerProposalRunning}
+                                      onToggleAll={toggleAllAiResults}
+                                    >
                                       {!aiResultsConfirmed ? (
                                         <>
                                           <Button
@@ -1446,7 +1452,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                           <Button variant="primary" size="small" disabled={!selectedAiResultIds.length || customerProposalRunning} onClick={generateFormalCustomerProposal}>生成提案</Button>
                                         </>
                                       ) : null}
-                                    </div>
+                                    </ImageSelectionActions>
                                   </section>
                                 </motion.article>
                               ) : null}
@@ -1502,13 +1508,31 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                 >
                                   <ConversationTaskCompletion
                                     message={<>正式客户提案已完成，已写入 {selectedAiResultIds.length} 张确认后的 AI 改款图，并保留客户需求、市场与趋势依据、视觉方向和方案对比。未包含内部 Design Brief、BOM、打样、MOQ、成本、交期或供应链计划。</>}
-                                    suggestions={["基于这份提案生成客户演示稿", "整理确认款的后续开发清单"]}
+                                    suggestions={[]}
                                   >
                                     <ConversationFileCard icon="html" name="正式客户提案.html" description="刚刚 · 统一HTML查看器 · 可下载HTML/PPT/PDF · 不支持在线编辑">
                                       <button type="button" onClick={() => openTrendPreview("proposal")}>在线查看</button>
                                       <DownloadFormatMenu onSelect={(format) => downloadCustomerProposalFile("proposal", format.toUpperCase() as TrendDownloadFormat, selectedTrendIds, selectedAiResultIds)} />
                                     </ConversationFileCard>
                                   </ConversationTaskCompletion>
+                                </motion.article>
+                              ) : null}
+                              {customerProposalStage === "complete" ? (
+                                <motion.article
+                                  className="conversation-message conversation-message--assistant customer-proposal-handoff-message"
+                                  data-message-actions="true"
+                                  initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : 0.08, ease: revealEase }}
+                                >
+                                  <ConversationTaskCompletion
+                                    message="任务已完成。"
+                                    suggestions={["基于这份提案生成客户演示稿", "整理确认款的后续开发清单", "为这份提案生成客户跟进邮件"]}
+                                    onSuggestion={(suggestion) => {
+                                      setFollowUp(suggestion);
+                                      setComposerFocusRequest((request) => request + 1);
+                                    }}
+                                  />
                                 </motion.article>
                               ) : null}
                           </motion.div>
@@ -1567,21 +1591,8 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                   正式客户提案.html
                 </TaskArtifactRow>
               ) : null}
-              {["results", "proposal-generating", "complete"].includes(customerProposalStage) ? (
-                <TaskArtifactRow
-                  kind="image"
-                  onClick={() => {
-                    const firstResult = displayedCustomerAiResults[0];
-                    if (!firstResult) return;
-                    setAiGalleryReadOnly(true);
-                    setAiResultPreviewId(firstResult.id);
-                  }}
-                >
-                  AI 改款图集（12张）
-                </TaskArtifactRow>
-              ) : null}
               {customerProposalStage === "ai-generating" ? (
-                <TaskArtifactRow kind="image">正在生成 AI 改款结果…</TaskArtifactRow>
+                <TaskArtifactRow kind="file">正在生成 AI改款结果.html…</TaskArtifactRow>
               ) : null}
               {scopeResultStage < 4 && customerProposalStage === "idle" ? (
                 <TaskArtifactRow kind="file">{
@@ -1716,12 +1727,12 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
           items={displayedCustomerAiResults}
           activeCategoryId={getCandidateReference(aiResultPreviewId)?.categoryId ?? candidateCategories[0].id}
           activeItemId={aiResultPreviewId}
-          selectedIds={aiGalleryReadOnly ? [] : selectedAiResultIds}
-          selectionDisabled={aiGalleryReadOnly || aiResultsConfirmed || customerProposalRunning || customerRegenerationBusy}
+          selectedIds={selectedAiResultIds}
+          selectionDisabled={aiResultsConfirmed || customerProposalRunning || customerRegenerationBusy}
           resultActions={{
             onDownload: downloadCustomerAiImage,
             onRegenerate: (item) => regenerateCustomerAiResults([item.id]),
-            regenerateDisabled: aiGalleryReadOnly || aiResultsConfirmed || customerProposalRunning || customerRegenerationBusy,
+            regenerateDisabled: aiResultsConfirmed || customerProposalRunning || customerRegenerationBusy,
             regenerating: customerRegenerationBusy && customerRegenerationTargetIds.includes(aiResultPreviewId),
           }}
           showCategories={false}
@@ -1730,11 +1741,8 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
             if (firstResult) setAiResultPreviewId(firstResult.id);
           }}
           onNavigate={setAiResultPreviewId}
-          onToggleSelection={aiGalleryReadOnly ? () => undefined : toggleAiResult}
-          onClose={() => {
-            setAiResultPreviewId(null);
-            setAiGalleryReadOnly(false);
-          }}
+          onToggleSelection={toggleAiResult}
+          onClose={() => setAiResultPreviewId(null)}
         />
       ) : null}
     </motion.main>
