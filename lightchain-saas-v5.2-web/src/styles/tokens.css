@@ -6,6 +6,9 @@
   --brand-primary-hover: #20d0c4;
   --brand-primary-disabled: #0d6261;
   --brand-gradient: linear-gradient(90deg, #71f4d3 0%, #52dde0 50%, #ccb2ff 100%);
+  --gradient-cyan-300: #61fff4;
+  --gradient-perfume-300: #ccb2ff;
+  --brand-gradient-chat: linear-gradient(45deg, var(--gradient-cyan-300) 0%, var(--gradient-perfume-300) 100%);
   --brand-secondary: #505c5e;
   --brand-secondary-hover: #798386;
   --brand-secondary-disabled: #3d484b;

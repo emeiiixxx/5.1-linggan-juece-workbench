@@ -27,7 +27,8 @@ import { FigmaIcon } from "./FigmaIcon";
 import { SelectionCard } from "./SelectionCard";
 import { IconControl } from "./IconControl";
 import { ResearchScopeForm } from "./ResearchScopeForm";
-import { TaskConversationComposer } from "./TaskConversationComposer";
+import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
+import { ConversationUserAttachments } from "./ConversationUserAttachments";
 import { getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
 import { useI18n } from "../i18n";
 import { buildFashionProposalHtml, type FashionProposalPlan, type FashionProposalSource } from "../report/fashionProposalHtml";
@@ -331,6 +332,9 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const [analysisExpanded, setAnalysisExpanded] = useState(!startsComplete);
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [followUp, setFollowUp] = useState("");
+  const [briefEntryMessage, setBriefEntryMessage] = useState("满意，请继续");
+  const [briefEntryAttachments, setBriefEntryAttachments] = useState<TaskConversationAttachment[]>([]);
+  const [additionalMessages, setAdditionalMessages] = useState<Array<{ text: string; attachments: TaskConversationAttachment[] }>>([]);
   const [markets, setMarkets] = useState<ResearchMarket[]>(scopeDefaults.markets);
   const [commerce, setCommerce] = useState<string[]>(scopeDefaults.commerce);
   const [social, setSocial] = useState<string[]>(scopeDefaults.social);
@@ -463,11 +467,17 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     setRegenerationPhase("queued");
   };
 
-  const submitFollowUp = () => {
+  const submitFollowUp = (submittedAttachments: TaskConversationAttachment[]) => {
     const value = followUp.trim();
-    if (!value) return;
+    if (!value && !submittedAttachments.length) return;
     setFollowUp("");
-    if (stage === "brief") setStage("scope");
+    if (stage === "brief") {
+      setBriefEntryMessage(value);
+      setBriefEntryAttachments(submittedAttachments);
+      setStage("scope");
+      return;
+    }
+    setAdditionalMessages((current) => [...current, { text: value, attachments: submittedAttachments }]);
   };
 
   const placeholder: Record<PlanningStage, string> = {
@@ -569,16 +579,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
         <div className="conversation-scroll">
           <ConversationFeed className="new-product-feed">
             <ConversationUserMessage entrance>
-              {attachments.length ? (
-                <span className="new-product-user-attachments" aria-label="已上传的参考资料">
-                  {attachments.map((attachment) => (
-                    <span className="new-product-user-attachment" title={attachment.name} key={`${attachment.name}-${attachment.previewUrl ?? "file"}`}>
-                      {attachment.previewUrl ? <img src={attachment.previewUrl} alt="" /> : <FigmaIcon name="file" size={16} />}
-                      <span>{attachment.name}</span>
-                    </span>
-                  ))}
-                </span>
-              ) : null}
+              <ConversationUserAttachments attachments={attachments} />
               <span>{prompt}</span>
             </ConversationUserMessage>
 
@@ -600,7 +601,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 {stage === "brief" ? (
                   <div className="new-product-quick-replies">
                     <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>补充条件</Button>
-                    <QuickReplyButton onClick={() => setStage("scope")}>满意，请继续</QuickReplyButton>
+                    <QuickReplyButton onClick={() => { setBriefEntryMessage("满意，请继续"); setBriefEntryAttachments([]); setStage("scope"); }}>满意，请继续</QuickReplyButton>
                   </div>
                 ) : null}
               </AssistantMessage>
@@ -608,7 +609,10 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
             {["scope", "research", "directions", "structure-planning", "structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage) ? (
               <>
-                <ConversationUserMessage>满意，请继续</ConversationUserMessage>
+                <ConversationUserMessage>
+                  <ConversationUserAttachments attachments={briefEntryAttachments} />
+                  {briefEntryMessage && <span>{briefEntryMessage}</span>}
+                </ConversationUserMessage>
                 <AssistantMessage>
                   <p>需求摘要已确认。请确认地区，以及本次实际需要研究的平台和网站。趋势资料库固定启用；不同平台的数据会分别保留，不合并成单一销量、销售额或热度。</p>
                   <p>请选择主要市场、电商平台和社交媒体。</p>
@@ -806,6 +810,12 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 </ConversationTaskCompletion>
               </AssistantMessage>
             ) : null}
+            {additionalMessages.map((message, index) => (
+              <ConversationUserMessage key={`${message.text}-${index}`}>
+                <ConversationUserAttachments attachments={message.attachments} />
+                {message.text && <span>{message.text}</span>}
+              </ConversationUserMessage>
+            ))}
             <div ref={feedEndRef} />
           </ConversationFeed>
         </div>

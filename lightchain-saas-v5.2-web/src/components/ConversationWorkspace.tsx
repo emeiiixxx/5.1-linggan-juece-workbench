@@ -7,7 +7,8 @@ import { DownloadFormatMenu } from "./DownloadFormatMenu";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
 import { ImageGalleryLightbox, MasonryImageSelection } from "./ImageSelection";
-import { TaskConversationComposer } from "./TaskConversationComposer";
+import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
+import { ConversationUserAttachments, type ConversationUserAttachment } from "./ConversationUserAttachments";
 import { ResearchScopeForm } from "./ResearchScopeForm";
 import { SelectionCard } from "./SelectionCard";
 import { AnalysisStepIcon, ConversationFeed, ConversationFileCard, ConversationFormTitle, ConversationTaskCompletion, ConversationUserMessage, TaskArtifactRow, TaskDisclosure, TaskProgressSummary } from "./ConversationPrimitives";
@@ -257,9 +258,10 @@ function TrendDirectionSelectionForm({
   );
 }
 
-export function ConversationWorkspace({ prompt, profileName, initialState = "default" }: {
+export function ConversationWorkspace({ prompt, profileName, attachments = [], initialState = "default" }: {
   prompt: string;
   profileName?: string;
+  attachments?: ConversationUserAttachment[];
   initialState?: "default" | "complete";
 }) {
   const { locale, t } = useI18n();
@@ -274,6 +276,7 @@ export function ConversationWorkspace({ prompt, profileName, initialState = "def
   const [composerFocusRequest, setComposerFocusRequest] = useState(0);
   const [scopeFormVisible, setScopeFormVisible] = useState(startsComplete);
   const [scopeEntryMessage, setScopeEntryMessage] = useState("继续");
+  const [scopeEntryAttachments, setScopeEntryAttachments] = useState<TaskConversationAttachment[]>([]);
   const [seasonSkipped, setSeasonSkipped] = useState(false);
   const [scopeConfirmed, setScopeConfirmed] = useState(startsComplete);
   const [scopeResultStage, setScopeResultStage] = useState(startsComplete ? 5 : 0);
@@ -294,6 +297,8 @@ export function ConversationWorkspace({ prompt, profileName, initialState = "def
   const [customerFeedbackSkipped, setCustomerFeedbackSkipped] = useState(startsComplete);
   const [generationDecision, setGenerationDecision] = useState<GenerationDecision | null>(startsComplete ? "confirm" : null);
   const [generationEntryMessage, setGenerationEntryMessage] = useState("确认并生成");
+  const [generationEntryAttachments, setGenerationEntryAttachments] = useState<TaskConversationAttachment[]>([]);
+  const [additionalMessages, setAdditionalMessages] = useState<Array<{ text: string; attachments: TaskConversationAttachment[] }>>([]);
   const [customerProposalStage, setCustomerProposalStage] = useState<"idle" | "ai-generating" | "results" | "proposal-generating" | "complete">(startsComplete ? "complete" : "idle");
   const [aiGenerationProgress, setAiGenerationProgress] = useState(startsComplete ? 4 : 0);
   const [proposalGenerationProgress, setProposalGenerationProgress] = useState(startsComplete ? 4 : 0);
@@ -529,13 +534,17 @@ export function ConversationWorkspace({ prompt, profileName, initialState = "def
     return () => window.cancelAnimationFrame(frame);
   }, [customerProposalStage, reduceMotion]);
 
-  const submitFollowUp = () => {
+  const submitFollowUp = (submittedAttachments: TaskConversationAttachment[]) => {
     const message = followUp.trim();
-    if (!message) return;
+    if (!message && !submittedAttachments.length) return;
+    let handled = false;
     if (candidateSelectionConfirmed && customerFeedbackSkipped && !generationDecision) {
       setGenerationEntryMessage(message);
+      setGenerationEntryAttachments(submittedAttachments);
       startCustomerAiGeneration();
+      handled = true;
     } else if (analysisComplete && !scopeFormVisible) {
+      setScopeEntryAttachments(submittedAttachments);
       if (message === "继续") {
         setScopeEntryMessage("继续");
         setScopeFormVisible(true);
@@ -545,13 +554,16 @@ export function ConversationWorkspace({ prompt, profileName, initialState = "def
         setScopeEntryMessage(message);
         setScopeFormVisible(true);
       }
+      handled = true;
     }
+    if (!handled) setAdditionalMessages((current) => [...current, { text: message, attachments: submittedAttachments }]);
     setFollowUp("");
   };
 
   const useSeasonQuickReply = (message: "继续" | "跳过" | "没有补充，继续") => {
     if (message === "继续" || message === "没有补充，继续") {
       setScopeEntryMessage(message);
+      setScopeEntryAttachments([]);
       setScopeFormVisible(true);
       return;
     }
@@ -613,6 +625,16 @@ export function ConversationWorkspace({ prompt, profileName, initialState = "def
     setAiGenerationProgress(0);
     setAiGenerationExpanded(true);
     setCustomerProposalStage("ai-generating");
+  };
+
+  const requestCustomerGenerationFeedback = () => {
+    setComposerFocusRequest((request) => request + 1);
+  };
+
+  const confirmCustomerAiGeneration = () => {
+    setGenerationEntryMessage("确认并生成");
+    setGenerationEntryAttachments([]);
+    startCustomerAiGeneration();
   };
 
   const toggleAiResult = (resultId: string) => {
@@ -735,7 +757,8 @@ export function ConversationWorkspace({ prompt, profileName, initialState = "def
               transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : 0.04, ease: revealEase }}
               data-node-id="476:103925"
             >
-              {prompt}
+              <ConversationUserAttachments attachments={attachments} />
+              <span>{prompt}</span>
             </ConversationUserMessage>
 
             <AnimatePresence initial={false}>
@@ -920,7 +943,10 @@ export function ConversationWorkspace({ prompt, profileName, initialState = "def
                   initial={false}
                   data-node-id="484:106053"
                 >
-                  <ConversationUserMessage data-node-id="484:106206">{scopeEntryMessage}</ConversationUserMessage>
+                  <ConversationUserMessage data-node-id="484:106206">
+                    <ConversationUserAttachments attachments={scopeEntryAttachments} />
+                    {scopeEntryMessage && <span>{scopeEntryMessage}</span>}
+                  </ConversationUserMessage>
 
                   <motion.article className="conversation-message conversation-message--assistant conversation-scope-copy" data-node-id="484:106216">
                     <p>需求理解已确认。接下来确认本次调研覆盖的市场、电商平台和社媒平台。系统已根据业务偏好档案预填常用范围，你可以直接确认，也可以继续增删。</p>
@@ -1301,6 +1327,8 @@ export function ConversationWorkspace({ prompt, profileName, initialState = "def
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.08, ease: revealEase }}
                                   data-node-id="620:31947"
+                                  data-message-meta="disabled"
+                                  data-copy-exclude="true"
                                 >
                                   <p>
                                     已暂时跳过客户反馈，以下未指定项将作为待确认假设。<br />
@@ -1314,8 +1342,8 @@ export function ConversationWorkspace({ prompt, profileName, initialState = "def
                                   </p>
                                   {!generationDecision ? (
                                     <div className="candidate-generation-assumptions__actions">
-                                      <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>补充反馈</Button>
-                                      <Button variant="primary" size="small" onClick={() => { setGenerationEntryMessage("确认并生成"); startCustomerAiGeneration(); }}>
+                                      <Button variant="outline" size="small" onClick={requestCustomerGenerationFeedback}>补充反馈</Button>
+                                      <Button variant="primary" size="small" onClick={confirmCustomerAiGeneration}>
                                         <span>确认并生成</span>
                                         <FigmaIcon name="arrow-right" size={20} />
                                       </Button>
@@ -1329,6 +1357,7 @@ export function ConversationWorkspace({ prompt, profileName, initialState = "def
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
                                 >
+                                  <ConversationUserAttachments attachments={generationEntryAttachments} />
                                   {generationDecision === "confirm" ? generationEntryMessage : "跳过"}
                                 </ConversationUserMessage>
                               ) : null}
@@ -1495,6 +1524,12 @@ export function ConversationWorkspace({ prompt, profileName, initialState = "def
                 </motion.div>
               ) : null}
             </AnimatePresence>
+            {additionalMessages.map((message, index) => (
+              <ConversationUserMessage key={`${message.text}-${index}`}>
+                <ConversationUserAttachments attachments={message.attachments} />
+                {message.text && <span>{message.text}</span>}
+              </ConversationUserMessage>
+            ))}
           </ConversationFeed>
         </div>
 

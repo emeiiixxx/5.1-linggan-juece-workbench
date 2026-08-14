@@ -2304,7 +2304,7 @@ a:focus-visible {
 .composer__input::before {
   position: absolute;
   z-index: 1;
-  border: 1px solid transparent;
+  border: 2px solid transparent;
   border-radius: inherit;
   background: var(--brand-gradient) border-box;
   content: "";
@@ -2605,6 +2605,9 @@ a:focus-visible {
   right: 12px;
   width: 40px;
   height: 40px;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--radius-max);
 }
 
 .composer__send:not(:disabled),
@@ -2614,14 +2617,32 @@ a:focus-visible {
   opacity: 1;
 }
 
-.composer__send:not(:disabled):hover {
-  background: var(--brand-primary-hover);
+.composer__send::before {
+  position: absolute;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--brand-gradient-chat);
+  content: "";
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-standard);
+}
+
+.composer__send:not(:disabled):not(.is-running):hover::before,
+.composer__send:not(:disabled):not(.is-running):focus-visible::before {
+  opacity: 1;
+}
+
+.composer__send > .icon-control__glyph {
+  position: relative;
+  z-index: 1;
 }
 
 .composer__send:disabled {
   color: var(--text-on-brand-disabled);
   background: var(--brand-primary-disabled);
-  opacity: 0.65;
+  opacity: 1;
 }
 
 .composer__send-hint {
@@ -4251,39 +4272,67 @@ a:focus-visible {
 
 .new-product-brief { gap: 2px; }
 
-.new-product-user-attachments {
+.tag-chip {
+  display: inline-flex;
+  max-width: 220px;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 0 8px;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--radius-base);
+  color: var(--text-secondary);
+  background: var(--control-fill-default);
+  font-family: "Noto Sans SC", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+  text-align: left;
+  transition: color var(--motion-standard), background-color var(--motion-standard), border-color var(--motion-standard);
+}
+
+.tag-chip--medium { height: 32px; }
+
+button.tag-chip { cursor: pointer; }
+
+button.tag-chip:hover:not(:disabled) { background: var(--control-fill-hover); }
+
+.tag-chip:disabled,
+.tag-chip[aria-disabled="true"] {
+  color: var(--text-disabled);
+  background: var(--control-fill-disabled);
+  opacity: .65;
+  cursor: not-allowed;
+}
+
+.tag-chip__slot {
+  display: inline-flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.tag-chip__label {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-user-attachments {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
-.new-product-user-attachment {
-  display: inline-flex;
-  max-width: 140px;
-  height: 24px;
-  align-items: center;
-  gap: 4px;
-  padding: 0 6px;
-  overflow: hidden;
-  color: var(--text-secondary, #e3e8e8);
-  border: 1px solid var(--border-brand, #0bc1b8);
-  border-radius: 6px;
-  background: rgba(11, 193, 184, 0.08);
-  font-size: 11px;
-}
-
-.new-product-user-attachment > img {
+.conversation-user-attachment .tag-chip__slot > img {
   width: 16px;
   height: 16px;
   object-fit: cover;
-  border-radius: 3px;
-}
-
-.new-product-user-attachment > span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border-radius: var(--radius-s);
 }
 
 .new-product-quick-replies {
@@ -4341,8 +4390,12 @@ a:focus-visible {
 .selection-card--checkbox.selection-card--text {
   min-height: 52px;
   gap: 8px;
-  padding: 8px;
+  padding: 16px;
   background: var(--surface-default);
+}
+
+.selection-card--checkbox.selection-card--text .selection-card__copy {
+  padding-block: 0;
 }
 
 .selection-card--media {
@@ -8143,7 +8196,7 @@ img.trend-direction-media__slide {
 .conversation-composer__send:disabled {
   color: var(--text-on-brand-disabled);
   background: var(--brand-primary-disabled);
-  opacity: 0.65;
+  opacity: 1;
 }
 
 .conversation-composer__send.is-running,
@@ -8387,6 +8440,7 @@ img.trend-direction-media__slide {
   flex: 0 0 16px;
   align-items: center;
   justify-content: center;
+  color: var(--status-success);
 }
 
 .task-detail-list > div,

@@ -288,7 +288,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
 
   const createTask = (taskMessage: string, sourceTab: number) => {
     const title = Array.from(taskMessage).slice(0, 10).join("");
-    const taskAttachments = sourceTab === 0 || sourceTab === 2
+    const taskAttachments = sourceTab !== 3
       ? attachments.map(({ name, previewUrl }) => ({ name, previewUrl }))
       : undefined;
     onCreateTask?.({
@@ -298,7 +298,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
       attachments: taskAttachments,
       workflow: sourceTab === 0 ? "new-product" : sourceTab === 2 && inspirationDesignType === "apparel" ? "apparel" : sourceTab === 3 ? "plan" : "default",
     });
-    if (sourceTab !== 0 && sourceTab !== 2) attachments.forEach((attachment) => {
+    if (sourceTab === 3) attachments.forEach((attachment) => {
       if (attachment.previewUrl) {
         URL.revokeObjectURL(attachment.previewUrl);
         attachmentUrlsRef.current.delete(attachment.previewUrl);
@@ -385,7 +385,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
       ) : activeTask.workflow === "plan" ? (
         <PlanConversationWorkspace key={`plan-conversation-${activeTask.id}`} prompt={activeTask.prompt} />
       ) : (
-        <ConversationWorkspace key={`conversation-${activeTask.id}`} prompt={activeTask.prompt} profileName={activeTask.profileName} initialState={activeTask.initialState} />
+        <ConversationWorkspace key={`conversation-${activeTask.id}`} prompt={activeTask.prompt} profileName={activeTask.profileName} attachments={activeTask.attachments} initialState={activeTask.initialState} />
       )
     ) : (
     <motion.main

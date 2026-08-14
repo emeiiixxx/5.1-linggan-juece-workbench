@@ -5,9 +5,10 @@ import { FigmaIcon } from "./FigmaIcon";
 import { ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
 import { Button, QuickReplyButton } from "./Button";
 import { AnalysisStepIcon, ConversationFeed, ConversationFormTitle, ConversationStatusIcon as ApparelStatusIcon, ConversationTaskCompletion, ConversationUserMessage as UserMessage, TaskArtifactRow, TaskDisclosure, TaskProgressSummary, type ConversationStepStatus as StepState } from "./ConversationPrimitives";
-import { TaskConversationComposer } from "./TaskConversationComposer";
+import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
 import { useGsapEntrance } from "../motion/gsap";
 import { SelectionCard, SelectionControl } from "./SelectionCard";
+import { ConversationUserAttachments } from "./ConversationUserAttachments";
 
 type ApparelStage =
   | "analyzing"
@@ -130,8 +131,9 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
   const [candidateAnalysisExpanded, setCandidateAnalysisExpanded] = useState(true);
   const [strategyReply, setStrategyReply] = useState("");
   const [matrixReply, setMatrixReply] = useState("");
+  const [replyAttachments, setReplyAttachments] = useState<Partial<Record<ApparelStage, TaskConversationAttachment[]>>>({});
   const [batchProgress, setBatchProgress] = useState(0);
-  const [resultFollowUps, setResultFollowUps] = useState<Array<{ request: string; response: string }>>([]);
+  const [resultFollowUps, setResultFollowUps] = useState<Array<{ request: string; attachments: TaskConversationAttachment[]; response: string }>>([]);
   const feedEndRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
   const otherStyleSelected = styleChoices.includes("其他，请输入说明");
@@ -199,9 +201,12 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
     stage === "results" ? "complete" : stage === "generating" ? "loading" : "pending",
   ];
 
-  const submitMessage = (preset?: string) => {
+  const submitMessage = (preset?: string, submittedAttachments: TaskConversationAttachment[] = []) => {
     const value = (preset ?? followUp).trim();
-    if (!value) return;
+    if (!value && !submittedAttachments.length) return;
+    if (preset === undefined && submittedAttachments.length) {
+      setReplyAttachments((current) => ({ ...current, [stage]: submittedAttachments }));
+    }
     setFollowUp("");
     if (stage === "brief") {
       setBriefReply(value);
@@ -226,7 +231,10 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
     } else if (stage === "results") {
       setResultFollowUps((current) => [...current, {
         request: value,
-        response: `已收到你的追加要求：“${value}”。我会基于当前 8 款设计成果继续处理，并保留现有系列设定。`,
+        attachments: submittedAttachments,
+        response: value
+          ? `已收到你的追加要求：“${value}”。我会基于当前 8 款设计成果继续处理，并保留现有系列设定。`
+          : `已收到你补充的 ${submittedAttachments.length} 份资料。我会基于当前 8 款设计成果继续处理，并保留现有系列设定。`,
       }]);
     }
   };
@@ -314,14 +322,17 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
       <section className="conversation-stage" aria-label="款式设计任务对话">
         <div className="conversation-scroll">
           <ConversationFeed className="apparel-conversation-feed">
-            {(attachments.length > 0 || prompt.includes("上传")) && (
+            {!attachments.length && prompt.includes("上传") && (
               <div className="apparel-user-reference-grid">
-                {(attachments.length ? attachments.map((item) => item.previewUrl).filter(Boolean) : userReferences.map(assetUrl)).slice(0, 2).map((src, index) => (
+                {userReferences.map(assetUrl).slice(0, 2).map((src, index) => (
                   <img src={src} alt={`款式参考图 ${index + 1}`} key={`${src}-${index}`} />
                 ))}
               </div>
             )}
-            <UserMessage entrance>{prompt}</UserMessage>
+            <UserMessage entrance>
+              <ConversationUserAttachments attachments={attachments} />
+              <span>{prompt}</span>
+            </UserMessage>
 
             <AssistantMessage>
               <p>我正在对你的款式设计需求进行解析，提取廓形、工艺、材质与商业定位。</p>
@@ -403,7 +414,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
               </AssistantMessage>
             )}
 
-            {briefReply && <UserMessage entrance>{briefReply}</UserMessage>}
+            {(briefReply || replyAttachments.brief?.length) && <UserMessage entrance><ConversationUserAttachments attachments={replyAttachments.brief ?? []} />{briefReply && <span>{briefReply}</span>}</UserMessage>}
 
             {stage === "directions-loading" && (
               <AssistantMessage><LoadingTask title="正在规划设计方向" lines={["匹配需求与趋势洞察", "评估系列商业梯度", "生成可执行设计方向"]} /></AssistantMessage>
@@ -465,7 +476,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
               </AssistantMessage>
             )}
 
-            {directionReply && <UserMessage entrance>{directionReply}</UserMessage>}
+            {(directionReply || replyAttachments.directions?.length) && <UserMessage entrance><ConversationUserAttachments attachments={replyAttachments.directions ?? []} />{directionReply && <span>{directionReply}</span>}</UserMessage>}
 
             {stage === "candidates-loading" && (
               <AssistantMessage><LoadingTask title="候选参考素材检索" lines={["检索飞行员夹克与解构门襟参考", "筛选可落地工艺与材质案例", "整理候选图集"]} /></AssistantMessage>
@@ -505,7 +516,10 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
             )}
 
             {stageIndex >= 6 && (
-              <UserMessage entrance>{`已选择 ${selectedCandidates.length} 张参考素材：${selectedCandidates.join("、")}`}</UserMessage>
+              <UserMessage entrance>
+                <ConversationUserAttachments attachments={replyAttachments.candidates ?? []} />
+                <span>{`已选择 ${selectedCandidates.length} 张参考素材：${selectedCandidates.join("、")}`}</span>
+              </UserMessage>
             )}
 
             {stageIndex >= 6 && (
@@ -523,7 +537,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
               </AssistantMessage>
             )}
 
-            {candidateReply && <UserMessage entrance>{candidateReply}</UserMessage>}
+            {(candidateReply || replyAttachments["candidate-confirmation"]?.length) && <UserMessage entrance><ConversationUserAttachments attachments={replyAttachments["candidate-confirmation"] ?? []} />{candidateReply && <span>{candidateReply}</span>}</UserMessage>}
 
             {stageIndex >= 7 && (
               <AssistantMessage className="conversation-analysis">
@@ -593,7 +607,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
               </AssistantMessage>
             )}
 
-            {strategyReply && <UserMessage entrance>{strategyReply}</UserMessage>}
+            {(strategyReply || replyAttachments.strategy?.length) && <UserMessage entrance><ConversationUserAttachments attachments={replyAttachments.strategy ?? []} />{strategyReply && <span>{strategyReply}</span>}</UserMessage>}
 
             {stageIndex >= 9 && (
               <AssistantMessage className="apparel-document apparel-matrix">
@@ -631,7 +645,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
               </AssistantMessage>
             )}
 
-            {matrixReply && <UserMessage entrance>{matrixReply}</UserMessage>}
+            {(matrixReply || replyAttachments.matrix?.length) && <UserMessage entrance><ConversationUserAttachments attachments={replyAttachments.matrix ?? []} />{matrixReply && <span>{matrixReply}</span>}</UserMessage>}
 
             {stage === "generating" && (
               <AssistantMessage className="apparel-generation-message">
@@ -708,7 +722,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
             )}
             {resultFollowUps.map((message, index) => (
               <div className="conversation-confirmed-results" key={`${message.request}-${index}`}>
-                <UserMessage entrance>{message.request}</UserMessage>
+                <UserMessage entrance><ConversationUserAttachments attachments={message.attachments} />{message.request && <span>{message.request}</span>}</UserMessage>
                 <AssistantMessage><p>{message.response}</p></AssistantMessage>
               </div>
             ))}
@@ -722,7 +736,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
           ariaLabel="继续款式设计对话"
           value={followUp}
           onChange={setFollowUp}
-          onSubmit={() => submitMessage()}
+          onSubmit={(submittedAttachments) => submitMessage(undefined, submittedAttachments)}
           placeholder={composerPlaceholder[stage]}
           disabled={!composerEnabled}
         />

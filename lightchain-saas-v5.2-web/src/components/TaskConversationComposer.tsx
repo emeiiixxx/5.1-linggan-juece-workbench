@@ -5,17 +5,20 @@ import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
 
-type ComposerAttachment = {
-  id: string;
+export type TaskConversationAttachment = {
   name: string;
-  kind: "file" | "image";
   previewUrl?: string;
+};
+
+type ComposerAttachment = TaskConversationAttachment & {
+  id: string;
+  kind: "file" | "image";
 };
 
 type TaskConversationComposerProps = {
   value: string;
   onChange: (value: string) => void;
-  onSubmit: () => void;
+  onSubmit: (attachments: TaskConversationAttachment[]) => void;
   placeholder: string;
   ariaLabel: string;
   disabled?: boolean;
@@ -148,20 +151,15 @@ export function TaskConversationComposer({
     }));
   };
 
-  const clearAttachments = () => {
-    attachments.forEach((attachment) => {
-      if (attachment.previewUrl) {
-        URL.revokeObjectURL(attachment.previewUrl);
-        attachmentUrlsRef.current.delete(attachment.previewUrl);
-      }
-    });
+  const consumeAttachments = () => {
+    const submitted = attachments.map(({ name, previewUrl }) => ({ name, previewUrl }));
     setAttachments([]);
+    return submitted;
   };
 
   const submit = () => {
-    if (disabled || isRunning || !value.trim()) return;
-    onSubmit();
-    clearAttachments();
+    if (disabled || isRunning || (!value.trim() && !attachments.length)) return;
+    onSubmit(consumeAttachments());
   };
 
   return (
@@ -268,7 +266,7 @@ export function TaskConversationComposer({
         className={`composer__send conversation-composer__send ${isRunning ? "is-running" : ""}`}
         label={isRunning ? "停止当前任务" : "发送"}
         tooltipPlacement="top"
-        disabled={isRunning ? !onStop : disabled || !value.trim()}
+        disabled={isRunning ? !onStop : disabled || (!value.trim() && !attachments.length)}
         onClick={isRunning ? onStop : submit}
       >
         {isRunning ? (
