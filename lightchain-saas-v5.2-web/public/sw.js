@@ -1,4 +1,4 @@
-const IMAGE_CACHE = "lightchain-images-v1";
+const IMAGE_CACHE = "lightchain-images-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
 
