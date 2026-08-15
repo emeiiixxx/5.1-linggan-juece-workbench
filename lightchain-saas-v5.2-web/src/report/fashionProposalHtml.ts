@@ -107,7 +107,7 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
 
   const directionMarkup = directions.map((direction, index) => `
     <article class="direction direction--${index + 1}" data-reveal>
-      <figure class="visual-frame direction__media" data-visual><img loading="lazy" decoding="async" src="${escapeHtml(direction.imageUrl)}" alt="${escapeHtml(direction.title)}参考图"></figure>
+      <figure class="visual-frame direction__media" data-visual><img class="progressive-media" loading="lazy" decoding="async" src="${escapeHtml(direction.imageUrl)}" alt="${escapeHtml(direction.title)}参考图"></figure>
       <div class="direction__copy">
         <div class="direction__index">${String(index + 1).padStart(2, "0")}</div>
         <div>
@@ -123,7 +123,7 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
     const source = sourceFor(reference.title, reportSources);
     return `
       <article class="reference" data-reveal>
-        <figure class="visual-frame reference__media" data-visual><img loading="lazy" decoding="async" src="${escapeHtml(reference.imageUrl)}" alt="${escapeHtml(reference.code)} ${escapeHtml(reference.category)}"></figure>
+        <figure class="visual-frame reference__media" data-visual><img class="progressive-media" loading="lazy" decoding="async" src="${escapeHtml(reference.imageUrl)}" alt="${escapeHtml(reference.code)} ${escapeHtml(reference.category)}"></figure>
         <div class="reference__copy">
           <div class="reference__heading"><h3>${escapeHtml(reference.code)}</h3><span>${escapeHtml(reference.category)}</span></div>
           <p>${escapeHtml(reference.title)}</p>
@@ -154,7 +154,7 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
     .topbar{position:fixed;z-index:20;inset:0 0 auto;display:flex;height:58px;align-items:center;justify-content:flex-end;padding:0 clamp(20px,3.5vw,56px);border-bottom:1px solid var(--line);background:rgb(247 248 247/.92);backdrop-filter:blur(16px)}
     .topbar__meta{color:var(--muted);font-size:14px}
     .hero{min-height:100dvh;padding:90px clamp(20px,3.5vw,56px) 48px}.hero__heading{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:end;margin-bottom:36px}.hero__copy{min-width:0}.kicker{display:block;margin-bottom:18px;color:var(--accent);font-size:14px;font-weight:700;letter-spacing:.16em}.hero h1{max-width:100%;margin:0;font-size:clamp(48px,7vw,108px);font-weight:750;line-height:.92;letter-spacing:-.065em;white-space:nowrap}.hero__deck{max-width:none;margin:0;color:var(--muted);font-size:16px;line-height:1.75}.hero__media{height:min(62dvh,720px);margin:0;background:var(--surface)}
-    .visual-frame{overflow:hidden;background:var(--surface)}.visual-frame img{display:block;width:100%;height:100%;object-fit:cover}
+    .visual-frame{overflow:hidden;background:var(--surface)}.visual-frame img{display:block;width:100%;height:100%;object-fit:cover}.progressive-media{opacity:0;filter:blur(10px);transition:opacity .48s cubic-bezier(.22,1,.36,1),filter .64s cubic-bezier(.22,1,.36,1),transform .58s cubic-bezier(.22,1,.36,1);will-change:opacity,filter,transform}.progressive-media.is-loaded,.progressive-media.is-error{opacity:1;filter:blur(0)}
     .hero__foot{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.42fr);gap:32px;margin-top:22px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:14px;line-height:1.7}.hero__foot strong{color:var(--ink);font-weight:600}
     .section{padding:clamp(72px,9vw,140px) clamp(20px,3.5vw,56px);border-top:1px solid var(--line)}.section-header{max-width:none;margin-bottom:clamp(44px,6vw,80px)}.section-header h2{margin:0;font-size:clamp(38px,5vw,74px);font-weight:740;line-height:1.02;letter-spacing:-.05em}.section-header p{max-width:none;margin:22px 0 0;color:var(--muted);font-size:16px;line-height:1.75}
     .evidence{padding-top:68px;padding-bottom:68px}.evidence__intro{display:grid;grid-template-columns:minmax(0,.85fr) minmax(320px,1.15fr);gap:48px;align-items:end}.evidence h2{max-width:none;margin:0;font-size:clamp(36px,4.4vw,64px);line-height:1.04;letter-spacing:-.045em}.evidence p{max-width:none;margin:0;color:var(--muted);font-size:16px;line-height:1.75}.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:56px;border-top:1px solid var(--line)}.metric{padding:24px 0 0}.metric+.metric{padding-left:24px;border-left:1px solid var(--line)}.metric strong{display:block;font-size:clamp(42px,6vw,82px);font-weight:720;line-height:1;letter-spacing:-.05em}.metric span{display:block;margin-top:10px;color:var(--muted);font-size:14px}
@@ -167,13 +167,13 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
     .references{background:#fbfcfb}.reference-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(48px,5vw,76px) clamp(16px,2vw,28px);align-items:start}.reference{min-width:0}.reference__media{aspect-ratio:4/5;margin:0}.reference__copy{padding-top:14px}.reference__heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.reference h3{margin:0;font-size:18px;font-weight:700;letter-spacing:-.025em}.reference__heading span,.reference__copy p{color:var(--muted);font-size:14px}.reference__heading span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.reference__copy p{min-height:34px;margin:8px 0 0;line-height:1.55}.source-link{display:inline-flex;gap:7px;margin-top:14px;color:var(--ink);font-size:14px;font-weight:650;text-decoration:none}.source-link:hover{color:var(--accent)}
     .method{display:grid;grid-template-columns:minmax(0,.72fr) minmax(420px,1.28fr);gap:clamp(48px,8vw,120px);align-items:start}.method__copy h2{margin:0;font-size:clamp(38px,5vw,70px);font-weight:740;line-height:1.04;letter-spacing:-.05em}.method__copy p{max-width:none;margin:24px 0 0;color:var(--muted);font-size:16px;line-height:1.78}.source-list{border-top:1px solid var(--line)}.source-row{display:grid;grid-template-columns:minmax(130px,.75fr) 1.25fr auto;gap:20px;padding:22px 0;border-bottom:1px solid var(--line);text-decoration:none}.source-row strong{font-size:14px}.source-row span{color:var(--muted);font-size:14px}.source-row b{font-weight:400}.source-row:hover strong,.source-row:hover b{color:var(--accent)}
     .footer{display:flex;align-items:flex-end;justify-content:flex-end;gap:32px;padding:42px clamp(20px,3.5vw,56px) 56px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
-    .motion-ready [data-reveal]{opacity:0;transform:translateY(18px)}.motion-ready [data-visual] img{opacity:.86;transform:scale(1.025)}
-    [data-reveal],[data-visual] img{transition:opacity .58s cubic-bezier(.22,1,.36,1),transform .58s cubic-bezier(.22,1,.36,1);will-change:transform,opacity}.is-visible[data-reveal]{opacity:1;transform:none}.is-visible[data-visual] img{opacity:1;transform:none}
+    .motion-ready [data-reveal]{opacity:0;transform:translateY(18px)}.motion-ready [data-visual] img{transform:scale(1.025)}
+    [data-reveal]{transition:opacity .58s cubic-bezier(.22,1,.36,1),transform .58s cubic-bezier(.22,1,.36,1);will-change:transform,opacity}.is-visible[data-reveal]{opacity:1;transform:none}.is-visible[data-visual] img{transform:none}
     @media(max-width:1024px){.reference-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
     @media(max-width:1024px){.plan-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.assortment-row{grid-template-columns:repeat(5,minmax(0,1fr))}.assortment-row>p{grid-column:1/-1}.assortment-row--head span:last-child{display:none}}
     @media(max-width:820px){.topbar__meta{display:none}.hero{padding-top:88px}.hero__heading,.hero__foot,.evidence__intro,.method{grid-template-columns:1fr}.hero h1{font-size:clamp(42px,12vw,66px);white-space:normal}.hero__media{height:58dvh}.hero__foot{gap:10px}.metrics{grid-template-columns:1fr}.metric+.metric{padding-left:0;border-left:0}.direction-list,.reference-grid,.channel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.direction__media{height:56dvh}.source-row{grid-template-columns:1fr auto}.source-row span{grid-column:1/2}.assumption-card{grid-template-columns:1fr}.footer{align-items:flex-start;flex-direction:column}}
     @media(max-width:560px){.direction-list,.reference-grid,.design-grid{grid-template-columns:1fr}.reference__copy p{min-height:0}}
-    @media(prefers-reduced-motion:reduce){[data-reveal],[data-visual] img{transition:none!important;will-change:auto!important;transform:none!important;opacity:1!important;visibility:visible!important}}
+    @media(prefers-reduced-motion:reduce){[data-reveal],[data-visual] img,.progressive-media{transition:none!important;will-change:auto!important;transform:none!important;opacity:1!important;filter:none!important;visibility:visible!important}}
   </style>
 </head>
 <body>
@@ -181,7 +181,7 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
     <nav class="topbar"><span class="topbar__meta">${escapeHtml(topbarMeta)}</span></nav>
     <header class="hero">
       <div class="hero__heading"><div class="hero__copy"><span class="kicker">${escapeHtml(kicker)}</span><h1>${escapeHtml(title)}</h1></div><p class="hero__deck">${escapeHtml(deck)}</p></div>
-      <figure class="visual-frame hero__media"><img src="${escapeHtml(heroImage)}" alt="${title}封面视觉"></figure>
+      <figure class="visual-frame hero__media" data-visual><img class="progressive-media" loading="eager" decoding="async" fetchpriority="high" src="${escapeHtml(heroImage)}" alt="${escapeHtml(title)}封面视觉"></figure>
       <div class="hero__foot"><span><strong>方向依据</strong> ${escapeHtml(directionLabel)}</span><span>公开渠道样本与客户已选素材均保留来源边界。</span></div>
     </header>
     <section class="section evidence">
@@ -216,6 +216,13 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
       };
       fitMetricValues();
       if("ResizeObserver" in window){new ResizeObserver(fitMetricValues).observe(document.querySelector(".plan-metrics")||document.body)}else{window.addEventListener("resize",fitMetricValues)}
+      Array.prototype.forEach.call(document.querySelectorAll("img.progressive-media"),function(image){
+        var settle=function(state){image.classList.remove("is-loaded","is-error");image.classList.add(state)};
+        var schedule=function(state){window.requestAnimationFrame(function(){window.requestAnimationFrame(function(){settle(state)})})};
+        image.addEventListener("load",function(){schedule("is-loaded")},{once:true});
+        image.addEventListener("error",function(){schedule("is-error")},{once:true});
+        if(image.complete){schedule(image.naturalWidth>0?"is-loaded":"is-error")}
+      });
       var targets=Array.prototype.slice.call(document.querySelectorAll("[data-reveal],[data-visual]"));
       if(window.matchMedia("(prefers-reduced-motion: reduce)").matches||!("IntersectionObserver" in window)){
         targets.forEach(function(target){target.classList.add("is-visible")});

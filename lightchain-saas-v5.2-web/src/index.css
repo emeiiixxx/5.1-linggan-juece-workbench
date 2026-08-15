@@ -8889,6 +8889,22 @@ button.task-detail-row--reference {
   will-change: auto;
 }
 
+.site-image-transition {
+  opacity: 0;
+  filter: blur(10px);
+  transition:
+    opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 620ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, filter;
+}
+
+.site-image-transition.is-image-ready,
+.site-image-transition.is-image-error {
+  opacity: 1;
+  filter: blur(0);
+  will-change: auto;
+}
+
 @media (max-width: 1360px) {
   .workspace-region--conversation.has-detail-panel { grid-template-columns: minmax(0, 1fr) 288px; }
   .conversation-feed { width: min(720px, calc(100% - 32px)); }
@@ -8903,6 +8919,12 @@ button.task-detail-row--reference {
 
 @media (prefers-reduced-motion: reduce) {
   .progressive-image {
+    opacity: 1;
+    filter: none;
+    transition: none;
+  }
+
+  .site-image-transition {
     opacity: 1;
     filter: none;
     transition: none;
