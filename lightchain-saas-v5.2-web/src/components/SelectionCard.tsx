@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { CircleCheckbox } from "./CircleCheckbox";
 import { Radio } from "./Radio";
+import { ProgressiveImage } from "./ProgressiveImage";
 
 export type SelectionCardMode = "radio" | "checkbox";
 
@@ -47,7 +48,7 @@ export function SelectionCard({
     >
       {image ? (
         <span className="selection-card__media" aria-hidden={image.alt ? undefined : true}>
-          <img src={image.src} alt={image.alt ?? ""} />
+          <ProgressiveImage src={image.src} alt={image.alt ?? ""} />
         </span>
       ) : null}
       <span className="selection-card__copy">

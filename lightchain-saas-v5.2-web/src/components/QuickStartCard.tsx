@@ -79,6 +79,8 @@ export function QuickStartCard({ title, description, images }: QuickStartCardPro
           <motion.img
             src={src}
             alt=""
+            loading="lazy"
+            decoding="async"
             key={`${src}-${index}`}
             initial={false}
             animate={expanded ? expandedPreview[index] : collapsedPreview[index]}

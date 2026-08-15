@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { Activity, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { quickStartCards } from "../data/workspace";
 import { assetUrl } from "../utils/assets";
@@ -35,8 +35,29 @@ const composerPlaceholders = [
 type ProfileOption = { id: number; name: string };
 type ProjectOption = { id: number; name: string };
 type Attachment = { id: string; name: string; kind: "file" | "image"; previewUrl?: string };
+type WorkspaceTask = {
+  id: number;
+  prompt: string;
+  profileName?: string;
+  attachments?: { name: string; previewUrl?: string }[];
+  workflow: "new-product" | "default" | "apparel" | "plan";
+  initialState?: "default" | "complete";
+};
 const defaultPlanPrompt = "以 Loro Piana 的 2027春夏 系列做为设计灵感，需要包含 短款外套、衬衫、卫衣、短袖、长裤、短裤 这些品类，生成一份 男装 主题设计企划";
 const defaultPlanEditorHtml = '以 <span class="composer-semantic-slot">Loro Piana</span> 的 <span class="composer-semantic-slot">2027春夏</span> 系列做为设计灵感，需要包含 <span class="composer-semantic-slot">短款外套、衬衫、卫衣、短袖、长裤、短裤</span> 这些品类，生成一份 <span class="composer-semantic-slot">男装</span> 主题设计企划';
+
+function TaskConversation({ task }: { task: WorkspaceTask }) {
+  if (task.workflow === "new-product") {
+    return <NewProductPlanningWorkspace prompt={task.prompt} profileName={task.profileName} attachments={task.attachments} initialState={task.initialState} />;
+  }
+  if (task.workflow === "apparel") {
+    return <ClothingConversationWorkspace prompt={task.prompt} attachments={task.attachments} />;
+  }
+  if (task.workflow === "plan") {
+    return <PlanConversationWorkspace prompt={task.prompt} />;
+  }
+  return <ConversationWorkspace prompt={task.prompt} profileName={task.profileName} attachments={task.attachments} initialState={task.initialState} />;
+}
 
 const textOffsetWithin = (root: HTMLElement, node: Node, offset: number) => {
   const range = document.createRange();
@@ -106,9 +127,10 @@ const projectOptions: ProjectOption[] = [
   { id: 5, name: "Untitled" },
 ];
 
-export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, onSelectedProfileChange, selectedProject, onSelectedProjectChange, onCreateTask }: {
+export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selectedProfile, onSelectedProfileChange, selectedProject, onSelectedProjectChange, onCreateTask }: {
   theme: "dark" | "light";
-  activeTask?: { id: number; prompt: string; profileName?: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "new-product" | "default" | "apparel" | "plan"; initialState?: "default" | "complete" } | null;
+  activeTask?: WorkspaceTask | null;
+  taskIds?: readonly number[];
   newTaskKey?: number;
   selectedProfile?: ProfileOption | null;
   onSelectedProfileChange?: (profile: ProfileOption | null) => void;
@@ -144,6 +166,15 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
   const activeTaskId = activeTask?.id ?? null;
+  const taskCacheRef = useRef(new Map<number, WorkspaceTask>());
+  if (activeTask) taskCacheRef.current.set(activeTask.id, activeTask);
+  if (taskIds) {
+    const validTaskIds = new Set(taskIds);
+    taskCacheRef.current.forEach((_, taskId) => {
+      if (!validTaskIds.has(taskId)) taskCacheRef.current.delete(taskId);
+    });
+  }
+  const cachedTasks = Array.from(taskCacheRef.current.values());
   const reduceMotion = useReducedMotion();
   const quickStartExpandTransition = reduceMotion
     ? { duration: 0 }
@@ -371,18 +402,12 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
 
   return (
     <Suspense fallback={<main className="workspace-region" aria-busy="true" />}>
-    <AnimatePresence mode="wait" initial={false}>
-    {activeTask ? (
-      activeTask.workflow === "new-product" ? (
-        <NewProductPlanningWorkspace key={`new-product-conversation-${activeTask.id}`} prompt={activeTask.prompt} profileName={activeTask.profileName} attachments={activeTask.attachments} initialState={activeTask.initialState} />
-      ) : activeTask.workflow === "apparel" ? (
-        <ClothingConversationWorkspace key={`apparel-conversation-${activeTask.id}`} prompt={activeTask.prompt} attachments={activeTask.attachments} />
-      ) : activeTask.workflow === "plan" ? (
-        <PlanConversationWorkspace key={`plan-conversation-${activeTask.id}`} prompt={activeTask.prompt} />
-      ) : (
-        <ConversationWorkspace key={`conversation-${activeTask.id}`} prompt={activeTask.prompt} profileName={activeTask.profileName} attachments={activeTask.attachments} initialState={activeTask.initialState} />
-      )
-    ) : (
+    {cachedTasks.map((task) => (
+      <Activity mode={activeTaskId === task.id ? "visible" : "hidden"} name={`task-${task.id}`} key={task.id}>
+        <TaskConversation task={task} />
+      </Activity>
+    ))}
+    <Activity mode={activeTask ? "hidden" : "visible"} name="workspace-home">
     <motion.main
       className="workspace-region"
       key="workspace-home"
@@ -833,8 +858,7 @@ export function Workspace({ theme, activeTask, newTaskKey = 0, selectedProfile, 
         </motion.section>
       </motion.div>
     </motion.main>
-    )}
-    </AnimatePresence>
+    </Activity>
     </Suspense>
   );
 }

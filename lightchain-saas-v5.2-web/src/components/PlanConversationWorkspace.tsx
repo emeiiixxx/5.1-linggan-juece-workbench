@@ -20,6 +20,7 @@ import {
 } from "./ConversationPrimitives";
 import { useGsapEntrance } from "../motion/gsap";
 import { extractPromptContext } from "../utils/promptContext";
+import { ProgressiveImage } from "./ProgressiveImage";
 
 type PlanStage =
   | "theme"
@@ -104,7 +105,7 @@ function GeneratedImageStep({ id, title, images, complete, favorites, onPreview,
           {images.map((src, index) => (
             <div className="plan-generation-image" key={`${src}-${index}`}>
               <button type="button" aria-label={`查看生成图片 ${index + 1}`} onClick={() => onPreview(src)}>
-                <img src={assetUrl(src)} alt={`企划生成内容 ${index + 1}`} />
+                <ProgressiveImage src={assetUrl(src)} alt={`企划生成内容 ${index + 1}`} />
               </button>
               <ImageActionBar
                 favorited={favorites.has(src)}

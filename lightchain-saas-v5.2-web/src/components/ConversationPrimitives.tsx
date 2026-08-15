@@ -12,6 +12,7 @@ import { Toast } from "./Toast";
 import { SelectionCard } from "./SelectionCard";
 import { CircleCheckbox } from "./CircleCheckbox";
 import { downloadImageZip } from "../utils/downloadZip";
+import { ProgressiveImage } from "./ProgressiveImage";
 
 export type ConversationStepStatus = "complete" | "loading" | "pending";
 
@@ -709,7 +710,7 @@ export function TaskDetailPanel({
     const content = (
       <>
         {reference.thumbnail ? (
-          <img
+          <ProgressiveImage
             className="task-detail-reference-thumbnail"
             src={assetUrl(reference.thumbnail)}
             alt=""

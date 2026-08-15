@@ -11,6 +11,7 @@ import { SelectionCard, SelectionControl } from "./SelectionCard";
 import { ConversationUserAttachments } from "./ConversationUserAttachments";
 import type { InspirationDesignType } from "./InspirationDesignSelect";
 import { extractPromptContext, getPromptExclusions } from "../utils/promptContext";
+import { ProgressiveImage } from "./ProgressiveImage";
 
 type ApparelStage =
   | "analyzing"
@@ -359,7 +360,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
             {!attachments.length && prompt.includes("上传") && (
               <div className="apparel-user-reference-grid">
                 {userReferences.map(assetUrl).slice(0, 2).map((src, index) => (
-                  <img src={src} alt={`款式参考图 ${index + 1}`} key={`${src}-${index}`} />
+                  <ProgressiveImage src={src} alt={`款式参考图 ${index + 1}`} key={`${src}-${index}`} />
                 ))}
               </div>
             )}
@@ -699,7 +700,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                       <div className="apparel-generation-grid">
                         {Array.from({ length: end - start + 1 }, (_, itemIndex) => (
                           <div className={complete ? "is-complete" : "is-loading"} key={itemIndex}>
-                            <img src={assetUrl(activeReferenceImage)} alt={`生成款式 SKU ${start + itemIndex}`} />
+                            <ProgressiveImage src={assetUrl(activeReferenceImage)} alt={`生成款式 SKU ${start + itemIndex}`} />
                             {!complete && (
                               <span className="conversation-analysis-loading apparel-generation-loading" aria-label="正在生成">
                                 <img className="conversation-analysis-spinner" src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" />
@@ -736,10 +737,11 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
                     {activeSkuPlan.map((sku, index) => (
                       <figure key={sku[0]}>
                         <div className="apparel-result-media">
-                          <img src={assetUrl(activeReferenceImage)} alt={`SKU ${sku[0]} ${sku[1]}`} style={{ objectPosition: `${42 + (index % 4) * 4}% center` }} />
+                          <button type="button" aria-label={`查看 SKU ${sku[0]} ${sku[1]} 大图`} onClick={() => setPreviewResult(sku[0])}>
+                            <ProgressiveImage src={assetUrl(activeReferenceImage)} alt={`SKU ${sku[0]} ${sku[1]}`} style={{ objectPosition: `${42 + (index % 4) * 4}% center` }} />
+                          </button>
                           <ImageActionBar
                             favorited={favoriteResults.includes(sku[0])}
-                            onPreview={() => setPreviewResult(sku[0])}
                             onFavorite={() => toggleFavoriteResult(sku[0])}
                             onDownload={() => downloadResult(sku[0], sku[1])}
                           />

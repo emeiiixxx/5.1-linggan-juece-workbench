@@ -1,4 +1,4 @@
-import { lazy, Suspense, useLayoutEffect, useState } from "react";
+import { Activity, lazy, Suspense, useLayoutEffect, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { Workspace } from "./components/Workspace";
@@ -109,7 +109,7 @@ export default function App() {
             setSelectedProject((current) => current?.id === projectId ? null : current);
           }}
         />
-        {activeView === "preferences" ? (
+        <Activity mode={activeView === "preferences" ? "visible" : "hidden"} name="business-profile">
           <Suspense fallback={<main className="workspace-region" aria-busy="true" />}>
             <BusinessProfile
               onCreateTask={(profile) => {
@@ -120,10 +120,12 @@ export default function App() {
               }}
             />
           </Suspense>
-        ) : (
+        </Activity>
+        <Activity mode={activeView === "workspace" ? "visible" : "hidden"} name="workspace">
           <Workspace
             theme={theme}
             activeTask={activeTask}
+            taskIds={taskRecords.map((task) => task.id)}
             newTaskKey={newTaskKey}
             selectedProfile={selectedProfile}
             onSelectedProfileChange={setSelectedProfile}
@@ -145,7 +147,7 @@ export default function App() {
               setActiveTaskId(id);
             }}
           />
-        )}
+        </Activity>
       </div>
     </div>
     </I18nProvider>

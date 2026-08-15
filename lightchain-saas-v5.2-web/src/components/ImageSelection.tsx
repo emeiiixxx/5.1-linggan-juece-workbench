@@ -8,6 +8,7 @@ import { IconControl } from "./IconControl";
 import { useI18n } from "../i18n";
 import { useModalFocus } from "../hooks/useModalFocus";
 import { CircleCheckbox } from "./CircleCheckbox";
+import { ProgressiveImage } from "./ProgressiveImage";
 
 type ImageSelectionProps = {
   src: string;
@@ -78,7 +79,7 @@ export function ImageSelection({
         disabled={disabled}
         onClick={onSelect}
       >
-        <img className="image-selection__asset" src={src} alt={alt} />
+        <ProgressiveImage className="image-selection__asset" src={src} alt={alt} />
         {selected ? (
           <span className="image-selection__checkbox" aria-hidden="true">
             <CircleCheckbox checked />
@@ -122,7 +123,7 @@ export function MasonryImageSelection({
         disabled={disabled || loading}
         onClick={onSelect}
       >
-        <img src={src} alt={alt} />
+        <ProgressiveImage src={src} alt={alt} />
         <span className="masonry-image-selection__title">{label}</span>
       </button>
       {loading ? (
@@ -167,7 +168,7 @@ export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string;
           <h2 id="media-lightbox-title">{alt}</h2>
           <IconControl label={t("关闭大图")} variant="ghost" autoFocus onClick={onClose}><FigmaIcon name="close" size={20} /></IconControl>
         </header>
-        <div className="media-lightbox__content"><img src={src} alt={alt} /></div>
+        <div className="media-lightbox__content"><ProgressiveImage src={src} alt={alt} priority /></div>
       </section>
     </div>,
     document.body,
@@ -409,7 +410,7 @@ export function ImageGalleryLightbox({
         role="document"
       >
         <div className="candidate-lightbox__media" aria-busy={resultActions?.regenerating || undefined}>
-          <img src={assetUrl(activeItem.src)} alt={`${activeItem.code} ${activeItem.title}`} />
+          <ProgressiveImage src={assetUrl(activeItem.src)} alt={`${activeItem.code} ${activeItem.title}`} priority />
           {resultActions?.regenerating ? (
             <span className="masonry-image-selection__loading" aria-live="polite">
               <img src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" />
@@ -529,7 +530,7 @@ export function ImageGalleryLightbox({
                 onClick={() => onNavigate(item.id)}
                 key={item.id}
               >
-                <img src={assetUrl(item.src)} alt="" />
+                <ProgressiveImage src={assetUrl(item.src)} alt="" />
                 {itemSelected ? <span className="candidate-lightbox__thumbnail-selected" aria-hidden="true"><FigmaIcon name="heart-filled" size={16} /></span> : null}
               </button>
             );
