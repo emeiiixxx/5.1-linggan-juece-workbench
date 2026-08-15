@@ -11,7 +11,7 @@ import { TaskConversationComposer, type TaskConversationAttachment } from "./Tas
 import { ConversationUserAttachments, type ConversationUserAttachment } from "./ConversationUserAttachments";
 import { ResearchScopeForm } from "./ResearchScopeForm";
 import { SelectionCard } from "./SelectionCard";
-import { AnalysisStepIcon, ConversationFeed, ConversationFileCard, ConversationFormTitle, ConversationTaskCompletion, ConversationUserMessage, ImageSelectionActions, SelectAllControl, TaskArtifactRow, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
+import { AnalysisStepIcon, ConversationFeed, ConversationFileCard, ConversationFollowUpExchange, ConversationFormTitle, ConversationTaskCompletion, ConversationUserMessage, ImageSelectionActions, SelectAllControl, TaskArtifactRow, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
 import { candidateCategories, candidatePageCount, candidateReferenceImages, formatCandidateSelection, formatTrendDirectionSelection, getCandidateCategoryLabel, getCandidateReference, trendDirections, trendReportDetails, type CandidateCategoryId } from "../data/referenceCatalog";
 import { buildFashionProposalHtml } from "../report/fashionProposalHtml";
 import { useI18n } from "../i18n";
@@ -316,7 +316,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const [generationDecision, setGenerationDecision] = useState<GenerationDecision | null>(startsComplete ? "confirm" : null);
   const [generationEntryMessage, setGenerationEntryMessage] = useState("确认并生成");
   const [generationEntryAttachments, setGenerationEntryAttachments] = useState<TaskConversationAttachment[]>([]);
-  const [additionalMessages, setAdditionalMessages] = useState<Array<{ text: string; attachments: TaskConversationAttachment[] }>>([]);
+  const [additionalMessages, setAdditionalMessages] = useState<Array<{ request: string; attachments: TaskConversationAttachment[]; response: string }>>([]);
   const [customerProposalStage, setCustomerProposalStage] = useState<"idle" | "ai-generating" | "results" | "proposal-generating" | "complete">(startsComplete ? "complete" : "idle");
   const [aiGenerationProgress, setAiGenerationProgress] = useState(startsComplete ? 4 : 0);
   const [proposalGenerationProgress, setProposalGenerationProgress] = useState(startsComplete ? 4 : 0);
@@ -348,6 +348,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const scopePhaseRef = useRef<HTMLDivElement>(null);
   const confirmedResultsRef = useRef<HTMLDivElement>(null);
   const candidatePoolRef = useRef<HTMLDivElement>(null);
+  const feedEndRef = useRef<HTMLDivElement>(null);
   const trendPreviewDialogRef = useRef<HTMLElement>(null);
   const reduceMotion = useReducedMotion();
   const analysisComplete = analysisPhase === "complete";
@@ -554,6 +555,14 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     return () => window.cancelAnimationFrame(frame);
   }, [customerProposalStage, reduceMotion]);
 
+  useEffect(() => {
+    if (!additionalMessages.length) return;
+    const frame = window.requestAnimationFrame(() => {
+      feedEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [additionalMessages.length, reduceMotion]);
+
   const submitFollowUp = (submittedAttachments: TaskConversationAttachment[]) => {
     const message = followUp.trim();
     if (!message && !submittedAttachments.length) return;
@@ -576,8 +585,23 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
       }
       handled = true;
     }
-    if (!handled) setAdditionalMessages((current) => [...current, { text: message, attachments: submittedAttachments }]);
+    if (!handled) setAdditionalMessages((current) => [...current, {
+      request: message,
+      attachments: submittedAttachments,
+      response: message
+        ? `已收到你的追加要求：“${message}”。我会在当前客户提案流程中继续处理，并保留已经确认的内容。`
+        : `已收到你补充的 ${submittedAttachments.length} 份资料。我会在当前客户提案流程中继续处理，并保留已经确认的内容。`,
+    }]);
     setFollowUp("");
+  };
+
+  const submitCompletionSuggestion = (suggestion: string) => {
+    setFollowUp("");
+    setAdditionalMessages((current) => [...current, {
+      request: suggestion,
+      attachments: [],
+      response: `已收到你的追加要求：“${suggestion}”。我会基于当前客户提案继续处理，并保留已确认的客户需求、市场依据、视觉方向和 AI 改款结果。`,
+    }]);
   };
 
   const useSeasonQuickReply = (message: "继续" | "跳过" | "没有补充，继续" | "确认需求，继续") => {
@@ -1562,10 +1586,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                   <ConversationTaskCompletion
                                     message="任务已完成。"
                                     suggestions={["基于这份提案生成客户演示稿", "整理确认款的后续开发清单", "为这份提案生成客户跟进邮件"]}
-                                    onSuggestion={(suggestion) => {
-                                      setFollowUp(suggestion);
-                                      setComposerFocusRequest((request) => request + 1);
-                                    }}
+                                    onSuggestion={submitCompletionSuggestion}
                                   />
                                 </motion.article>
                               ) : null}
@@ -1578,11 +1599,9 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
               ) : null}
             </AnimatePresence>
             {additionalMessages.map((message, index) => (
-              <ConversationUserMessage key={`${message.text}-${index}`}>
-                <ConversationUserAttachments attachments={message.attachments} />
-                {message.text && <span>{message.text}</span>}
-              </ConversationUserMessage>
+              <ConversationFollowUpExchange {...message} key={`${message.request}-${index}`} />
             ))}
+            <div ref={feedEndRef} />
           </ConversationFeed>
         </div>
 

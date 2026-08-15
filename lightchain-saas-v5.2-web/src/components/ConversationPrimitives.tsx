@@ -13,6 +13,7 @@ import { SelectionCard } from "./SelectionCard";
 import { CircleCheckbox } from "./CircleCheckbox";
 import { downloadImageZip } from "../utils/downloadZip";
 import { ProgressiveImage } from "./ProgressiveImage";
+import { ConversationUserAttachments, type ConversationUserAttachment } from "./ConversationUserAttachments";
 
 export type ConversationStepStatus = "complete" | "loading" | "pending";
 
@@ -869,6 +870,36 @@ export function ConversationTaskCompletion({
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+export function ConversationFollowUpExchange({
+  request,
+  attachments = [],
+  response,
+}: {
+  request: string;
+  attachments?: readonly ConversationUserAttachment[];
+  response: string;
+}) {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <div className="conversation-confirmed-results">
+      <ConversationUserMessage entrance>
+        <ConversationUserAttachments attachments={attachments} />
+        {request ? <span>{request}</span> : null}
+      </ConversationUserMessage>
+      <motion.article
+        className="conversation-message conversation-message--assistant"
+        data-message-actions="true"
+        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: reduceMotion ? 0 : 0.32, ease: revealEase }}
+      >
+        <p>{response}</p>
+      </motion.article>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
 import { Button, QuickReplyButton } from "./Button";
-import { AnalysisStepIcon, ConversationFeed, ConversationFormTitle, ConversationStatusIcon as ApparelStatusIcon, ConversationTaskCompletion, ConversationUserMessage as UserMessage, SelectAllControl, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
+import { AnalysisStepIcon, ConversationFeed, ConversationFollowUpExchange, ConversationFormTitle, ConversationStatusIcon as ApparelStatusIcon, ConversationTaskCompletion, ConversationUserMessage as UserMessage, SelectAllControl, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
 import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
 import { useGsapEntrance } from "../motion/gsap";
 import { SelectionCard, SelectionControl } from "./SelectionCard";
@@ -757,10 +757,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
               </>
             )}
             {resultFollowUps.map((message, index) => (
-              <div className="conversation-confirmed-results" key={`${message.request}-${index}`}>
-                <UserMessage entrance><ConversationUserAttachments attachments={message.attachments} />{message.request && <span>{message.request}</span>}</UserMessage>
-                <AssistantMessage><p>{message.response}</p></AssistantMessage>
-              </div>
+              <ConversationFollowUpExchange {...message} key={`${message.request}-${index}`} />
             ))}
             <div ref={feedEndRef} />
           </ConversationFeed>

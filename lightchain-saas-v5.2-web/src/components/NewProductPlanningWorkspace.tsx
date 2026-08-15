@@ -14,6 +14,7 @@ import {
   AnalysisStepIcon,
   ConversationFeed,
   ConversationFileCard,
+  ConversationFollowUpExchange,
   ConversationFormTitle,
   ConversationStatusIcon,
   ConversationTaskCompletion,
@@ -372,7 +373,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const [followUp, setFollowUp] = useState("");
   const [briefEntryMessage, setBriefEntryMessage] = useState("满意，请继续");
   const [briefEntryAttachments, setBriefEntryAttachments] = useState<TaskConversationAttachment[]>([]);
-  const [additionalMessages, setAdditionalMessages] = useState<Array<{ text: string; attachments: TaskConversationAttachment[] }>>([]);
+  const [additionalMessages, setAdditionalMessages] = useState<Array<{ request: string; attachments: TaskConversationAttachment[]; response: string }>>([]);
   const [markets, setMarkets] = useState<ResearchMarket[]>(scopeDefaults.markets);
   const [commerce, setCommerce] = useState<string[]>(scopeDefaults.commerce);
   const [social, setSocial] = useState<string[]>(scopeDefaults.social);
@@ -469,7 +470,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
   useEffect(() => {
     feedEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
-  }, [reduceMotion, regenerationPhase, regenerationRound, selectedResults.length, stage]);
+  }, [additionalMessages.length, reduceMotion, regenerationPhase, regenerationRound, selectedResults.length, stage]);
 
   const toggle = (value: string, setter: Dispatch<SetStateAction<string[]>>) => {
     setter((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
@@ -524,7 +525,22 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
       setStage("scope");
       return;
     }
-    setAdditionalMessages((current) => [...current, { text: value, attachments: submittedAttachments }]);
+    setAdditionalMessages((current) => [...current, {
+      request: value,
+      attachments: submittedAttachments,
+      response: value
+        ? `已收到你的追加要求：“${value}”。我会在当前新品企划流程中继续处理，并保留已经确认的内容。`
+        : `已收到你补充的 ${submittedAttachments.length} 份资料。我会在当前新品企划流程中继续处理，并保留已经确认的内容。`,
+    }]);
+  };
+
+  const submitCompletionSuggestion = (suggestion: string) => {
+    setFollowUp("");
+    setAdditionalMessages((current) => [...current, {
+      request: suggestion,
+      attachments: [],
+      response: `已收到你的追加要求：“${suggestion}”。我会基于当前新品企划案继续处理，并保留已确认的调研依据、视觉方向和款式结果。`,
+    }]);
   };
 
   const placeholder: Record<PlanningStage, string> = {
@@ -905,19 +921,13 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                   <ConversationTaskCompletion
                     message="任务已完成。"
                     suggestions={["分析企划中采用的面料与工艺细节", "基于这份企划制作客户提案", "整理确认款的后续开发清单"]}
-                    onSuggestion={(suggestion) => {
-                      setFollowUp(suggestion);
-                      setComposerFocusRequest((request) => request + 1);
-                    }}
+                    onSuggestion={submitCompletionSuggestion}
                   />
                 </AssistantMessage>
               </>
             ) : null}
             {additionalMessages.map((message, index) => (
-              <ConversationUserMessage key={`${message.text}-${index}`}>
-                <ConversationUserAttachments attachments={message.attachments} />
-                {message.text && <span>{message.text}</span>}
-              </ConversationUserMessage>
+              <ConversationFollowUpExchange {...message} key={`${message.request}-${index}`} />
             ))}
             <div ref={feedEndRef} />
           </ConversationFeed>
