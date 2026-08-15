@@ -34,6 +34,7 @@ import { ConversationUserAttachments } from "./ConversationUserAttachments";
 import { getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
 import { useI18n } from "../i18n";
 import { buildFashionProposalHtml, type FashionProposalPlan, type FashionProposalSource } from "../report/fashionProposalHtml";
+import { buildNewProductPlanHtml } from "../report/newProductPlanHtml";
 import { useModalFocus } from "../hooks/useModalFocus";
 import { extractPromptContext, getPromptExclusions } from "../utils/promptContext";
 
@@ -629,12 +630,13 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const newProductPlanHtml = useMemo(() => {
     const confirmedResults = displayedResultItems.filter((item) => selectedResults.includes(item.id));
 
-    return buildFashionProposalHtml({
-      kind: "plan",
+    return buildNewProductPlanHtml({
       title: `${briefSeason === "未指定" ? "待确认季节" : briefSeason} ${briefCategory}新品企划案`,
-      deck: `面向${briefMarket}与${briefChannels}的${briefCategory}方案，所有未提供的经营条件继续标记为待确认。`,
-      kicker: "NEW PRODUCT MERCHANDISING PLAN",
-      topbarMeta: `${briefMarket} / ${briefCategory} / ${briefSeason}`,
+      market: briefMarket,
+      category: briefCategory,
+      season: briefSeason,
+      audience: briefAudience,
+      channels: briefChannels,
       directions: confirmedDirectionReportItems,
       references: confirmedResults.map((item) => ({
         code: item.code,
@@ -642,12 +644,11 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
         category: directions.find((direction) => direction.id === item.categoryId)?.title ?? item.title,
         imageUrl: assetUrl(item.src),
       })),
-      categoryCount: merchandisingPlan.assortment.length,
       directionLabel: `${confirmedDirections.map((direction) => direction.title).join("、") || "方向待确认"}；渠道：${briefChannels}`,
       sources: planSources,
       plan: merchandisingPlan,
     });
-  }, [briefCategory, briefChannels, briefMarket, briefSeason, confirmedDirectionReportItems, confirmedDirections, displayedResultItems, merchandisingPlan, planSources, selectedResults]);
+  }, [briefAudience, briefCategory, briefChannels, briefMarket, briefSeason, confirmedDirectionReportItems, confirmedDirections, displayedResultItems, merchandisingPlan, planSources, selectedResults]);
 
   const stopCurrentTask = () => {
     if (regenerationBusy) {
