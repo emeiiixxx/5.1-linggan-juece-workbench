@@ -23,7 +23,6 @@ type AnalysisPhase = "parsing" | "complete";
 type GenerationDecision = "skip" | "confirm";
 type TrendDownloadFormat = "HTML" | "PPT" | "PDF";
 type TrendPreviewKind = "research" | "ai-results" | "proposal";
-const evidenceIds = ["EV-PROP-FILE-001", "EV-PROP-ECOM-001", "EV-PROP-SOC-001", "EV-PROP-TRD-001"];
 const customerProposalReferenceEvidence = {
   "01": {
     subtitle: "Amazon US · 女装通勤款公开商品资料",
@@ -198,22 +197,6 @@ function downloadTrendAnalysis(format: TrendDownloadFormat) {
   const link = document.createElement("a");
   link.href = url;
   link.download = `趋势方向分析.${extension}`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-function downloadTrendWorkbook() {
-  const rows = [
-    ["方向编号", "视觉方向", "方向说明", "建议"],
-    ...trendDirections.map((direction) => [direction.id, direction.title, direction.description, direction.recommendation]),
-  ];
-  const csv = rows.map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(",")).join("\n");
-  const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "视觉方向参考素材.xlsx";
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -1100,57 +1083,26 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                         </motion.article> : null}
 
                         {scopeResultStage >= 3 ? <motion.article
-                          className="conversation-message conversation-message--assistant conversation-trend-result"
+                          className="conversation-message conversation-message--assistant conversation-trend-result trend-file-list"
                           initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: reduceMotion ? 0 : 0.36, ease: revealEase }}
                           data-node-id="567:65705"
                         >
                           <p data-message-actions="true">调研已完成。当前证据更支持“轻量松弛通勤”和“复古学院混搭”作为核心方向；柔性结构与都市轻机能适合小规模验证。判断分别核对了电商供给、社媒内容、品牌采用和趋势资料。社媒互动不等于销量，不同电商平台的数值未合并。</p>
-                        </motion.article> : null}
-
-                        {scopeResultStage >= 4 ? <motion.article
-                          className="conversation-message conversation-message--assistant trend-file-list"
-                          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: reduceMotion ? 0 : 0.32, ease: revealEase }}
-                          data-node-id="488:112710"
-                        >
-                          <ConversationFileCard
-                            icon="html"
-                            name="客户需求调研与视觉方向.html"
-                            description="刚刚 · 4个待确认方向 · 分来源展示样本、时间、充分度与缺口"
-                          >
-                            <button type="button" onClick={() => openTrendPreview("research")}>在线查看</button>
-                            <DownloadFormatMenu onSelect={(format) => downloadTrendAnalysis(format.toUpperCase() as TrendDownloadFormat)} />
-                          </ConversationFileCard>
-                          <ConversationFileCard
-                            icon="excel"
-                            name="视觉方向参考素材.xlsx"
-                            description="一个工作簿 · 每个视觉方向一个 Sheet · 包含来源与缺失字段说明"
-                          >
-                            <button type="button" onClick={downloadTrendWorkbook}>下载</button>
-                          </ConversationFileCard>
-                        </motion.article> : null}
-
-                        {scopeResultStage >= 5 ? <motion.article
-                          className="conversation-evidence-message"
-                          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: reduceMotion ? 0 : 0.32, ease: revealEase }}
-                          data-node-id="524:7528"
-                        >
-                          <div className="conversation-message conversation-message--assistant conversation-evidence-body" data-message-actions="true">
-                            <p>本次趋势扫描引用以下业务证据；这些 evidence_id 与右侧参考信息聚合行及详情弹窗保持同源。</p>
-                            <div className="conversation-evidence-card">
-                              {evidenceIds.map((evidenceId) => (
-                                <button type="button" key={evidenceId}>
-                                  <span>证据{evidenceId}</span>
-                                  <FigmaIcon name="arrow-up-right" size={16} />
-                                </button>
-                              ))}
-                            </div>
-                          </div>
+                          {scopeResultStage >= 4 ? (
+                            <>
+                              <ConversationFileCard
+                                icon="html"
+                                name="客户需求调研与视觉方向.html"
+                                description="刚刚 · 4个待确认方向 · 分来源展示样本、时间、充分度与缺口"
+                              >
+                                <button type="button" onClick={() => openTrendPreview("research")}>在线查看</button>
+                                <DownloadFormatMenu onSelect={(format) => downloadTrendAnalysis(format.toUpperCase() as TrendDownloadFormat)} />
+                              </ConversationFileCard>
+                              <p>本次判断综合参考了目标市场电商商品、社媒内容、趋势资料和用户上传资料。具体来源、样本范围与数据缺口可在调研报告中查看。</p>
+                            </>
+                          ) : null}
                         </motion.article> : null}
 
                         {scopeResultStage >= 5 ? <motion.article

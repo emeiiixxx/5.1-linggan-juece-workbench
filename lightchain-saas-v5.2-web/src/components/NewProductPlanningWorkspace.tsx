@@ -573,6 +573,10 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     link.click();
   };
 
+  const continueToAiGeneration = () => {
+    setStage("ai-generating");
+  };
+
   const submitFollowUp = (submittedAttachments: TaskConversationAttachment[]) => {
     const value = followUp.trim();
     if (!value && !submittedAttachments.length) return;
@@ -582,6 +586,18 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
       setBriefEntryMessage(value);
       setBriefEntryAttachments(submittedAttachments);
       setStage("scope");
+      return;
+    }
+    const normalizedValue = value.toLocaleLowerCase().replace(/[\s，。！!、]/g, "");
+    const confirmsStructure = [
+      "继续",
+      "继续生成",
+      "继续生成ai改款",
+      "确认继续",
+      "确认并继续",
+    ].includes(normalizedValue);
+    if (stage === "structure" && !submittedAttachments.length && confirmsStructure) {
+      continueToAiGeneration();
       return;
     }
     setAdditionalMessages((current) => [...current, {
@@ -871,7 +887,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 />
                 {stage === "structure" ? (
                   <div className="conversation-quick-action">
-                    <Button variant="primary" size="small" onClick={() => setStage("ai-generating")}>继续生成 AI 改款 <FigmaIcon name="arrow-right" size={16} /></Button>
+                    <Button variant="primary" size="small" onClick={() => { onTaskProgress?.(); continueToAiGeneration(); }}>继续生成 AI 改款 <FigmaIcon name="arrow-right" size={16} /></Button>
                   </div>
                 ) : null}
               </AssistantMessage>
