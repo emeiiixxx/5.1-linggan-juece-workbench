@@ -272,14 +272,17 @@ function TrendDirectionSelectionForm({
   );
 }
 
-export function ConversationWorkspace({ prompt, profileName, attachments = [], initialState = "default" }: {
+export function ConversationWorkspace({ prompt, profileName, attachments = [], initialState = "default", onTaskProgress, onTaskComplete }: {
   prompt: string;
   profileName?: string;
   attachments?: ConversationUserAttachment[];
   initialState?: "default" | "complete";
+  onTaskProgress?: () => void;
+  onTaskComplete?: () => void;
 }) {
   const { locale, t } = useI18n();
   const startsComplete = initialState === "complete";
+  const completionReportedRef = useRef(startsComplete);
   const profileScopeDefaults = getResearchScopeDefaults(profileName, locale, prompt);
   const promptContext = useMemo(() => extractPromptContext(prompt), [prompt]);
   const parsedMarket = promptContext.market ?? (profileName ? profileScopeDefaults.markets.join("、") : "未指定");
@@ -556,6 +559,12 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   }, [customerProposalStage, reduceMotion]);
 
   useEffect(() => {
+    if (customerProposalStage !== "complete" || completionReportedRef.current) return;
+    completionReportedRef.current = true;
+    onTaskComplete?.();
+  }, [customerProposalStage, onTaskComplete]);
+
+  useEffect(() => {
     if (!additionalMessages.length) return;
     const frame = window.requestAnimationFrame(() => {
       feedEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
@@ -566,6 +575,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const submitFollowUp = (submittedAttachments: TaskConversationAttachment[]) => {
     const message = followUp.trim();
     if (!message && !submittedAttachments.length) return;
+    onTaskProgress?.();
     let handled = false;
     if (trendDirectionsConfirmed && customerProposalStage === "idle") {
       setGenerationEntryMessage(message);
@@ -596,6 +606,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   };
 
   const submitCompletionSuggestion = (suggestion: string) => {
+    onTaskProgress?.();
     setFollowUp("");
     setAdditionalMessages((current) => [...current, {
       request: suggestion,

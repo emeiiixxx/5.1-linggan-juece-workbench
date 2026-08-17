@@ -8,9 +8,19 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { completedProjectTaskExamples, projectGroups, recentItems, taskItems } from "../data/workspace";
+import {
+  allDemoTaskExamples,
+  initialTaskSidebarMeta,
+  projectGroups,
+  recentItems,
+  taskItems,
+  type TaskSidebarMeta,
+  type TaskStatus,
+  type TaskWorkflow,
+} from "../data/workspace";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
+import { TaskListItemContent } from "./TaskListItemContent";
 import { useI18n } from "../i18n";
 import { assetUrl } from "../utils/assets";
 
@@ -23,7 +33,20 @@ type SidebarProps = {
   onOpenWorkspace?: () => void;
   onOpenPreferences?: () => void;
   onCreateTaskInProject?: (project: { id: number; name: string }) => void;
-  createdTask?: { id: number; title: string; projectId: number | null } | null;
+  createdTask?: {
+    id: number;
+    title: string;
+    projectId: number | null;
+    workflow: TaskWorkflow;
+    status: TaskStatus;
+    updatedAt: string;
+  } | null;
+  taskRecords?: {
+    title: string;
+    workflow: TaskWorkflow;
+    status: TaskStatus;
+    updatedAt: string;
+  }[];
   onOpenTask?: (taskId: number) => void;
   onSelectStaticRow?: () => void;
   onDeleteTask?: (taskId: number) => void;
@@ -72,6 +95,7 @@ export function Sidebar({
   onOpenPreferences,
   onCreateTaskInProject,
   createdTask,
+  taskRecords = [],
   onOpenTask,
   onSelectStaticRow,
   onDeleteTask,
@@ -110,8 +134,24 @@ export function Sidebar({
   const collapsedMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastCreatedTaskIdRef = useRef<number | null>(null);
   const createdTaskIdsRef = useRef(new Map<string, number>(
-    completedProjectTaskExamples.map((task) => [`${task.projectId}:${task.title}`, task.id]),
+    allDemoTaskExamples.map((task) => [`${task.projectId ?? "task"}:${task.title}`, task.id]),
   ));
+  const taskSidebarMetaRef = useRef(new Map<string, TaskSidebarMeta>(
+    Object.entries(initialTaskSidebarMeta),
+  ));
+  const taskRecordMeta = new Map<string, TaskSidebarMeta>(taskRecords.map((task) => [
+    task.title,
+    { workflow: task.workflow, status: task.status, updatedAt: task.updatedAt },
+  ]));
+  const getTaskSidebarMeta = (title: string): TaskSidebarMeta => {
+    const recordMeta = taskRecordMeta.get(title);
+    if (recordMeta) return recordMeta;
+    const existingMeta = taskSidebarMetaRef.current.get(title);
+    if (existingMeta) return existingMeta;
+    const workflows: TaskWorkflow[] = ["new-product", "default", "apparel", "plan"];
+    const hash = Array.from(title).reduce((total, character) => total + character.charCodeAt(0), 0);
+    return { workflow: workflows[hash % workflows.length], status: "running" };
+  };
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
   const visibleRecentItems = recentItems
     .filter(([title, meta]) =>
@@ -128,6 +168,11 @@ export function Sidebar({
     }
     lastCreatedTaskIdRef.current = createdTask.id;
     createdTaskIdsRef.current.set(taskKey, createdTask.id);
+    taskSidebarMetaRef.current.set(createdTask.title, {
+      workflow: createdTask.workflow,
+      status: createdTask.status,
+      updatedAt: createdTask.updatedAt,
+    });
 
     if (createdTask.projectId === null) {
       setTasks((current) => [
@@ -206,7 +251,7 @@ export function Sidebar({
       return;
     }
 
-    const savedTask = completedProjectTaskExamples.find((task) => task.title === title);
+    const savedTask = allDemoTaskExamples.find((task) => task.title === title);
     if (savedTask) {
       setSelectedRow(null);
       onOpenTask?.(savedTask.id);
@@ -387,6 +432,9 @@ export function Sidebar({
         createdTaskIdsRef.current.delete(previousKey);
         createdTaskIdsRef.current.set(`task:${nextLabel}`, taskId);
       }
+      const sidebarMeta = previousLabel ? taskSidebarMetaRef.current.get(previousLabel) : undefined;
+      if (previousLabel) taskSidebarMetaRef.current.delete(previousLabel);
+      if (sidebarMeta) taskSidebarMetaRef.current.set(nextLabel, sidebarMeta);
       setTasks((current) =>
         current.map((task, taskIndex) =>
           taskIndex === taskIndexToRename ? nextLabel : task,
@@ -405,6 +453,9 @@ export function Sidebar({
         createdTaskIdsRef.current.delete(previousKey);
         createdTaskIdsRef.current.set(`${group.id}:${nextLabel}`, taskId);
       }
+      const sidebarMeta = previousLabel ? taskSidebarMetaRef.current.get(previousLabel) : undefined;
+      if (previousLabel) taskSidebarMetaRef.current.delete(previousLabel);
+      if (sidebarMeta) taskSidebarMetaRef.current.set(nextLabel, sidebarMeta);
     }
 
     setGroups((current) =>
@@ -909,10 +960,10 @@ export function Sidebar({
                           openSavedTask(group.id, item);
                         }}
                       >
-                        <span className="tree-row__selection-indicator" aria-hidden="true">
+                        <span className={`tree-row__selection-indicator ${isSelected ? "is-selected" : ""}`} aria-hidden="true">
                           {isSelected && <span className="system-dot" />}
                         </span>
-                        <span>{item}</span>
+                        <TaskListItemContent title={item} {...getTaskSidebarMeta(item)} />
                       </button>
                       <div className="tree-row__actions tree-row__actions--child">
                         <IconControl
@@ -1016,10 +1067,10 @@ export function Sidebar({
                         openSavedTask(null, item);
                       }}
                     >
-                      <span className="tree-row__selection-indicator" aria-hidden="true">
+                      <span className={`tree-row__selection-indicator ${isSelected ? "is-selected" : ""}`} aria-hidden="true">
                         <span className={`system-dot task-row__selection-dot ${isSelected ? "is-visible" : ""}`} />
                       </span>
-                      <span>{item}</span>
+                      <TaskListItemContent title={item} {...getTaskSidebarMeta(item)} />
                     </button>
                     <div className="tree-row__actions tree-row__actions--task">
                       <IconControl
@@ -1220,10 +1271,10 @@ export function Sidebar({
                                 openSavedTask(group.id, item);
                               }}
                             >
-                              <span className="tree-row__selection-indicator" aria-hidden="true">
+                              <span className={`tree-row__selection-indicator ${isSelected ? "is-selected" : ""}`} aria-hidden="true">
                                 {isSelected && <span className="system-dot" />}
                               </span>
-                              <span>{item}</span>
+                              <TaskListItemContent title={item} {...getTaskSidebarMeta(item)} />
                             </button>
                             <div className="tree-row__actions tree-row__actions--child">
                               <IconControl
@@ -1330,10 +1381,10 @@ export function Sidebar({
                         openSavedTask(null, item);
                       }}
                     >
-                      <span className="tree-row__selection-indicator" aria-hidden="true">
+                      <span className={`tree-row__selection-indicator ${isSelected ? "is-selected" : ""}`} aria-hidden="true">
                         <span className={`system-dot task-row__selection-dot ${isSelected ? "is-visible" : ""}`} />
                       </span>
-                      <span>{item}</span>
+                      <TaskListItemContent title={item} {...getTaskSidebarMeta(item)} />
                     </button>
                     <div className="tree-row__actions tree-row__actions--task">
                       <IconControl

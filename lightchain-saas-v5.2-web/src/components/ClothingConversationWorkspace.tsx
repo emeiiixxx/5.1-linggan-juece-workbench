@@ -133,7 +133,13 @@ function ApparelQuickReply({ children, onClick }: { children: ReactNode; onClick
   );
 }
 
-export function ClothingConversationWorkspace({ prompt, attachments = [] }: { prompt: string; attachments?: Attachment[] }) {
+export function ClothingConversationWorkspace({ prompt, attachments = [], initialState = "default", onTaskProgress, onTaskComplete }: {
+  prompt: string;
+  attachments?: Attachment[];
+  initialState?: "default" | "confirmation" | "complete";
+  onTaskProgress?: () => void;
+  onTaskComplete?: () => void;
+}) {
   const promptContext = useMemo(() => extractPromptContext(prompt), [prompt]);
   const promptExclusions = useMemo(() => getPromptExclusions(prompt), [prompt]);
   const isKnitCardigan = /(?:针织|开衫)/.test(prompt);
@@ -147,17 +153,19 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
   const phaseTitles = isKnitCardigan
     ? ["轻盈基础款", "肌理升级款", "场景延展款"]
     : ["经典传承款", "门襟革新款", "解构实验款"];
-  const [stage, setStage] = useState<ApparelStage>("analyzing");
-  const [analysisExpanded, setAnalysisExpanded] = useState(true);
+  const startsAtConfirmation = initialState === "confirmation";
+  const completionReportedRef = useRef(initialState === "complete");
+  const [stage, setStage] = useState<ApparelStage>(startsAtConfirmation ? "brief" : "analyzing");
+  const [analysisExpanded, setAnalysisExpanded] = useState(!startsAtConfirmation);
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [followUp, setFollowUp] = useState("");
   const [inspirationDesignType, setInspirationDesignType] = useState<InspirationDesignType>("apparel");
   const [briefReply, setBriefReply] = useState("");
   const [quantityChoice, setQuantityChoice] = useState(quantityOptions[0]);
-  const [styleChoices, setStyleChoices] = useState<string[]>([]);
+  const [styleChoices, setStyleChoices] = useState<string[]>(startsAtConfirmation ? ["延续经典", "轻奢商务"] : []);
   const [otherStyleDirection, setOtherStyleDirection] = useState("");
-  const [commercialChoice, setCommercialChoice] = useState("");
-  const [changeChoice, setChangeChoice] = useState("");
+  const [commercialChoice, setCommercialChoice] = useState(startsAtConfirmation ? "轻奢品质" : "");
+  const [changeChoice, setChangeChoice] = useState(startsAtConfirmation ? "中等改动" : "");
   const [directionReply, setDirectionReply] = useState("");
   const [selectedDirectionIds, setSelectedDirectionIds] = useState<string[]>([]);
   const [customDirection, setCustomDirection] = useState("");
@@ -228,6 +236,12 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
     return () => window.cancelAnimationFrame(frame);
   }, [batchProgress, reduceMotion, resultFollowUps.length, stage]);
 
+  useEffect(() => {
+    if (stage !== "results" || completionReportedRef.current) return;
+    completionReportedRef.current = true;
+    onTaskComplete?.();
+  }, [onTaskComplete, stage]);
+
   const stageIndex = useMemo(() => [
     "analyzing", "brief", "directions-loading", "directions", "candidates-loading", "candidates", "candidate-confirmation", "candidate-analysis", "strategy", "matrix", "generating", "results",
   ].indexOf(stage), [stage]);
@@ -239,6 +253,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [] }: { pr
   const submitMessage = (preset?: string, submittedAttachments: TaskConversationAttachment[] = []) => {
     const value = (preset ?? followUp).trim();
     if (!value && !submittedAttachments.length) return;
+    onTaskProgress?.();
     if (preset === undefined && submittedAttachments.length) {
       setReplyAttachments((current) => ({ ...current, [stage]: submittedAttachments }));
     }

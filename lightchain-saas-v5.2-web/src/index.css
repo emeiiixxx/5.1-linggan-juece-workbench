@@ -903,8 +903,8 @@ a:focus-visible {
 }
 
 .tree-row-shell--child .tree-row {
-  padding-left: 8px;
-  padding-right: 32px;
+  gap: 4px;
+  padding: 8px;
   cursor: pointer;
 }
 
@@ -915,15 +915,15 @@ a:focus-visible {
 
 .tree-row__selection-indicator {
   display: grid;
-  width: 12px;
+  width: 20px;
   height: 20px;
-  flex: 0 0 12px;
+  flex: 0 0 20px;
   place-items: center;
 }
 
 .system-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: var(--radius-max);
   background: var(--state-selected-brand);
 }
@@ -946,14 +946,12 @@ a:focus-visible {
   gap: 4px;
 }
 
-.tree-row__actions--child {
-  right: 4px;
-  width: 24px;
-}
-
+.tree-row__actions--child,
 .tree-row__actions--task {
-  right: 4px;
+  top: 8px;
+  right: 8px;
   width: 24px;
+  transform: none;
 }
 
 .sidebar-drop-indicator {
@@ -1212,11 +1210,122 @@ a:focus-visible {
   opacity: 0.65;
 }
 
-.tree-row > span:last-child,
-.task-row > span:last-child {
+.tree-row > span:last-child:not(.task-list-item-content),
+.task-row > span:last-child:not(.task-list-item-content) {
+  min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.task-list-item-content {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.tree-row-shell--child .task-list-item-content,
+.task-row-shell .task-list-item-content {
+  margin-right: 16px;
+}
+
+.task-list-item-content__title {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  font-family: "Noto Sans", "Noto Sans SC", "PingFang SC", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-list-item-content__meta {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.task-list-item-content__type {
+  display: inline-flex;
+  height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--radius-s);
+  color: var(--text-placeholder);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.task-list-item-content__status,
+.task-list-item-content__date {
+  flex: 0 0 auto;
+}
+
+.task-list-item-content__status.is-completed {
+  color: var(--text-placeholder);
+}
+
+.task-list-item-content__status.is-running {
+  color: var(--status-success);
+}
+
+.task-list-item-content__status.is-pending {
+  color: var(--status-warning, #fca73b);
+}
+
+.task-list-item-content__date {
+  color: var(--text-placeholder);
+}
+
+.tree-row-shell--child {
+  height: auto;
+  min-height: 58px;
+}
+
+.tree-row-shell--child .tree-row {
+  height: auto;
+  min-height: 58px;
+  align-items: flex-start;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.tree-row-shell--child.is-selected,
+.tree-row-shell--child.is-selected:hover,
+.tree-row-shell--child.is-selected:focus-within,
+.tree-row-shell--child.is-selected.is-menu-open {
+  background: var(--state-hover);
+}
+
+.tree-row-shell--child.is-selected .task-list-item-content__title,
+.task-row-shell.is-selected .task-list-item-content__title {
+  color: var(--text-primary);
+}
+
+.task-list .sidebar-section__content-inner {
+  gap: 4px;
 }
 
 .tree-row--child {
@@ -1235,15 +1344,18 @@ a:focus-visible {
   position: relative;
   z-index: 1;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 32px 4px 8px;
+  height: auto;
+  min-height: 58px;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 8px;
 }
 
 .task-row-shell {
   position: relative;
   width: 100%;
-  height: 32px;
+  height: auto;
+  min-height: 58px;
   border-radius: var(--radius-base);
   transition: background-color var(--motion-standard);
 }
@@ -1264,6 +1376,7 @@ a:focus-visible {
 
 .task-row-shell.is-selected .task-row__selection-surface {
   opacity: 1;
+  background: var(--state-hover);
   transform: scale(1);
 }
 

@@ -41,22 +41,34 @@ type WorkspaceTask = {
   profileName?: string;
   attachments?: { name: string; previewUrl?: string }[];
   workflow: "new-product" | "default" | "apparel" | "plan";
-  initialState?: "default" | "complete";
+  initialState?: "default" | "confirmation" | "complete";
 };
 const defaultPlanPrompt = "以 Loro Piana 的 2027春夏 系列做为设计灵感，需要包含 短款外套、衬衫、卫衣、短袖、长裤、短裤 这些品类，生成一份 男装 主题设计企划";
 const defaultPlanEditorHtml = '以 <span class="composer-semantic-slot">Loro Piana</span> 的 <span class="composer-semantic-slot">2027春夏</span> 系列做为设计灵感，需要包含 <span class="composer-semantic-slot">短款外套、衬衫、卫衣、短袖、长裤、短裤</span> 这些品类，生成一份 <span class="composer-semantic-slot">男装</span> 主题设计企划';
 
-function TaskConversation({ task }: { task: WorkspaceTask }) {
+function TaskConversation({ task, onTaskStatusChange }: {
+  task: WorkspaceTask;
+  onTaskStatusChange?: (taskId: number, status: "running" | "completed") => void;
+}) {
+  const onTaskProgress = () => onTaskStatusChange?.(task.id, "running");
+  const onTaskComplete = () => onTaskStatusChange?.(task.id, "completed");
   if (task.workflow === "new-product") {
-    return <NewProductPlanningWorkspace prompt={task.prompt} profileName={task.profileName} attachments={task.attachments} initialState={task.initialState} />;
+    return <NewProductPlanningWorkspace prompt={task.prompt} profileName={task.profileName} attachments={task.attachments} initialState={task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} />;
   }
   if (task.workflow === "apparel") {
-    return <ClothingConversationWorkspace prompt={task.prompt} attachments={task.attachments} />;
+    return <ClothingConversationWorkspace prompt={task.prompt} attachments={task.attachments} initialState={task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} />;
   }
   if (task.workflow === "plan") {
-    return <PlanConversationWorkspace prompt={task.prompt} />;
+    return <PlanConversationWorkspace prompt={task.prompt} initialState={task.initialState} onTaskComplete={onTaskComplete} />;
   }
-  return <ConversationWorkspace prompt={task.prompt} profileName={task.profileName} attachments={task.attachments} initialState={task.initialState} />;
+  return <ConversationWorkspace
+    prompt={task.prompt}
+    profileName={task.profileName}
+    attachments={task.attachments}
+    initialState={task.initialState === "complete" ? "complete" : "default"}
+    onTaskProgress={onTaskProgress}
+    onTaskComplete={onTaskComplete}
+  />;
 }
 
 const textOffsetWithin = (root: HTMLElement, node: Node, offset: number) => {
@@ -127,7 +139,7 @@ const projectOptions: ProjectOption[] = [
   { id: 5, name: "Untitled" },
 ];
 
-export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selectedProfile, onSelectedProfileChange, selectedProject, onSelectedProjectChange, onCreateTask }: {
+export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selectedProfile, onSelectedProfileChange, selectedProject, onSelectedProjectChange, onTaskStatusChange, onCreateTask }: {
   theme: "dark" | "light";
   activeTask?: WorkspaceTask | null;
   taskIds?: readonly number[];
@@ -136,6 +148,7 @@ export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selected
   onSelectedProfileChange?: (profile: ProfileOption | null) => void;
   selectedProject?: ProjectOption | null;
   onSelectedProjectChange?: (project: ProjectOption | null) => void;
+  onTaskStatusChange?: (taskId: number, status: "running" | "completed") => void;
   onCreateTask?: (task: { title: string; projectId: number | null; prompt: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "new-product" | "default" | "apparel" | "plan" }) => void;
 }) {
   const { locale, t } = useI18n();
@@ -404,7 +417,7 @@ export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selected
     <Suspense fallback={<main className="workspace-region" aria-busy="true" />}>
     {cachedTasks.map((task) => (
       <Activity mode={activeTaskId === task.id ? "visible" : "hidden"} name={`task-${task.id}`} key={task.id}>
-        <TaskConversation task={task} />
+        <TaskConversation task={task} onTaskStatusChange={onTaskStatusChange} />
       </Activity>
     ))}
     <Activity mode={activeTask ? "hidden" : "visible"} name="workspace-home">

@@ -399,11 +399,13 @@ function DownloadableFile({ name, description, html, onPreview }: { name: string
   );
 }
 
-export function NewProductPlanningWorkspace({ prompt, profileName, attachments = [], initialState = "default" }: {
+export function NewProductPlanningWorkspace({ prompt, profileName, attachments = [], initialState = "default", onTaskProgress, onTaskComplete }: {
   prompt: string;
   profileName?: string;
   attachments?: { name: string; previewUrl?: string }[];
-  initialState?: "default" | "complete";
+  initialState?: "default" | "confirmation" | "complete";
+  onTaskProgress?: () => void;
+  onTaskComplete?: () => void;
 }) {
   const { locale, t } = useI18n();
   const scopeDefaults = getResearchScopeDefaults(profileName, locale, prompt);
@@ -415,8 +417,10 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const briefSeason = promptContext.season ?? "未指定";
   const briefChannels = scopeDefaults.commerce.length ? scopeDefaults.commerce.join("、") : "未指定";
   const startsComplete = initialState === "complete";
-  const [stage, setStage] = useState<PlanningStage>(startsComplete ? "complete" : "analyzing");
-  const [analysisExpanded, setAnalysisExpanded] = useState(!startsComplete);
+  const startsAtConfirmation = initialState === "confirmation";
+  const completionReportedRef = useRef(startsComplete);
+  const [stage, setStage] = useState<PlanningStage>(startsComplete ? "complete" : startsAtConfirmation ? "brief" : "analyzing");
+  const [analysisExpanded, setAnalysisExpanded] = useState(!startsComplete && !startsAtConfirmation);
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [followUp, setFollowUp] = useState("");
   const [briefEntryMessage, setBriefEntryMessage] = useState("满意，请继续");
@@ -484,6 +488,12 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     const timer = window.setTimeout(() => setStage("complete"), reduceMotion ? 0 : 2400);
     return () => window.clearTimeout(timer);
   }, [reduceMotion, stage]);
+
+  useEffect(() => {
+    if (stage !== "complete" || completionReportedRef.current) return;
+    completionReportedRef.current = true;
+    onTaskComplete?.();
+  }, [onTaskComplete, stage]);
 
   useEffect(() => {
     if (regenerationPhase !== "queued") return;
@@ -566,6 +576,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const submitFollowUp = (submittedAttachments: TaskConversationAttachment[]) => {
     const value = followUp.trim();
     if (!value && !submittedAttachments.length) return;
+    onTaskProgress?.();
     setFollowUp("");
     if (stage === "brief") {
       setBriefEntryMessage(value);
@@ -583,6 +594,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   };
 
   const submitCompletionSuggestion = (suggestion: string) => {
+    onTaskProgress?.();
     setFollowUp("");
     setAdditionalMessages((current) => [...current, {
       request: suggestion,

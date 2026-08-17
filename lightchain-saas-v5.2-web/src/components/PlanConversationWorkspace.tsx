@@ -247,26 +247,32 @@ function LegacyThemeAnalysis({ subject, brand }: { subject: string; brand: strin
   );
 }
 
-export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
+export function PlanConversationWorkspace({ prompt, initialState = "default", onTaskComplete }: {
+  prompt: string;
+  initialState?: "default" | "confirmation" | "complete";
+  onTaskComplete?: () => void;
+}) {
   const promptContext = useMemo(() => extractPromptContext(prompt), [prompt]);
   const planBrand = promptContext.brand ?? "目标品牌";
   const planSeason = promptContext.season ?? "目标季节";
   const planAudience = promptContext.audience ?? "目标客群";
   const planSubject = `${planBrand} ${planSeason} ${planAudience}`;
   const planName = `${planBrand} ${planSeason}设计企划案`;
-  const [stage, setStage] = useState<PlanStage>("theme");
-  const [theme, setTheme] = useState("");
+  const startsComplete = initialState === "complete";
+  const completionReportedRef = useRef(startsComplete);
+  const [stage, setStage] = useState<PlanStage>(startsComplete ? "complete" : "theme");
+  const [theme, setTheme] = useState(startsComplete ? "mindful" : "");
   const [themeGroupIndex, setThemeGroupIndex] = useState(0);
-  const [initialTrendReady, setInitialTrendReady] = useState(false);
-  const [initialImageReady, setInitialImageReady] = useState(false);
-  const [referenceToolsReady, setReferenceToolsReady] = useState(false);
-  const [generationStep, setGenerationStep] = useState(0);
+  const [initialTrendReady, setInitialTrendReady] = useState(startsComplete);
+  const [initialImageReady, setInitialImageReady] = useState(startsComplete);
+  const [referenceToolsReady, setReferenceToolsReady] = useState(startsComplete);
+  const [generationStep, setGenerationStep] = useState(startsComplete ? generationSteps.length - 1 : 0);
   const [favoriteImages, setFavoriteImages] = useState<Set<string>>(() => new Set());
   const [toast, setToast] = useState("");
-  const [firstSelection, setFirstSelection] = useState<number[]>([]);
-  const [moreSelection, setMoreSelection] = useState<number[]>([]);
-  const [requestedMore, setRequestedMore] = useState(false);
-  const [exportFormat, setExportFormat] = useState<"PPT" | "HTML" | "PPT与HTML">("PPT");
+  const [firstSelection, setFirstSelection] = useState<number[]>(startsComplete ? [0, 1] : []);
+  const [moreSelection, setMoreSelection] = useState<number[]>(startsComplete ? [0, 1, 2] : []);
+  const [requestedMore, setRequestedMore] = useState(startsComplete);
+  const [exportFormat, setExportFormat] = useState<"PPT" | "HTML" | "PPT与HTML">(startsComplete ? "PPT与HTML" : "PPT");
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [preview, setPreview] = useState<string | null>(null);
   const feedEndRef = useRef<HTMLDivElement>(null);
@@ -325,6 +331,12 @@ export function PlanConversationWorkspace({ prompt }: { prompt: string }) {
     const timer = window.setTimeout(() => setStage(next[stage]), delay);
     return () => window.clearTimeout(timer);
   }, [stage]);
+
+  useEffect(() => {
+    if (stage !== "complete" || completionReportedRef.current) return;
+    completionReportedRef.current = true;
+    onTaskComplete?.();
+  }, [onTaskComplete, stage]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => feedEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" }));

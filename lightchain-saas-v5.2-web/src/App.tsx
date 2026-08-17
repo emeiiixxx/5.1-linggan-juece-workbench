@@ -2,7 +2,11 @@ import { Activity, lazy, Suspense, useLayoutEffect, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { Workspace } from "./components/Workspace";
-import { completedProjectTaskExamples } from "./data/workspace";
+import {
+  allDemoTaskExamples,
+  type TaskStatus,
+  type TaskWorkflow,
+} from "./data/workspace";
 import { I18nProvider } from "./i18n";
 import { useGsapStaggerEntrance } from "./motion/gsap";
 
@@ -20,9 +24,10 @@ type TaskRecord = {
   prompt: string;
   profileName?: string;
   attachments?: { name: string; previewUrl?: string }[];
-  workflow: "new-product" | "default" | "apparel" | "plan";
-  status: "running" | "completed";
-  initialState?: "default" | "complete";
+  workflow: TaskWorkflow;
+  status: TaskStatus;
+  updatedAt: string;
+  initialState?: "default" | "confirmation" | "complete";
 };
 
 const workflowPageTitles: Record<TaskRecord["workflow"], string> = {
@@ -39,7 +44,7 @@ export default function App() {
   const [activeView, setActiveView] = useState<"workspace" | "preferences">("workspace");
   const [selectedProfile, setSelectedProfile] = useState<SelectedProfile | null>(null);
   const [selectedProject, setSelectedProject] = useState<SelectedProject | null>(null);
-  const [taskRecords, setTaskRecords] = useState<TaskRecord[]>(completedProjectTaskExamples);
+  const [taskRecords, setTaskRecords] = useState<TaskRecord[]>(allDemoTaskExamples);
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
   const [newTaskKey, setNewTaskKey] = useState(0);
   const activeTask = taskRecords.find((task) => task.id === activeTaskId) ?? null;
@@ -48,6 +53,16 @@ export default function App() {
     : activeTask
       ? workflowPageTitles[activeTask.workflow]
       : "灵感决策工作台";
+
+  const transitionTaskFocus = (nextTaskId: number | null) => {
+    const updatedAt = new Date().toISOString();
+    setTaskRecords((current) => current.map((task) => {
+      if (task.id === activeTaskId && task.id !== nextTaskId && task.status === "running") {
+        return { ...task, status: "pending", updatedAt };
+      }
+      return task;
+    }));
+  };
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -69,26 +84,32 @@ export default function App() {
           activeView={activeView}
           activeTaskId={activeTaskId}
           onOpenWorkspace={() => {
+            transitionTaskFocus(null);
             setActiveView("workspace");
             setActiveTaskId(null);
             setNewTaskKey((value) => value + 1);
           }}
           onOpenPreferences={() => {
+            transitionTaskFocus(null);
             setActiveTaskId(null);
             setActiveView("preferences");
           }}
           onCreateTaskInProject={(project) => {
+            transitionTaskFocus(null);
             setSelectedProject(project);
             setActiveTaskId(null);
             setNewTaskKey((value) => value + 1);
             setActiveView("workspace");
           }}
           createdTask={taskRecords.find((task) => task.status === "running") ?? null}
+          taskRecords={taskRecords}
           onOpenTask={(taskId) => {
+            transitionTaskFocus(taskId);
             setActiveTaskId(taskId);
             setActiveView("workspace");
           }}
           onSelectStaticRow={() => {
+            transitionTaskFocus(null);
             setActiveTaskId(null);
             setActiveView("workspace");
           }}
@@ -113,6 +134,7 @@ export default function App() {
           <Suspense fallback={<main className="workspace-region" aria-busy="true" />}>
             <BusinessProfile
               onCreateTask={(profile) => {
+                transitionTaskFocus(null);
                 setSelectedProfile({ id: profile.id, name: profile.name });
                 setActiveTaskId(null);
                 setNewTaskKey((value) => value + 1);
@@ -131,6 +153,12 @@ export default function App() {
             onSelectedProfileChange={setSelectedProfile}
             selectedProject={selectedProject}
             onSelectedProjectChange={setSelectedProject}
+            onTaskStatusChange={(taskId, status) => {
+              const updatedAt = new Date().toISOString();
+              setTaskRecords((current) => current.map((task) =>
+                task.id === taskId ? { ...task, status, updatedAt } : task,
+              ));
+            }}
             onCreateTask={({ title, projectId, prompt, workflow, attachments }) => {
               const id = Date.now();
               const task: TaskRecord = {
@@ -142,8 +170,16 @@ export default function App() {
                 attachments,
                 workflow,
                 status: "running",
+                updatedAt: new Date().toISOString(),
               };
-              setTaskRecords((current) => [task, ...current]);
+              setTaskRecords((current) => [
+                task,
+                ...current.map((currentTask) =>
+                  currentTask.id === activeTaskId && currentTask.status === "running"
+                    ? { ...currentTask, status: "pending" as const, updatedAt: task.updatedAt }
+                    : currentTask,
+                ),
+              ]);
               setActiveTaskId(id);
             }}
           />

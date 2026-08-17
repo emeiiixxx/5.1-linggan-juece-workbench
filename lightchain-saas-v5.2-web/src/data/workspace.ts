@@ -12,12 +12,30 @@ export const projectGroups = [
   { title: "Untitled", items: [] },
 ];
 
-export const taskItems = [
-  "不在项目里面的任务",
-  "待处理的反馈",
-  "团队建设活动",
-  "市场调研计划",
-];
+export type TaskWorkflow = "new-product" | "default" | "apparel" | "plan";
+export type TaskStatus = "running" | "pending" | "completed";
+export type TaskSourceLabel = "新品企划" | "客户提案" | "灵感设计" | "企划案";
+export type TaskSidebarMeta = {
+  workflow: TaskWorkflow;
+  status: TaskStatus;
+  updatedAt?: string;
+};
+
+export const taskWorkflowLabels: Record<TaskWorkflow, TaskSourceLabel> = {
+  "new-product": "新品企划",
+  default: "客户提案",
+  apparel: "灵感设计",
+  plan: "企划案",
+};
+
+export const initialTaskSidebarMeta: Record<string, TaskSidebarMeta> = {
+  "27年宠物流行服饰趋势": { workflow: "new-product", status: "completed", updatedAt: "2026-08-18" },
+  "27年颜色流行趋势": { workflow: "default", status: "completed", updatedAt: "2026-08-18" },
+  "2027春夏北美宠物雨衣趋势调研": { workflow: "new-product", status: "running" },
+  "米白针织开衫设计方向确认": { workflow: "apparel", status: "pending", updatedAt: "2026-08-17" },
+  "Loro Piana 2027春夏男装企划": { workflow: "plan", status: "completed", updatedAt: "2026-08-16" },
+  "北美成熟女装新品范围确认": { workflow: "new-product", status: "pending", updatedAt: "2026-08-15" },
+};
 
 export const completedProjectTaskExample = {
   id: -2027001,
@@ -26,6 +44,7 @@ export const completedProjectTaskExample = {
   prompt: "围绕 2027 年宠物服饰流行趋势，面向 Amazon US 与 TikTok Shop US，生成一份包含市场、人群、品类、价格、波段、视觉方向和 AI 改款结果的新品企划。",
   workflow: "new-product" as const,
   status: "completed" as const,
+  updatedAt: "2026-08-18",
   initialState: "complete" as const,
 };
 
@@ -37,12 +56,63 @@ export const completedCustomerProposalExample = {
   profileName: "灭霸毁灭世界回忆录",
   workflow: "default" as const,
   status: "completed" as const,
+  updatedAt: "2026-08-18",
   initialState: "complete" as const,
 };
 
 export const completedProjectTaskExamples = [
   completedProjectTaskExample,
   completedCustomerProposalExample,
+];
+
+export const standaloneDemoTaskExamples = [
+  {
+    id: -2027010,
+    title: "2027春夏北美宠物雨衣趋势调研",
+    projectId: null,
+    prompt: "面向 Amazon US 和 TikTok Shop US，围绕 2027 春夏小型犬轻量防水雨衣，调研目标人群、价格带、材质功能、颜色趋势和首发商品结构，优先考虑城市通勤与雨季场景。",
+    workflow: "new-product" as const,
+    status: "running" as const,
+    updatedAt: "2026-08-17T14:32:00+08:00",
+    initialState: "default" as const,
+  },
+  {
+    id: -2027011,
+    title: "米白针织开衫设计方向确认",
+    projectId: null,
+    prompt: "为日本通勤女装开发 2027 春季米白色轻薄针织开衫系列，面向 28–40 岁城市女性，保留细腻针织质感和简洁门襟，避免夸张装饰，先确认出款数量、风格方向和改款幅度。",
+    workflow: "apparel" as const,
+    status: "pending" as const,
+    updatedAt: "2026-08-17T11:08:00+08:00",
+    initialState: "confirmation" as const,
+  },
+  {
+    id: -2027012,
+    title: "Loro Piana 2027春夏男装企划",
+    projectId: null,
+    prompt: "以 Loro Piana 的 2027春夏系列作为设计灵感，规划短款外套、衬衫、卫衣、短袖、长裤和短裤，生成一份面向高净值城市男性的完整主题设计企划。",
+    workflow: "plan" as const,
+    status: "completed" as const,
+    updatedAt: "2026-08-16T18:46:00+08:00",
+    initialState: "complete" as const,
+  },
+  {
+    id: -2027013,
+    title: "北美成熟女装新品范围确认",
+    projectId: null,
+    prompt: "为 Amazon US 规划 2027 秋季 35–50 岁女性的柔性通勤新品，重点包含印花衬衫、轻结构外套与过渡季连衣裙，需要先确认市场平台、研究范围和商品结构边界。",
+    workflow: "new-product" as const,
+    status: "pending" as const,
+    updatedAt: "2026-08-15T16:20:00+08:00",
+    initialState: "confirmation" as const,
+  },
+];
+
+export const taskItems = standaloneDemoTaskExamples.map((task) => task.title);
+
+export const allDemoTaskExamples = [
+  ...completedProjectTaskExamples,
+  ...standaloneDemoTaskExamples,
 ];
 
 export const quickStartCards = [

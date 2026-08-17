@@ -75,6 +75,7 @@ const copy: Record<string, Translation> = {
   "待确认": { ja: "確認待ち", en: "Pending" },
   "已确认": { ja: "確認済み", en: "Confirmed" },
   "进行中": { ja: "進行中", en: "In progress" },
+  "待完成": { ja: "未完了", en: "To finish" },
   "待处理": { ja: "保留中", en: "Pending" },
   "已选择": { ja: "選択済み", en: "Selected" },
   "全选": { ja: "すべて選択", en: "Select all" },
