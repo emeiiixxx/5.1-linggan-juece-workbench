@@ -164,6 +164,16 @@ export function buildNewProductPlanHtml({
   </main>
   <script>
     (function(){
+      var reduceMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      Array.prototype.forEach.call(document.querySelectorAll('.toc__item[href^="#"]'),function(link){
+        link.addEventListener("click",function(event){
+          var targetId=link.getAttribute("href");
+          var target=targetId&&document.getElementById(targetId.slice(1));
+          if(!target)return;
+          event.preventDefault();
+          target.scrollIntoView({behavior:reduceMotion?"auto":"smooth",block:"start"});
+        });
+      });
       var reveals=Array.prototype.slice.call(document.querySelectorAll(".reveal"));
       if("IntersectionObserver" in window){
         var revealObserver=new IntersectionObserver(function(entries){entries.forEach(function(entry){if(!entry.isIntersecting)return;entry.target.classList.add("is-visible");revealObserver.unobserve(entry.target)})},{rootMargin:"0px 0px -8% 0px",threshold:.05});reveals.forEach(function(item){revealObserver.observe(item)});
