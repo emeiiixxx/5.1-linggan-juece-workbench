@@ -707,7 +707,7 @@ export function TaskDetailPanel({
   const overviewReferenceListRef = useRef<HTMLDivElement | null>(null);
   const isReferenceGallery = references.some((reference) => reference.thumbnail);
   const canViewAllReferences = isReferenceGallery && references.length >= REFERENCE_VIEW_ALL_THRESHOLD;
-  const overviewReferences = canViewAllReferences ? references.slice(0, overviewReferenceLimit) : references;
+  const overviewReferences = canViewAllReferences ? references.slice(0, Math.max(1, overviewReferenceLimit)) : references;
 
   useEffect(() => {
     if (!canViewAllReferences) setReferenceExpanded(false);
