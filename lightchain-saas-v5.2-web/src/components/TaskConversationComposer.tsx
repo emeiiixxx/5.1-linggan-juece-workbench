@@ -203,7 +203,19 @@ export function TaskConversationComposer({
                     <img className="composer-attachment-chip__file" src={assetUrl("assets/figma-icons/file-pdf.svg")} alt="" />
                   )}
                   <span title={attachment.name}>{attachment.name}</span>
-                  <button type="button" aria-label={`移除附件：${attachment.name}`} onClick={() => removeAttachment(attachment.id)}>
+                  <button
+                    type="button"
+                    aria-label={`移除附件：${attachment.name}`}
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      removeAttachment(attachment.id);
+                    }}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      removeAttachment(attachment.id);
+                    }}
+                  >
                     <FigmaIcon name="close" size={16} />
                   </button>
                 </motion.span>
@@ -217,6 +229,18 @@ export function TaskConversationComposer({
             value={value}
             onChange={(event) => onChange(event.target.value)}
             onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
+              if (
+                event.key === "Backspace"
+                && !value
+                && attachments.length
+                && event.currentTarget.selectionStart === 0
+                && event.currentTarget.selectionEnd === 0
+              ) {
+                event.preventDefault();
+                removeAttachment(attachments[attachments.length - 1].id);
+                return;
+              }
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 submit();

@@ -12,6 +12,7 @@ import { ConversationUserAttachments } from "./ConversationUserAttachments";
 import type { InspirationDesignType } from "./InspirationDesignSelect";
 import { extractPromptContext, getPromptExclusions } from "../utils/promptContext";
 import { ProgressiveImage } from "./ProgressiveImage";
+import { buildConditionAcknowledgement } from "../utils/taskAcknowledgement";
 
 type ApparelStage =
   | "analyzing"
@@ -179,6 +180,23 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
   const [strategyReply, setStrategyReply] = useState("");
   const [matrixReply, setMatrixReply] = useState("");
   const [replyAttachments, setReplyAttachments] = useState<Partial<Record<ApparelStage, TaskConversationAttachment[]>>>({});
+  const briefAcknowledgement = buildConditionAcknowledgement({ message: briefReply, attachments: replyAttachments.brief });
+  const directionAcknowledgement = buildConditionAcknowledgement({ message: directionReply, attachments: replyAttachments.directions });
+  const candidateAcknowledgement = buildConditionAcknowledgement({
+    message: candidateReply,
+    attachments: replyAttachments["candidate-confirmation"],
+    ignoredMessages: ["满意，请继续"],
+  });
+  const strategyAcknowledgement = buildConditionAcknowledgement({
+    message: strategyReply,
+    attachments: replyAttachments.strategy,
+    ignoredMessages: ["认可，请继续"],
+  });
+  const matrixAcknowledgement = buildConditionAcknowledgement({
+    message: matrixReply,
+    attachments: replyAttachments.matrix,
+    ignoredMessages: ["开始生图"],
+  });
   const [batchProgress, setBatchProgress] = useState(0);
   const [resultFollowUps, setResultFollowUps] = useState<Array<{ request: string; attachments: TaskConversationAttachment[]; response: string }>>([]);
   const feedEndRef = useRef<HTMLDivElement>(null);
@@ -465,6 +483,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
             )}
 
             {(briefReply || replyAttachments.brief?.length) && <UserMessage entrance><ConversationUserAttachments attachments={replyAttachments.brief ?? []} />{briefReply && <span>{briefReply}</span>}</UserMessage>}
+            {briefAcknowledgement && <AssistantMessage><p>{briefAcknowledgement}</p></AssistantMessage>}
 
             {stage === "directions-loading" && (
               <AssistantMessage><LoadingTask title="正在规划设计方向" lines={["匹配需求与趋势洞察", "评估系列商业梯度", "生成可执行设计方向"]} /></AssistantMessage>
@@ -527,6 +546,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
             )}
 
             {(directionReply || replyAttachments.directions?.length) && <UserMessage entrance><ConversationUserAttachments attachments={replyAttachments.directions ?? []} />{directionReply && <span>{directionReply}</span>}</UserMessage>}
+            {directionAcknowledgement && <AssistantMessage><p>{directionAcknowledgement}</p></AssistantMessage>}
 
             {stage === "candidates-loading" && (
               <AssistantMessage><LoadingTask title="候选参考素材检索" lines={[`检索${apparelItem}与相关结构参考`, "筛选可落地工艺与材质案例", "整理候选图集"]} /></AssistantMessage>
@@ -588,6 +608,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
             )}
 
             {(candidateReply || replyAttachments["candidate-confirmation"]?.length) && <UserMessage entrance><ConversationUserAttachments attachments={replyAttachments["candidate-confirmation"] ?? []} />{candidateReply && <span>{candidateReply}</span>}</UserMessage>}
+            {candidateAcknowledgement && <AssistantMessage><p>{candidateAcknowledgement}</p></AssistantMessage>}
 
             {stageIndex >= 7 && (
               <AssistantMessage className="conversation-analysis">
@@ -658,6 +679,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
             )}
 
             {(strategyReply || replyAttachments.strategy?.length) && <UserMessage entrance><ConversationUserAttachments attachments={replyAttachments.strategy ?? []} />{strategyReply && <span>{strategyReply}</span>}</UserMessage>}
+            {strategyAcknowledgement && <AssistantMessage><p>{strategyAcknowledgement}</p></AssistantMessage>}
 
             {stageIndex >= 9 && (
               <AssistantMessage className="apparel-document apparel-matrix">
@@ -696,6 +718,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
             )}
 
             {(matrixReply || replyAttachments.matrix?.length) && <UserMessage entrance><ConversationUserAttachments attachments={replyAttachments.matrix ?? []} />{matrixReply && <span>{matrixReply}</span>}</UserMessage>}
+            {matrixAcknowledgement && <AssistantMessage><p>{matrixAcknowledgement}</p></AssistantMessage>}
 
             {stage === "generating" && (
               <AssistantMessage className="apparel-generation-message">

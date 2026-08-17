@@ -18,6 +18,7 @@ import { useI18n } from "../i18n";
 import { extractPromptContext } from "../utils/promptContext";
 import { getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
 import { useModalFocus } from "../hooks/useModalFocus";
+import { buildConditionAcknowledgement } from "../utils/taskAcknowledgement";
 
 type AnalysisPhase = "parsing" | "complete";
 type GenerationDecision = "skip" | "confirm";
@@ -302,6 +303,16 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const [generationDecision, setGenerationDecision] = useState<GenerationDecision | null>(startsComplete ? "confirm" : null);
   const [generationEntryMessage, setGenerationEntryMessage] = useState("确认并生成");
   const [generationEntryAttachments, setGenerationEntryAttachments] = useState<TaskConversationAttachment[]>([]);
+  const scopeAcknowledgement = buildConditionAcknowledgement({
+    message: scopeEntryMessage,
+    attachments: scopeEntryAttachments,
+    ignoredMessages: ["继续", "跳过", "没有补充，继续", "确认需求，继续"],
+  });
+  const generationAcknowledgement = buildConditionAcknowledgement({
+    message: generationEntryMessage,
+    attachments: generationEntryAttachments,
+    ignoredMessages: ["确认并生成", "跳过"],
+  });
   const [additionalMessages, setAdditionalMessages] = useState<Array<{ request: string; attachments: TaskConversationAttachment[]; response: string }>>([]);
   const [customerProposalStage, setCustomerProposalStage] = useState<"idle" | "ai-generating" | "results" | "proposal-generating" | "complete">(startsComplete ? "complete" : "idle");
   const [aiGenerationProgress, setAiGenerationProgress] = useState(startsComplete ? 4 : 0);
@@ -994,6 +1005,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                   </ConversationUserMessage>
 
                   <motion.article className="conversation-message conversation-message--assistant conversation-scope-copy" data-node-id="484:106216">
+                    {scopeAcknowledgement ? <p>{scopeAcknowledgement}</p> : null}
                     <p>需求理解已确认。接下来确认本次调研覆盖的市场、电商平台和社媒平台。系统已根据业务偏好档案预填常用范围，你可以直接确认，也可以继续增删。</p>
                   </motion.article>
 
@@ -1394,6 +1406,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                   transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.08, ease: revealEase }}
                                   data-node-id="620:32088"
                                 >
+                                  {generationAcknowledgement ? <p>{generationAcknowledgement}</p> : null}
                                   <p>视觉方向已确认，正在生成专业服装改款提示词与 AI 概念图。</p>
                                   <TaskDisclosure
                                     title="AI改款生成"

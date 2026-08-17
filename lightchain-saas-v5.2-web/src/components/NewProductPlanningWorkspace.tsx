@@ -37,6 +37,7 @@ import { buildFashionProposalHtml, type FashionProposalPlan, type FashionProposa
 import { buildNewProductPlanHtml } from "../report/newProductPlanHtml";
 import { useModalFocus } from "../hooks/useModalFocus";
 import { extractPromptContext, getPromptExclusions } from "../utils/promptContext";
+import { buildConditionAcknowledgement } from "../utils/taskAcknowledgement";
 
 type PlanningStage =
   | "analyzing"
@@ -425,6 +426,11 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const [followUp, setFollowUp] = useState("");
   const [briefEntryMessage, setBriefEntryMessage] = useState("满意，请继续");
   const [briefEntryAttachments, setBriefEntryAttachments] = useState<TaskConversationAttachment[]>([]);
+  const briefAcknowledgement = buildConditionAcknowledgement({
+    message: briefEntryMessage,
+    attachments: briefEntryAttachments,
+    ignoredMessages: ["满意，请继续"],
+  });
   const [additionalMessages, setAdditionalMessages] = useState<Array<{ request: string; attachments: TaskConversationAttachment[]; response: string }>>([]);
   const [markets, setMarkets] = useState<ResearchMarket[]>(scopeDefaults.markets);
   const [commerce, setCommerce] = useState<string[]>(scopeDefaults.commerce);
@@ -777,6 +783,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                   {briefEntryMessage && <span>{briefEntryMessage}</span>}
                 </ConversationUserMessage>
                 <AssistantMessage>
+                  {briefAcknowledgement ? <p>{briefAcknowledgement}</p> : null}
                   <p>需求摘要已确认。请确认地区，以及本次实际需要研究的平台和网站。趋势资料库固定启用；不同平台的数据会分别保留，不合并成单一销量、销售额或热度。</p>
                   <p>请选择主要市场、电商平台和社交媒体。</p>
                   <ResearchScopeForm
