@@ -683,6 +683,8 @@ export type TaskDetailReferenceLink = {
   date?: string;
 };
 
+const REFERENCE_VIEW_ALL_THRESHOLD = 10;
+
 export function TaskDetailPanel({
   ariaLabel,
   onCollapse,
@@ -701,11 +703,40 @@ export function TaskDetailPanel({
   const { t } = useI18n();
   const [referenceExpanded, setReferenceExpanded] = useState(false);
   const [referenceDownloading, setReferenceDownloading] = useState(false);
-  const isReferenceGallery = referenceTitle === "参考款式" && references.some((reference) => reference.thumbnail);
+  const [overviewReferenceLimit, setOverviewReferenceLimit] = useState(references.length);
+  const overviewReferenceListRef = useRef<HTMLDivElement | null>(null);
+  const isReferenceGallery = references.some((reference) => reference.thumbnail);
+  const canViewAllReferences = isReferenceGallery && references.length >= REFERENCE_VIEW_ALL_THRESHOLD;
+  const overviewReferences = canViewAllReferences ? references.slice(0, overviewReferenceLimit) : references;
 
   useEffect(() => {
-    if (!isReferenceGallery) setReferenceExpanded(false);
-  }, [isReferenceGallery]);
+    if (!canViewAllReferences) setReferenceExpanded(false);
+  }, [canViewAllReferences]);
+
+  useEffect(() => {
+    if (!canViewAllReferences) {
+      setOverviewReferenceLimit(references.length);
+      return;
+    }
+
+    const list = overviewReferenceListRef.current;
+    if (!list) return;
+    const updateVisibleReferenceCount = () => {
+      const firstRow = list.querySelector<HTMLElement>(".task-detail-row--reference");
+      if (!firstRow) return;
+      const gap = Number.parseFloat(window.getComputedStyle(list).rowGap) || 0;
+      const rowHeight = firstRow.getBoundingClientRect().height;
+      if (!rowHeight) return;
+      const visibleCount = Math.max(1, Math.floor(list.clientHeight / (rowHeight + gap)));
+      setOverviewReferenceLimit(Math.min(references.length, visibleCount));
+    };
+
+    updateVisibleReferenceCount();
+    if (typeof ResizeObserver === "undefined") return;
+    const resizeObserver = new ResizeObserver(updateVisibleReferenceCount);
+    resizeObserver.observe(list);
+    return () => resizeObserver.disconnect();
+  }, [canViewAllReferences, references.length]);
 
   const renderReference = (reference: TaskDetailReferenceLink, expanded = false) => {
     const content = (
@@ -772,7 +803,7 @@ export function TaskDetailPanel({
   };
 
   return (
-    <div className={`task-detail-panel ${referenceTitle === "参考信息" ? "is-reference-information" : ""} ${referenceExpanded ? "is-reference-expanded" : ""}`} aria-label={ariaLabel}>
+    <div className={`task-detail-panel ${referenceTitle === "参考信息" ? "is-reference-information" : ""} ${canViewAllReferences ? "has-reference-overflow" : ""} ${referenceExpanded ? "is-reference-expanded" : ""}`} aria-label={ariaLabel}>
       <div className="task-detail-panel__view task-detail-panel__overview-view">
         <header>
           <strong>概览</strong>
@@ -800,23 +831,25 @@ export function TaskDetailPanel({
                     <FigmaIcon name="download" size={16} />
                   </IconControl>
                 </span>
-                <button
-                  className="task-detail-reference-view-all"
-                  type="button"
-                  onClick={() => setReferenceExpanded(true)}
-                >
-                  <span>{t("查看全部")}</span>
-                  <FigmaIcon name="chevron-right" size={16} />
-                </button>
+                {canViewAllReferences ? (
+                  <button
+                    className="task-detail-reference-view-all"
+                    type="button"
+                    onClick={() => setReferenceExpanded(true)}
+                  >
+                    <span>{t("查看全部")}</span>
+                    <FigmaIcon name="chevron-right" size={16} />
+                  </button>
+                ) : null}
               </div>
             ) : <h2>{referenceTitle}</h2>}
-            <div className="task-detail-reference-list">
-              {references.map((reference) => renderReference(reference))}
+            <div ref={overviewReferenceListRef} className="task-detail-reference-list">
+              {overviewReferences.map((reference) => renderReference(reference))}
             </div>
           </section>
         ) : null}
       </div>
-      {isReferenceGallery ? (
+      {canViewAllReferences ? (
         <div className="task-detail-panel__view task-detail-panel__reference-view">
           <header className="task-detail-reference-view-header">
             <span>

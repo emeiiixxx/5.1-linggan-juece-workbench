@@ -8359,10 +8359,32 @@ img.trend-direction-media__slide {
   transition-delay: 70ms, 0s, 0s;
 }
 
+.task-detail-panel.has-reference-overflow .task-detail-panel__overview-view {
+  overflow-y: hidden;
+}
+
+.task-detail-panel.has-reference-overflow .task-detail-panel__overview-view > section:last-child {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.task-detail-panel.has-reference-overflow .task-detail-panel__overview-view .task-detail-reference-list {
+  height: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  align-content: start;
+  grid-auto-rows: 56px;
+  overflow: hidden;
+}
+
 .task-detail-panel__reference-view {
   opacity: 0;
   visibility: hidden;
   transform: translateX(20px);
+  overflow: hidden;
 }
 
 .task-detail-panel.is-reference-expanded .task-detail-panel__overview-view {
@@ -8514,9 +8536,9 @@ img.trend-direction-media__slide {
   color: var(--text-tertiary);
   background: transparent;
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
-  line-height: 16px;
+  line-height: 20px;
   cursor: pointer;
   transition: color var(--motion-standard);
 }
@@ -8605,14 +8627,17 @@ img.trend-direction-media__slide {
 
 .task-detail-reference-view-header small {
   color: var(--text-tertiary);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
-  line-height: 16px;
+  line-height: 20px;
 }
 
 .task-detail-reference-list--expanded {
-  gap: 8px;
+  flex: 1 1 auto;
+  gap: 4px;
   min-height: 0;
+  align-content: start;
+  grid-auto-rows: minmax(96px, auto);
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -8620,6 +8645,7 @@ img.trend-direction-media__slide {
 .task-detail-reference-list--expanded::-webkit-scrollbar { display: none; }
 
 .task-detail-row--reference-expanded {
+  height: auto;
   min-height: 96px;
   align-items: center;
   padding: 8px;
@@ -8642,9 +8668,9 @@ img.trend-direction-media__slide {
 .task-detail-reference-date {
   overflow: hidden;
   color: var(--text-tertiary);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
-  line-height: 16px;
+  line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
