@@ -1,3 +1,5 @@
+import { buildReportNavigation, type ReportNavigationItem } from "./reportNavigation";
+
 export type FashionProposalDirection = {
   id: string;
   title: string;
@@ -84,22 +86,22 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
   ];
 
   const planMarkup = isPlan && plan ? `
-    <section class="section plan-overview">
+    <section class="section plan-overview" id="report-plan-overview">
       <div class="section-header" data-reveal><span class="signal">MERCHANDISING FRAME</span><h2>从视觉方向，落到商品结构。</h2><p>款数、价格与渠道角色均为本轮可执行建议；缺少历史销售、OTB 与供应商报价的部分继续标记为待确认假设。</p></div>
       <div class="plan-metrics">${plan.summary.map((item) => `<article class="plan-metric" data-reveal><strong data-fit-metric title="${escapeHtml(item.value)}">${escapeHtml(item.value)}</strong><span>${escapeHtml(item.label)}</span><p>${escapeHtml(item.detail)}</p></article>`).join("")}</div>
     </section>
-    <section class="section assortment">
+    <section class="section assortment" id="report-assortment">
       <div class="section-header" data-reveal><span class="signal">ASSORTMENT ARCHITECTURE</span><h2>商品结构规划。</h2><p>以稳定款承接基础需求，以主力款表达方向，以测试款验证内容与比例。</p></div>
       <div class="assortment-table" data-reveal>
         <div class="assortment-row assortment-row--head"><span>品类</span><span>款式角色</span><span>款数</span><span>价格建议</span><span>渠道</span><span>规划依据</span></div>
         ${plan.assortment.map((row) => `<div class="assortment-row"><strong>${escapeHtml(row.category)}</strong><span>${escapeHtml(row.role)}</span><span>${escapeHtml(row.styles)}</span><span>${escapeHtml(row.price)}</span><span>${escapeHtml(row.channel)}</span><p>${escapeHtml(row.rationale)}</p></div>`).join("")}
       </div>
     </section>
-    <section class="section design-plan">
+    <section class="section design-plan" id="report-design-plan">
       <div class="section-header" data-reveal><span class="signal">PRODUCT LANGUAGE</span><h2>统一波段与产品语言。</h2><p>把色彩、面料与廓形约束写入商品结构，减少后续 AI 改款和开款阶段的方向漂移。</p></div>
       <div class="design-grid">${plan.designGuidelines.map((item) => `<article class="design-card" data-reveal><span class="signal">${escapeHtml(item.label)}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.detail)}</p>${tagMarkup(item.tags)}</article>`).join("")}</div>
     </section>
-    <section class="section channel-plan">
+    <section class="section channel-plan" id="report-channel-plan">
       <div class="section-header" data-reveal><span class="signal">CHANNEL STRATEGY</span><h2>同一系列，不同渠道表达。</h2></div>
       <div class="channel-grid">${plan.channels.map((channel) => `<article class="channel-card" data-reveal><h3>${escapeHtml(channel.name)}</h3><p>${escapeHtml(channel.strategy)}</p>${tagMarkup(channel.focus)}</article>`).join("")}</div>
       <aside class="assumption-card" data-reveal><strong>待确认假设</strong><ul>${plan.assumptions.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></aside>
@@ -137,6 +139,24 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
     <a class="source-row" href="${source.url}" target="_blank" rel="noreferrer">
       <strong>${source.name}</strong><span>${source.detail}</span><b aria-hidden="true">↗</b>
     </a>`).join("");
+  const navigationItems: ReportNavigationItem[] = [
+    { id: "report-cover", label: "封面" },
+    { id: "report-evidence", label: "证据概览" },
+    ...(directionMarkup ? [{ id: "report-directions", label: "视觉方向" }] : []),
+    ...(isPlan && plan ? [
+      { id: "report-plan-overview", label: "企划框架" },
+      { id: "report-assortment", label: "商品结构" },
+      { id: "report-design-plan", label: "产品语言" },
+      { id: "report-channel-plan", label: "渠道策略" },
+    ] : []),
+    ...(referenceMarkup ? [{ id: "report-references", label: isPlan ? "确认款式" : "参考素材" }] : []),
+    { id: "report-method", label: "来源边界" },
+  ];
+  const floatingNavigation = buildReportNavigation({
+    items: navigationItems,
+    triggerId: "report-evidence",
+    label: topbarMeta,
+  });
 
   return `<!doctype html>
 <html lang="zh-CN">
@@ -151,8 +171,6 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
     html{scroll-behavior:auto}
     body{margin:0;background:var(--paper);color:var(--ink);font-family:"Helvetica Neue","Noto Sans SC","PingFang SC",Arial,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
     a{color:inherit}.report{min-width:0;overflow:hidden}
-    .topbar{position:fixed;z-index:20;inset:0 0 auto;display:flex;height:58px;align-items:center;justify-content:flex-end;padding:0 clamp(20px,3.5vw,56px);border-bottom:1px solid var(--line);background:rgb(247 248 247/.92);backdrop-filter:blur(16px)}
-    .topbar__meta{color:var(--muted);font-size:14px}
     .hero{min-height:100dvh;padding:90px clamp(20px,3.5vw,56px) 48px}.hero__heading{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:end;margin-bottom:36px}.hero__copy{min-width:0}.kicker{display:block;margin-bottom:18px;color:var(--accent);font-size:14px;font-weight:700;letter-spacing:.16em}.hero h1{max-width:100%;margin:0;font-size:clamp(48px,7vw,108px);font-weight:750;line-height:.92;letter-spacing:-.065em;white-space:nowrap}.hero__deck{max-width:none;margin:0;color:var(--muted);font-size:16px;line-height:1.75}.hero__media{height:min(62dvh,720px);margin:0;background:var(--surface)}
     .visual-frame{overflow:hidden;background:var(--surface)}.visual-frame img{display:block;width:100%;height:100%;object-fit:cover}.progressive-media{opacity:0;filter:blur(10px);transition:opacity .48s cubic-bezier(.22,1,.36,1),filter .64s cubic-bezier(.22,1,.36,1),transform .58s cubic-bezier(.22,1,.36,1);will-change:opacity,filter,transform}.progressive-media.is-loaded,.progressive-media.is-error{opacity:1;filter:blur(0)}
     .hero__foot{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.42fr);gap:32px;margin-top:22px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:14px;line-height:1.7}.hero__foot strong{color:var(--ink);font-weight:600}
@@ -171,30 +189,32 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
     [data-reveal]{transition:opacity .58s cubic-bezier(.22,1,.36,1),transform .58s cubic-bezier(.22,1,.36,1);will-change:transform,opacity}.is-visible[data-reveal]{opacity:1;transform:none}.is-visible[data-visual] img{transform:none}
     @media(max-width:1024px){.reference-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
     @media(max-width:1024px){.plan-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.assortment-row{grid-template-columns:repeat(5,minmax(0,1fr))}.assortment-row>p{grid-column:1/-1}.assortment-row--head span:last-child{display:none}}
-    @media(max-width:820px){.topbar__meta{display:none}.hero{padding-top:88px}.hero__heading,.hero__foot,.evidence__intro,.method{grid-template-columns:1fr}.hero h1{font-size:clamp(42px,12vw,66px);white-space:normal}.hero__media{height:58dvh}.hero__foot{gap:10px}.metrics{grid-template-columns:1fr}.metric+.metric{padding-left:0;border-left:0}.direction-list,.reference-grid,.channel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.direction__media{height:56dvh}.source-row{grid-template-columns:1fr auto}.source-row span{grid-column:1/2}.assumption-card{grid-template-columns:1fr}.footer{align-items:flex-start;flex-direction:column}}
+    @media(max-width:820px){.hero{padding-top:88px}.hero__heading,.hero__foot,.evidence__intro,.method{grid-template-columns:1fr}.hero h1{font-size:clamp(42px,12vw,66px);white-space:normal}.hero__media{height:58dvh}.hero__foot{gap:10px}.metrics{grid-template-columns:1fr}.metric+.metric{padding-left:0;border-left:0}.direction-list,.reference-grid,.channel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.direction__media{height:56dvh}.source-row{grid-template-columns:1fr auto}.source-row span{grid-column:1/2}.assumption-card{grid-template-columns:1fr}.footer{align-items:flex-start;flex-direction:column}}
     @media(max-width:560px){.direction-list,.reference-grid,.design-grid{grid-template-columns:1fr}.reference__copy p{min-height:0}}
     @media(prefers-reduced-motion:reduce){[data-reveal],[data-visual] img,.progressive-media{transition:none!important;will-change:auto!important;transform:none!important;opacity:1!important;filter:none!important;visibility:visible!important}}
+    ${floatingNavigation.styles}
   </style>
 </head>
 <body>
+  ${floatingNavigation.markup}
   <main class="report">
-    <nav class="topbar"><span class="topbar__meta">${escapeHtml(topbarMeta)}</span></nav>
-    <header class="hero">
+    <header class="hero" id="report-cover">
       <div class="hero__heading"><div class="hero__copy"><span class="kicker">${escapeHtml(kicker)}</span><h1>${escapeHtml(title)}</h1></div><p class="hero__deck">${escapeHtml(deck)}</p></div>
       <figure class="visual-frame hero__media" data-visual><img class="progressive-media" loading="eager" decoding="async" fetchpriority="high" src="${escapeHtml(heroImage)}" alt="${escapeHtml(title)}封面视觉"></figure>
       <div class="hero__foot"><span><strong>方向依据</strong> ${escapeHtml(directionLabel)}</span><span>公开渠道样本与客户已选素材均保留来源边界。</span></div>
     </header>
-    <section class="section evidence">
+    <section class="section evidence" id="report-evidence">
       <div class="evidence__intro" data-reveal><h2>先说明为什么，再呈现选什么。</h2><p>数字只描述本次工作样本，不将社媒互动、电商陈列或品牌采用直接等同于销量。</p></div>
       <div class="metrics" data-reveal>${reportMetrics.map((metric) => `<div class="metric"><strong>${escapeHtml(metric.value)}</strong><span>${escapeHtml(metric.label)}</span></div>`).join("")}</div>
     </section>
-    ${directionMarkup ? `<section class="section"><div class="section-header" data-reveal><h2>${isPlan ? "已确认视觉方向。" : "方向需要能被执行。"}</h2><p>${isPlan ? "方向已经完成确认，并作为商品结构与 AI 改款的共同设计约束。" : "每个方向同时保留市场信号、造型语言与下一步验证建议。"}</p></div><div class="direction-list">${directionMarkup}</div></section>` : ""}
+    ${directionMarkup ? `<section class="section" id="report-directions"><div class="section-header" data-reveal><h2>${isPlan ? "已确认视觉方向。" : "方向需要能被执行。"}</h2><p>${isPlan ? "方向已经完成确认，并作为商品结构与 AI 改款的共同设计约束。" : "每个方向同时保留市场信号、造型语言与下一步验证建议。"}</p></div><div class="direction-list">${directionMarkup}</div></section>` : ""}
     ${planMarkup}
-    ${referenceMarkup ? `<section class="section references"><div class="section-header" data-reveal><h2>${isPlan ? "确认 AI 款式图。" : "客户已选素材。"}</h2><p>${isPlan ? "以下款式图已由用户确认并写入本次企划，作为后续开款与客户沟通的视觉依据。" : "图像、标题、设计标签和原始来源一起保留，避免在提案传递中失真。"}</p></div><div class="reference-grid">${referenceMarkup}</div></section>` : ""}
-    <section class="section method"><div class="method__copy" data-reveal><h2>证据可追溯，结论才可讨论。</h2><p>以下链接是本原型用于说明证据结构的公开渠道入口。正式项目应继续记录具体商品页、采集时间、授权状态与样本口径。</p></div><div class="source-list" data-reveal>${sourceMarkup}</div></section>
+    ${referenceMarkup ? `<section class="section references" id="report-references"><div class="section-header" data-reveal><h2>${isPlan ? "确认 AI 款式图。" : "客户已选素材。"}</h2><p>${isPlan ? "以下款式图已由用户确认并写入本次企划，作为后续开款与客户沟通的视觉依据。" : "图像、标题、设计标签和原始来源一起保留，避免在提案传递中失真。"}</p></div><div class="reference-grid">${referenceMarkup}</div></section>` : ""}
+    <section class="section method" id="report-method"><div class="method__copy" data-reveal><h2>证据可追溯，结论才可讨论。</h2><p>以下链接是本原型用于说明证据结构的公开渠道入口。正式项目应继续记录具体商品页、采集时间、授权状态与样本口径。</p></div><div class="source-list" data-reveal>${sourceMarkup}</div></section>
     <footer class="footer"><span>CLIENT WORKING DOCUMENT / SOURCE BOUNDARIES RETAINED</span></footer>
   </main>
   <script>
+    ${floatingNavigation.script}
     document.documentElement.classList.add("motion-ready");
     window.addEventListener("DOMContentLoaded",function(){
       var fitMetricValues=function(){

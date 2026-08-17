@@ -4,6 +4,7 @@ import type {
   FashionProposalReference,
   FashionProposalSource,
 } from "./fashionProposalHtml";
+import { buildReportNavigation } from "./reportNavigation";
 
 export type NewProductPlanHtmlOptions = {
   title: string;
@@ -106,6 +107,11 @@ export function buildNewProductPlanHtml({
     <a class="toc__item" href="#chapter-${number}">
       <span>${number}</span><strong>${label}</strong>
     </a>`).join("");
+  const floatingNavigation = buildReportNavigation({
+    items: reportSections.map(([number, label]) => ({ id: `chapter-${number}`, label })),
+    triggerId: "contents",
+    label: "CONTENTS",
+  });
   const summaryMetrics = plan.summary.slice(0, 4).map((item) => `
     <article class="metric"><strong>${escapeHtml(item.value)}</strong><span>${escapeHtml(item.label)}</span><p>${escapeHtml(item.detail)}</p></article>`).join("");
 
@@ -139,9 +145,11 @@ export function buildNewProductPlanHtml({
     @media(max-width:520px){.cover__meta,.scope-grid,.metrics,.color-grid{grid-template-columns:1fr}.moodboard{display:flex;flex-direction:column}.moodboard figure{height:54vh}.channel-grid{grid-template-columns:1fr}.channel-cell--label{grid-column:auto}.swatch{min-height:180px}.silhouette-card figure{min-height:55vh}.table-row{grid-template-columns:1fr}.table-row p{grid-column:auto}.source-row{grid-template-columns:28px 1fr auto}.source-row p{grid-column:2/3}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.reveal{opacity:1;transform:none;transition:none}}
     @media print{.chapter,.contents{min-height:100vh;break-after:page}.reveal{opacity:1;transform:none}.cover__visual{min-height:64vh}}
+    ${floatingNavigation.styles}
   </style>
 </head>
 <body>
+  ${floatingNavigation.markup}
   <main class="report">
     <section class="chapter cover" id="chapter-01" data-chapter>
       <div class="cover__copy reveal"><span class="kicker">${escapeHtml(season)} / ${escapeHtml(category)}</span><h1>新品企划案</h1><p class="cover__deck">基于已确认的趋势证据、视觉方向与 AI 款式结果，形成可执行的新品开发框架。</p><div class="cover__meta"><div><span>MARKET</span><strong>${escapeHtml(market)}</strong></div><div><span>CATEGORY</span><strong>${escapeHtml(category)}</strong></div><div><span>SEASON</span><strong>${escapeHtml(season)}</strong></div><div><span>CHANNEL</span><strong>${escapeHtml(channels)}</strong></div></div></div>
@@ -164,16 +172,7 @@ export function buildNewProductPlanHtml({
   </main>
   <script>
     (function(){
-      var reduceMotion=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      Array.prototype.forEach.call(document.querySelectorAll('.toc__item[href^="#"]'),function(link){
-        link.addEventListener("click",function(event){
-          var targetId=link.getAttribute("href");
-          var target=targetId&&document.getElementById(targetId.slice(1));
-          if(!target)return;
-          event.preventDefault();
-          target.scrollIntoView({behavior:reduceMotion?"auto":"smooth",block:"start"});
-        });
-      });
+      ${floatingNavigation.script}
       var reveals=Array.prototype.slice.call(document.querySelectorAll(".reveal"));
       if("IntersectionObserver" in window){
         var revealObserver=new IntersectionObserver(function(entries){entries.forEach(function(entry){if(!entry.isIntersecting)return;entry.target.classList.add("is-visible");revealObserver.unobserve(entry.target)})},{rootMargin:"0px 0px -8% 0px",threshold:.05});reveals.forEach(function(item){revealObserver.observe(item)});
