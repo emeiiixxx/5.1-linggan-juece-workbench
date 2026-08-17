@@ -14,6 +14,7 @@ import {
   projectGroups,
   recentItems,
   taskItems,
+  type TaskSourceLabel,
   type TaskSidebarMeta,
   type TaskStatus,
   type TaskWorkflow,
@@ -38,12 +39,14 @@ type SidebarProps = {
     title: string;
     projectId: number | null;
     workflow: TaskWorkflow;
+    sourceLabel?: TaskSourceLabel;
     status: TaskStatus;
     updatedAt: string;
   } | null;
   taskRecords?: {
     title: string;
     workflow: TaskWorkflow;
+    sourceLabel?: TaskSourceLabel;
     status: TaskStatus;
     updatedAt: string;
   }[];
@@ -141,7 +144,7 @@ export function Sidebar({
   ));
   const taskRecordMeta = new Map<string, TaskSidebarMeta>(taskRecords.map((task) => [
     task.title,
-    { workflow: task.workflow, status: task.status, updatedAt: task.updatedAt },
+    { workflow: task.workflow, sourceLabel: task.sourceLabel, status: task.status, updatedAt: task.updatedAt },
   ]));
   const getTaskSidebarMeta = (title: string): TaskSidebarMeta => {
     const recordMeta = taskRecordMeta.get(title);
@@ -170,6 +173,7 @@ export function Sidebar({
     createdTaskIdsRef.current.set(taskKey, createdTask.id);
     taskSidebarMetaRef.current.set(createdTask.title, {
       workflow: createdTask.workflow,
+      sourceLabel: createdTask.sourceLabel,
       status: createdTask.status,
       updatedAt: createdTask.updatedAt,
     });

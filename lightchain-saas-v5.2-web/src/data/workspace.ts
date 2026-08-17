@@ -17,6 +17,7 @@ export type TaskStatus = "running" | "pending" | "completed";
 export type TaskSourceLabel = "新品企划" | "客户提案" | "灵感设计" | "企划案";
 export type TaskSidebarMeta = {
   workflow: TaskWorkflow;
+  sourceLabel?: TaskSourceLabel;
   status: TaskStatus;
   updatedAt?: string;
 };

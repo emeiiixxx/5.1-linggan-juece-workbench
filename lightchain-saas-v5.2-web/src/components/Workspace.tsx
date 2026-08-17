@@ -1,6 +1,6 @@
 import { Activity, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { quickStartCards } from "../data/workspace";
+import { quickStartCards, type TaskSourceLabel } from "../data/workspace";
 import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { ArchiveHeaderMotion } from "./GlassMotion";
@@ -25,7 +25,7 @@ const PlanConversationWorkspace = lazy(() =>
   import("./PlanConversationWorkspace").then(({ PlanConversationWorkspace }) => ({ default: PlanConversationWorkspace })),
 );
 
-const tabs = ["新品企划", "客户提案", "灵感设计", "企划案"];
+const tabs: TaskSourceLabel[] = ["新品企划", "客户提案", "灵感设计", "企划案"];
 const composerPlaceholders = [
   "描述下一季的市场,人群,品类和经营目标...",
   "输入客户需求,或上传brief、邮件和会议纪要...",
@@ -149,7 +149,7 @@ export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selected
   selectedProject?: ProjectOption | null;
   onSelectedProjectChange?: (project: ProjectOption | null) => void;
   onTaskStatusChange?: (taskId: number, status: "running" | "completed") => void;
-  onCreateTask?: (task: { title: string; projectId: number | null; prompt: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "new-product" | "default" | "apparel" | "plan" }) => void;
+  onCreateTask?: (task: { title: string; projectId: number | null; prompt: string; attachments?: { name: string; previewUrl?: string }[]; workflow: "new-product" | "default" | "apparel" | "plan"; sourceLabel: TaskSourceLabel }) => void;
 }) {
   const { locale, t } = useI18n();
   const [activeTab, setActiveTab] = useState(0);
@@ -335,7 +335,8 @@ export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selected
       projectId: selectedProject?.id ?? null,
       prompt: taskMessage,
       attachments: taskAttachments,
-      workflow: sourceTab === 0 ? "new-product" : sourceTab === 2 && inspirationDesignType === "apparel" ? "apparel" : sourceTab === 3 ? "plan" : "default",
+      workflow: sourceTab === 0 ? "new-product" : sourceTab === 2 ? "apparel" : sourceTab === 3 ? "plan" : "default",
+      sourceLabel: tabs[sourceTab] ?? "客户提案",
     });
     if (sourceTab === 3) attachments.forEach((attachment) => {
       if (attachment.previewUrl) {

@@ -4,6 +4,8 @@ import { TopBar } from "./components/TopBar";
 import { Workspace } from "./components/Workspace";
 import {
   allDemoTaskExamples,
+  taskWorkflowLabels,
+  type TaskSourceLabel,
   type TaskStatus,
   type TaskWorkflow,
 } from "./data/workspace";
@@ -25,6 +27,7 @@ type TaskRecord = {
   profileName?: string;
   attachments?: { name: string; previewUrl?: string }[];
   workflow: TaskWorkflow;
+  sourceLabel?: TaskSourceLabel;
   status: TaskStatus;
   updatedAt: string;
   initialState?: "default" | "confirmation" | "complete";
@@ -37,6 +40,17 @@ const workflowPageTitles: Record<TaskRecord["workflow"], string> = {
   plan: "企划案",
 };
 
+const resolveTaskSourceLabel = (task: TaskRecord): TaskSourceLabel => {
+  if (task.sourceLabel) return task.sourceLabel;
+  if (task.workflow === "default" && /图案|印花|纹样|花型/.test(task.prompt)) return "灵感设计";
+  return taskWorkflowLabels[task.workflow];
+};
+
+const resolveTaskWorkflow = (task: TaskRecord): TaskWorkflow => {
+  if (task.workflow === "default" && resolveTaskSourceLabel(task) === "灵感设计") return "apparel";
+  return task.workflow;
+};
+
 export default function App() {
   const appShellRef = useGsapStaggerEntrance<HTMLDivElement>(".topbar, .sidebar", { y: -8 });
   const [theme, setTheme] = useState<Theme>("dark");
@@ -47,7 +61,12 @@ export default function App() {
   const [taskRecords, setTaskRecords] = useState<TaskRecord[]>(allDemoTaskExamples);
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
   const [newTaskKey, setNewTaskKey] = useState(0);
-  const activeTask = taskRecords.find((task) => task.id === activeTaskId) ?? null;
+  const resolvedTaskRecords = taskRecords.map((task) => ({
+    ...task,
+    workflow: resolveTaskWorkflow(task),
+    sourceLabel: resolveTaskSourceLabel(task),
+  }));
+  const activeTask = resolvedTaskRecords.find((task) => task.id === activeTaskId) ?? null;
   const sidebarPageTitle = activeView === "preferences"
     ? "业务偏好档案"
     : activeTask
@@ -102,7 +121,7 @@ export default function App() {
             setActiveView("workspace");
           }}
           createdTask={taskRecords.find((task) => task.status === "running") ?? null}
-          taskRecords={taskRecords}
+          taskRecords={resolvedTaskRecords}
           onOpenTask={(taskId) => {
             transitionTaskFocus(taskId);
             setActiveTaskId(taskId);
@@ -159,7 +178,7 @@ export default function App() {
                 task.id === taskId ? { ...task, status, updatedAt } : task,
               ));
             }}
-            onCreateTask={({ title, projectId, prompt, workflow, attachments }) => {
+            onCreateTask={({ title, projectId, prompt, workflow, sourceLabel, attachments }) => {
               const id = Date.now();
               const task: TaskRecord = {
                 id,
@@ -169,6 +188,7 @@ export default function App() {
                 profileName: selectedProfile?.name,
                 attachments,
                 workflow,
+                sourceLabel,
                 status: "running",
                 updatedAt: new Date().toISOString(),
               };
