@@ -128,15 +128,62 @@ const directionReferenceEvidence = {
   },
 } as const;
 
-const newProductReferenceItems: readonly ImageGalleryItem[] = directions.map((direction, index) => {
+const newProductReferenceSources = [
+  "assets/new-product/new-product-direction-01.jpg",
+  "assets/new-product/new-product-direction-04.jpg",
+  "assets/new-product/new-product-direction-05-optimized.jpg",
+  "assets/new-product/new-product-direction-07.jpg",
+  "assets/new-product/regenerated-look-01.jpg",
+  "assets/new-product/regenerated-look-02-optimized.jpg",
+  "assets/new-product/regenerated-look-03-optimized.jpg",
+  "assets/new-product/regenerated-look-04-optimized.jpg",
+  "assets/figma-confirmed/candidate-gallery-look-01-optimized.jpg",
+  "assets/figma-confirmed/candidate-gallery-look-02-optimized.jpg",
+  "assets/figma-confirmed/candidate-reference-02-optimized.jpg",
+  "assets/figma-confirmed/trend-direction-thumbnail-optimized.jpg",
+  "assets/figma-confirmed/trend-reference-primary-optimized.jpg",
+  "assets/plan-flow/reference-01-optimized.jpg",
+  "assets/plan-flow/reference-02.jpg",
+  "assets/plan-flow/reference-03.jpg",
+  "assets/plan-flow/reference-04-optimized.jpg",
+  "assets/plan-flow/reference-05.jpg",
+  "assets/plan-flow/reference-06.jpg",
+  "assets/plan-flow/reference-07.jpg",
+] as const;
+
+const newProductReferenceLabels = [
+  "柔和领口层次",
+  "低对比植物印花",
+  "松弛直身比例",
+  "过渡季七分袖",
+  "轻盈荷叶边",
+  "雾感花卉组合",
+  "日常通勤叠搭",
+  "柔性腰线",
+  "轻结构上装",
+  "成熟花型更新",
+  "自然垂坠轮廓",
+  "短视频首帧造型",
+  "低饱和配色",
+  "宽松套装组合",
+  "小体量装饰细节",
+  "中长比例造型",
+  "柔软肩线",
+  "夏末层次搭配",
+  "初秋轻外搭",
+  "系列化陈列组合",
+] as const;
+
+const newProductReferenceItems: readonly ImageGalleryItem[] = newProductReferenceSources.map((src, index) => {
+  const direction = directions[index % directions.length];
   const evidence = directionReferenceEvidence[direction.id];
   return {
     id: `new-product-reference-${String(index + 1).padStart(2, "0")}`,
     categoryId: direction.id,
     code: `REF ${String(index + 1).padStart(2, "0")}`,
-    title: direction.title,
+    title: `${direction.title} · ${newProductReferenceLabels[index]}`,
     subtitle: evidence.subtitle,
-    src: direction.src,
+    src,
     badges: [...evidence.badges],
     sourceUrl: evidence.sourceUrl,
   };
