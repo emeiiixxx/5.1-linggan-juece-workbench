@@ -126,7 +126,7 @@ export default function App() {
             setNewTaskKey((value) => value + 1);
             setActiveView("workspace");
           }}
-          createdTask={taskRecords.find((task) => task.status === "running") ?? null}
+          createdTask={resolvedTaskRecords.find((task) => task.status === "running") ?? null}
           taskRecords={resolvedTaskRecords}
           onOpenTask={(taskId) => {
             transitionTaskFocus(taskId);
