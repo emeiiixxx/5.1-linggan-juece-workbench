@@ -1033,7 +1033,7 @@ export function Sidebar({
                       ))}
                     >
                       <FigmaIcon name="more-horizontal" size={16} />
-                      <span>{t("展示更多该项目任务")} {group.items.length}</span>
+                      <span>{t("展示更多该项目任务")} ({group.items.length})</span>
                     </button>
                   ) : null}
                   {group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT && groupIndex < groups.length - 1 ? (
@@ -1358,7 +1358,7 @@ export function Sidebar({
                           ))}
                         >
                           <FigmaIcon name="more-horizontal" size={16} />
-                          <span>{t("展示更多该项目任务")} {group.items.length}</span>
+                          <span>{t("展示更多该项目任务")} ({group.items.length})</span>
                         </button>
                       ) : null}
                       {group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT && groupIndex < groups.length - 1 ? (
