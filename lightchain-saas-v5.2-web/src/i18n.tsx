@@ -1,4 +1,5 @@
 import { createContext, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
+import { generatedSiteCopy } from "./generated/siteCopy";
 
 export type Locale = "zh-CN" | "ja-JP" | "en-US";
 
@@ -30,6 +31,9 @@ const copy: Record<string, Translation> = {
   "企业偏好档案": { ja: "ビジネスプロファイル", en: "Business Profile" },
   "项目": { ja: "プロジェクト", en: "Projects" },
   "任务": { ja: "タスク", en: "Tasks" },
+  "最近": { ja: "最近", en: "Recent" },
+  "展开更多": { ja: "さらに表示", en: "Show more" },
+  "展示更多该项目任务": { ja: "このプロジェクトのタスクをさらに表示", en: "Show more tasks in this project" },
   "新建项目": { ja: "新規プロジェクト", en: "New Project" },
   "更多": { ja: "その他", en: "More" },
   "在{name}中新建对话": { ja: "{name}で新しいチャットを作成", en: "Start a new chat in {name}" },
@@ -63,6 +67,8 @@ const copy: Record<string, Translation> = {
   "今天想从哪里开始？": { ja: "今日は何から始めますか？", en: "What will you create?" },
   "选择一个业务场景，描述你的目标，Agent 会带你完成后续步骤。": { ja: "用途を選んで目標を入力すると、AIエージェントが次のステップをご案内します。", en: "Choose a workflow and enter your goal." },
   "业务场景": { ja: "ワークフロー", en: "Workflow" },
+  "商品企划": { ja: "商品企画", en: "Product Planning" },
+  "选择商品企划类型": { ja: "商品企画タイプを選択", en: "Select product planning type" },
   "选品测款": { ja: "商品リサーチ", en: "Product Research" },
   "新品方向探索": { ja: "新商品企画", en: "New Product Direction" },
   "客户提案生成": { ja: "顧客提案", en: "Client Proposal" },
@@ -86,6 +92,7 @@ const copy: Record<string, Translation> = {
   "下载": { ja: "ダウンロード", en: "Download" },
   "下载全部参考图": { ja: "参考画像を一括ダウンロード", en: "Download all references" },
   "查看全部": { ja: "すべて表示", en: "View all" },
+  "查看全部 {count} 条": { ja: "すべて表示 {count}件", en: "View all {count} items" },
   "关闭参考款式列表": { ja: "参考画像一覧を閉じる", en: "Close reference list" },
   "共 {count} 条 · 按最近获取时间排序": { ja: "全{count}件・取得日時順", en: "{count} items · newest first" },
   "参考图下载失败，请稍后重试。": { ja: "参考画像をダウンロードできませんでした。後でもう一度お試しください。", en: "Reference download failed. Please try again later." },
@@ -128,10 +135,27 @@ const copy: Record<string, Translation> = {
   "不赞同消息": { ja: "メッセージに低評価", en: "Dislike message" },
   "生成企划": { ja: "企画を生成", en: "Generate plan" },
   "客户提案": { ja: "顧客提案", en: "Client Proposal" },
-  "灵感设计": { ja: "インスピレーションデザイン", en: "Inspiration Design" },
+  "灵感设计": { ja: "アパレルデザイン", en: "Apparel Design" },
   "企划案": { ja: "企画書", en: "Plan" },
+  "概览": { ja: "概要", en: "Overview" },
+  "任务产物": { ja: "成果物", en: "Deliverables" },
+  "参考款式": { ja: "参考スタイル", en: "Reference Styles" },
+  "调研": { ja: "リサーチ", en: "Research" },
+  "视觉方向": { ja: "ビジュアル方向", en: "Visual Direction" },
+  "商品结构": { ja: "商品構成", en: "Assortment" },
+  "AI 改款": { ja: "AIデザイン", en: "AI Redesign" },
+  "AI 改款图": { ja: "AIデザイン画像", en: "AI Redesigns" },
+  "改款": { ja: "デザイン変更", en: "Redesign" },
   "服装设计": { ja: "アパレルデザイン", en: "Apparel Design" },
   "图案设计": { ja: "グラフィックデザイン", en: "Pattern Design" },
+  "精准选品": { ja: "商品選定", en: "Precise Picks" },
+  "市场洞察": { ja: "市場分析", en: "Market Pulse" },
+  "高效沟通": { ja: "円滑対話", en: "Clear Talk" },
+  "创意提案": { ja: "企画提案", en: "Fresh Ideas" },
+  "个性定制": { ja: "個別設計", en: "Custom Fit" },
+  "潮流设计": { ja: "流行設計", en: "Trend Edit" },
+  "视觉吸引": { ja: "視覚訴求", en: "Visual Pop" },
+  "原创图案": { ja: "独自柄", en: "Fresh Prints" },
   "选择设计类型": { ja: "デザインタイプを選択", en: "Select design type" },
   "描述你想调研的市场、品类或款式方向...": { ja: "調べたい市場・カテゴリ・デザインを入力...", en: "Describe the market, category, or style you want to research..." },
   "描述下一季的市场,人群,品类和经营目标...": { ja: "次シーズンの市場、顧客層、カテゴリ、事業目標を入力...", en: "Describe next season’s market, audience, category, and business goals..." },
@@ -151,6 +175,14 @@ const copy: Record<string, Translation> = {
   "快速开始": { ja: "クイックスタート", en: "Quick Start" },
   "点击试试": { ja: "試してみる", en: "Try it" },
   "不知道从何开始？试试这些模板": { ja: "迷ったら、テンプレートから始めましょう", en: "Not sure where to start? Try a template" },
+  "以ZIMMERMANN的RESORT2026系列做为设计灵感，需要包含短款外套、衬衫连衣裙、印花连衣裙、半裙、生成一份女装主题设计企划。": {
+    ja: "ZIMMERMANNのRESORT 2026を着想源に、ショートジャケット、シャツワンピース、プリントワンピース、スカートを含む婦人服企画を作成。",
+    en: "Create a womenswear plan inspired by ZIMMERMANN Resort 2026, featuring cropped jackets, shirt dresses, printed dresses, and skirts.",
+  },
+  "以PDF的2025秋冬系列做为设计灵感，需要包含印花外套、棒球外套、卫衣、毛衣、长裤生成一份男童主题设计企划。": {
+    ja: "PDFの2025年秋冬を着想源に、プリントジャケット、スタジャン、スウェット、ニット、パンツを含む男児服企画を作成。",
+    en: "Create a boyswear plan inspired by the PDF Fall/Winter 2025 collection, featuring printed jackets, varsity jackets, sweatshirts, sweaters, and trousers.",
+  },
   "面料套版": { ja: "生地差し替え", en: "Fabric Layout" },
   "面料·指定版式快速设计": { ja: "生地・レイアウトをすぐ変更", en: "Swap fabric & layout" },
   "单款裂变": { ja: "単品バリエーション", en: "Style Variations" },
@@ -274,6 +306,129 @@ const copy: Record<string, Translation> = {
   "档案已删除": { ja: "プロファイルを削除しました", en: "Profile deleted" },
 };
 
+const systemCopy: Record<string, Translation> = { ...generatedSiteCopy, ...copy };
+const replacementCopy = {
+  ja: Object.entries(systemCopy)
+    .filter(([source]) => source.length > 1 && /[\u3400-\u9fff]/u.test(source) && !/[<>]/.test(source))
+    .sort(([left], [right]) => right.length - left.length),
+  en: Object.entries(systemCopy)
+    .filter(([source]) => source.length > 1 && /[\u3400-\u9fff]/u.test(source) && !/[<>]/.test(source))
+    .sort(([left], [right]) => right.length - left.length),
+} as const;
+
+const originalText = new WeakMap<Text, string>();
+const translatedText = new WeakMap<Text, string>();
+const originalAttributes = new WeakMap<Element, Map<string, string>>();
+const translatedAttributes = new WeakMap<Element, Map<string, string>>();
+const translatableAttributes = ["placeholder", "aria-label", "title", "alt"] as const;
+const userContentSelector = ".conversation-message--user, .tree-row, .task-row, .composer-attachment-chip, [data-localize='off']";
+
+function polishTranslation(value: string, language: "ja" | "en") {
+  if (language === "ja") {
+    return value
+      .replaceAll("AI フェイスリフト", "AIデザイン")
+      .replaceAll("フェイスリフト", "デザイン変更")
+      .replaceAll("製品構造", "商品構成")
+      .replaceAll("商品構造", "商品構成")
+      .replaceAll("調査", "リサーチ");
+  }
+  return value
+    .replace(/AI facelift/giu, "AI redesign")
+    .replace(/commodity structure/giu, "assortment")
+    .replace(/product structure/giu, "assortment")
+    .replace(/new product planning case/giu, "New Product Plan")
+    .replace(/customer proposal/giu, "client proposal")
+    .replace(/\bsurvey\b/giu, "research");
+}
+
+export function translateSystemCopy(source: string, locale: Locale) {
+  if (locale === "zh-CN" || !/[\u3400-\u9fff]/u.test(source)) return source;
+  const language = locale === "ja-JP" ? "ja" : "en";
+  const leading = source.match(/^\s*/u)?.[0] ?? "";
+  const trailing = source.match(/\s*$/u)?.[0] ?? "";
+  const content = source.trim();
+  const exact = systemCopy[content]?.[language];
+  if (exact) return `${leading}${polishTranslation(exact, language)}${trailing}`;
+
+  let translated = content;
+  replacementCopy[language].forEach(([fragment, translations]) => {
+    if (translated.includes(fragment)) translated = translated.replaceAll(fragment, translations[language]);
+  });
+  return `${leading}${polishTranslation(translated, language)}${trailing}`;
+}
+
+export function translateHtmlCopy(html: string, locale: Locale) {
+  if (locale === "zh-CN" || typeof DOMParser === "undefined") return html;
+  const documentCopy = new DOMParser().parseFromString(html, "text/html");
+  const walker = documentCopy.createTreeWalker(documentCopy.body, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    const parentName = node.parentElement?.tagName;
+    if (parentName !== "SCRIPT" && parentName !== "STYLE") node.nodeValue = translateSystemCopy(node.nodeValue ?? "", locale);
+    node = walker.nextNode();
+  }
+  documentCopy.querySelectorAll("[alt], [title], [aria-label]").forEach((element) => {
+    ["alt", "title", "aria-label"].forEach((attribute) => {
+      const value = element.getAttribute(attribute);
+      if (value) element.setAttribute(attribute, translateSystemCopy(value, locale));
+    });
+  });
+  return `<!doctype html>${documentCopy.documentElement.outerHTML}`;
+}
+
+function localizeTextNode(node: Text, locale: Locale) {
+  if (node.parentElement?.closest(`${userContentSelector}, [data-i18n-static="true"]`)) return;
+  const previousTranslation = translatedText.get(node);
+  if (!originalText.has(node) || (previousTranslation !== undefined && node.data !== previousTranslation)) {
+    originalText.set(node, node.data);
+  }
+  const source = originalText.get(node) ?? node.data;
+  const next = translateSystemCopy(source, locale);
+  translatedText.set(node, next);
+  if (node.data !== next) node.data = next;
+}
+
+function localizeElementAttributes(element: Element, locale: Locale) {
+  if (element.closest('[data-i18n-static="true"]')) return;
+  let originals = originalAttributes.get(element);
+  let translations = translatedAttributes.get(element);
+  if (!originals) {
+    originals = new Map();
+    originalAttributes.set(element, originals);
+  }
+  if (!translations) {
+    translations = new Map();
+    translatedAttributes.set(element, translations);
+  }
+  translatableAttributes.forEach((attribute) => {
+    const current = element.getAttribute(attribute);
+    if (current === null) return;
+    const previousTranslation = translations.get(attribute);
+    if (!originals.has(attribute) || (previousTranslation !== undefined && current !== previousTranslation)) {
+      originals.set(attribute, current);
+    }
+    const next = translateSystemCopy(originals.get(attribute) ?? current, locale);
+    translations.set(attribute, next);
+    if (current !== next) element.setAttribute(attribute, next);
+  });
+}
+
+function localizeTree(root: Node, locale: Locale) {
+  if (root.nodeType === Node.TEXT_NODE) {
+    localizeTextNode(root as Text, locale);
+    return;
+  }
+  if (!(root instanceof Element) && !(root instanceof DocumentFragment) && !(root instanceof Document)) return;
+  if (root instanceof Element) localizeElementAttributes(root, locale);
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    if (node.nodeType === Node.TEXT_NODE) localizeTextNode(node as Text, locale);
+    else localizeElementAttributes(node as Element, locale);
+    node = walker.nextNode();
+  }
+}
+
 type I18nValue = {
   locale: Locale;
   setLocale: (locale: Locale) => void;
@@ -291,13 +446,30 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     document.documentElement.lang = locale;
     window.localStorage.setItem("lightchain-locale", locale);
+    if (!document.body) return;
+    localizeTree(document.body, locale);
+    let scheduled = false;
+    const observer = new MutationObserver((mutations) => {
+      if (scheduled) return;
+      scheduled = true;
+      window.requestAnimationFrame(() => {
+        scheduled = false;
+        mutations.forEach((mutation) => {
+          if (mutation.type === "characterData") localizeTree(mutation.target, locale);
+          mutation.addedNodes.forEach((node) => localizeTree(node, locale));
+          if (mutation.type === "attributes") localizeTree(mutation.target, locale);
+        });
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: [...translatableAttributes] });
+    return () => observer.disconnect();
   }, [locale]);
 
   const value = useMemo<I18nValue>(() => ({
     locale,
     setLocale,
     t: (source, values) => {
-      const translated = locale === "zh-CN" ? source : copy[source]?.[locale === "ja-JP" ? "ja" : "en"] ?? source;
+      const translated = locale === "zh-CN" ? source : systemCopy[source]?.[locale === "ja-JP" ? "ja" : "en"] ?? source;
       return Object.entries(values ?? {}).reduce((result, [key, item]) => result.replaceAll(`{${key}}`, String(item)), translated);
     },
   }), [locale]);

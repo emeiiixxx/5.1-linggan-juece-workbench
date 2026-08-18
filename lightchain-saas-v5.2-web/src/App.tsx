@@ -27,7 +27,7 @@ type TaskRecord = {
   profileName?: string;
   attachments?: { name: string; previewUrl?: string }[];
   workflow: TaskWorkflow;
-  sourceLabel?: TaskSourceLabel;
+  sourceLabel?: TaskSourceLabel | "灵感设计";
   status: TaskStatus;
   updatedAt: string;
   initialState?: "default" | "confirmation" | "complete";
@@ -36,18 +36,24 @@ type TaskRecord = {
 const workflowPageTitles: Record<TaskRecord["workflow"], string> = {
   "new-product": "新品企划",
   default: "客户提案",
-  apparel: "灵感设计",
+  apparel: "服装设计",
+  pattern: "图案设计",
   plan: "企划案",
 };
 
 const resolveTaskSourceLabel = (task: TaskRecord): TaskSourceLabel => {
+  if (task.sourceLabel === "灵感设计") {
+    return /图案|印花|纹样|花型/.test(task.prompt) ? "图案设计" : "服装设计";
+  }
   if (task.sourceLabel) return task.sourceLabel;
-  if (task.workflow === "default" && /图案|印花|纹样|花型/.test(task.prompt)) return "灵感设计";
+  if (task.workflow === "default" && /图案|印花|纹样|花型/.test(task.prompt)) return "图案设计";
   return taskWorkflowLabels[task.workflow];
 };
 
 const resolveTaskWorkflow = (task: TaskRecord): TaskWorkflow => {
-  if (task.workflow === "default" && resolveTaskSourceLabel(task) === "灵感设计") return "apparel";
+  const sourceLabel = resolveTaskSourceLabel(task);
+  if (sourceLabel === "图案设计") return "pattern";
+  if (task.workflow === "default" && sourceLabel === "服装设计") return "apparel";
   return task.workflow;
 };
 

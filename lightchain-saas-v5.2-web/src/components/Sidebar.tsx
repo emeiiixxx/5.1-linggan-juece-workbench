@@ -88,6 +88,17 @@ type SelectedRow =
   | { kind: "item"; groupId: number; itemIndex: number }
   | { kind: "task"; taskIndex: number };
 
+const PROJECT_TASK_PREVIEW_LIMIT = 5;
+
+function ProjectDisclosureIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <span className={`project-disclosure-icon ${expanded ? "is-open" : ""}`}>
+      <FigmaIcon name="project-closed" size={16} className="project-disclosure-icon__closed" />
+      <FigmaIcon name="project-open" size={16} className="project-disclosure-icon__open" />
+    </span>
+  );
+}
+
 export function Sidebar({
   expanded,
   onToggle,
@@ -106,17 +117,17 @@ export function Sidebar({
   onDeleteProject,
 }: SidebarProps) {
   const { t } = useI18n();
-  const [projectsExpanded, setProjectsExpanded] = useState(true);
-  const [tasksExpanded, setTasksExpanded] = useState(true);
+  const [recentExpanded, setRecentExpanded] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [collapsedMenu, setCollapsedMenu] = useState<"projects" | "tasks" | null>(null);
+  const [collapsedMenu, setCollapsedMenu] = useState<"recent" | null>(null);
   const [groups, setGroups] = useState(() =>
     projectGroups.map((group, groupIndex) => ({
       id: groupIndex,
       ...group,
       items: [...group.items],
-      expanded: group.items.length > 0,
+      expanded: groupIndex === 0 && group.items.length > 0,
+      showAll: false,
     })),
   );
   const [tasks, setTasks] = useState(() => [...taskItems]);
@@ -151,7 +162,7 @@ export function Sidebar({
     if (recordMeta) return recordMeta;
     const existingMeta = taskSidebarMetaRef.current.get(title);
     if (existingMeta) return existingMeta;
-    const workflows: TaskWorkflow[] = ["new-product", "default", "apparel", "plan"];
+    const workflows: TaskWorkflow[] = ["new-product", "default", "apparel", "pattern", "plan"];
     const hash = Array.from(title).reduce((total, character) => total + character.charCodeAt(0), 0);
     return { workflow: workflows[hash % workflows.length], status: "running" };
   };
@@ -183,7 +194,7 @@ export function Sidebar({
         createdTask.title,
         ...current.filter((title) => title !== createdTask.title),
       ]);
-      setTasksExpanded(true);
+      setRecentExpanded(true);
       setSelectedRow({ kind: "task", taskIndex: 0 });
       return;
     }
@@ -204,7 +215,7 @@ export function Sidebar({
           : group,
       ),
     );
-    setProjectsExpanded(true);
+    setRecentExpanded(true);
     setSelectedRow({ kind: "item", groupId: createdTask.projectId, itemIndex: 0 });
   }, [createdTask]);
 
@@ -236,7 +247,7 @@ export function Sidebar({
     if (groupIndex >= 0) {
       const group = groups[groupIndex];
       const itemIndex = group.items.indexOf(title);
-      setProjectsExpanded(true);
+      setRecentExpanded(true);
       if (!group.expanded) {
         setGroups((current) => current.map((item) =>
           item.id === group.id ? { ...item, expanded: true } : item,
@@ -249,7 +260,7 @@ export function Sidebar({
 
     const taskIndex = tasks.indexOf(title);
     if (taskIndex >= 0) {
-      setTasksExpanded(true);
+      setRecentExpanded(true);
       setSelectedRow({ kind: "task", taskIndex });
       openSavedTask(null, title);
       return;
@@ -265,7 +276,7 @@ export function Sidebar({
     onSelectStaticRow?.();
   };
 
-  const openCollapsedMenu = (menu: "projects" | "tasks") => {
+  const openCollapsedMenu = (menu: "recent") => {
     if (collapsedMenuCloseTimerRef.current) {
       clearTimeout(collapsedMenuCloseTimerRef.current);
       collapsedMenuCloseTimerRef.current = null;
@@ -523,7 +534,7 @@ export function Sidebar({
           createdTaskIdsRef.current.set(`task:${taskTitle}`, taskId);
           onMoveTask?.(taskId, null);
         });
-        setTasksExpanded(true);
+        setRecentExpanded(true);
       }
       if (group) onDeleteProject?.(group.id);
     }
@@ -556,10 +567,10 @@ export function Sidebar({
     const projectName = createProjectValue.trim();
     if (!projectName) return;
     setGroups((current) => [
-      { id: Date.now(), title: projectName, items: [], expanded: false },
+      { id: Date.now(), title: projectName, items: [], expanded: false, showAll: false },
       ...current,
     ]);
-    setProjectsExpanded(true);
+    setRecentExpanded(true);
     setCreateProjectOpen(false);
     setCreateProjectValue("");
   };
@@ -806,19 +817,19 @@ export function Sidebar({
         </div>
 
         <div className="sidebar__scroll">
-          <section className="sidebar-section">
+          <section className="sidebar-section sidebar-section--recent">
             <div className="sidebar-section__heading">
               <button
                 className="sidebar-section__trigger"
                 type="button"
-                aria-expanded={projectsExpanded}
-                onClick={() => setProjectsExpanded((value) => !value)}
+                aria-expanded={recentExpanded}
+                onClick={() => setRecentExpanded((value) => !value)}
               >
-                <span>{t("项目")}</span>
+                <span>{t("最近")}</span>
                 <FigmaIcon
                   name="chevron-down"
                   size={16}
-                  className={projectsExpanded ? "" : "is-closed"}
+                  className={recentExpanded ? "" : "is-closed"}
                 />
               </button>
               <IconControl
@@ -831,7 +842,7 @@ export function Sidebar({
                 <FigmaIcon name="add-project" size={20} />
               </IconControl>
             </div>
-            <div className={`sidebar-section__content ${projectsExpanded ? "is-open" : ""}`}>
+            <div className={`sidebar-section__content ${recentExpanded ? "is-open" : ""}`}>
               <div className="sidebar-section__content-inner">
               {groups.map((group, groupIndex) => (
                 <div className="tree-group" key={group.id}>
@@ -850,7 +861,7 @@ export function Sidebar({
                         ? "is-menu-open"
                         : ""
                     }`}
-                    draggable={projectsExpanded}
+                    draggable={recentExpanded}
                     onDragStart={(event) => handleGroupDragStart(event, groupIndex, group.title)}
                     onDragOver={(event) => handleGroupDragOver(event, groupIndex)}
                     onDragLeave={(event) => {
@@ -875,17 +886,17 @@ export function Sidebar({
                         setGroups((current) =>
                           current.map((currentGroup, currentIndex) =>
                             currentIndex === groupIndex
-                              ? { ...currentGroup, expanded: !currentGroup.expanded }
+                              ? {
+                                  ...currentGroup,
+                                  expanded: !currentGroup.expanded,
+                                  showAll: currentGroup.expanded ? false : currentGroup.showAll,
+                                }
                               : currentGroup,
                           ),
                         );
                       }}
                     >
-                      <FigmaIcon
-                        name={group.items.length > 0 ? "chevron-down" : "chevron-right"}
-                        size={16}
-                        className={group.items.length > 0 && !group.expanded ? "is-closed" : ""}
-                      />
+                      <ProjectDisclosureIcon expanded={group.expanded} />
                       <span>{group.title}</span>
                     </button>
                     <div className="tree-row__actions tree-row__actions--group">
@@ -919,7 +930,10 @@ export function Sidebar({
                     aria-hidden={!group.expanded}
                   >
                     <div className="tree-group__children-inner">
-                  {group.items.map((item, itemIndex) => {
+                  {(group.showAll
+                    ? group.items
+                    : group.items.slice(0, PROJECT_TASK_PREVIEW_LIMIT)
+                  ).map((item, itemIndex) => {
                     const mappedTaskId = createdTaskIdsRef.current.get(`${group.id}:${item}`);
                     const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
                       ? activeTaskId === mappedTaskId
@@ -991,19 +1005,28 @@ export function Sidebar({
                       </div>
                     );
                   })}
+                  {!group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT ? (
+                    <button
+                      type="button"
+                      className="tree-group__show-more"
+                      onClick={() => setGroups((current) => current.map((currentGroup, currentIndex) =>
+                        currentIndex === groupIndex ? { ...currentGroup, showAll: true } : currentGroup,
+                      ))}
+                    >
+                      <FigmaIcon name="more-horizontal" size={16} />
+                      <span>{t("展示更多该项目任务")}</span>
+                    </button>
+                  ) : null}
+                  {group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT ? (
+                    <div className="tree-group__divider" aria-hidden="true" />
+                  ) : null}
                     </div>
                   </div>
                 </div>
               ))}
-              </div>
-            </div>
-            <div className="sidebar__divider sidebar__divider--section" />
-          </section>
-
-          <section className="sidebar-section sidebar-section--tasks">
-            <div
-              className="sidebar-section__heading sidebar-section__heading--tasks"
-              onDragOver={(event) => {
+              <div
+                className="recent-task-list"
+                onDragOver={(event) => {
                 if (!draggedRow || draggedRow.kind === "group") return;
                 event.preventDefault();
                 event.dataTransfer.dropEffect = "move";
@@ -1011,28 +1034,12 @@ export function Sidebar({
                 const rect = event.currentTarget.getBoundingClientRect();
                 setDropTarget({ kind: "task", groupIndex: null, index: tasks.length });
                 setIndicatorAt(rect, "bottom");
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                finishDrag();
-              }}
-            >
-              <button
-                className="sidebar-section__trigger"
-                type="button"
-                aria-expanded={tasksExpanded}
-                onClick={() => setTasksExpanded((value) => !value)}
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  finishDrag();
+                }}
               >
-                <span>{t("任务")}</span>
-                <FigmaIcon
-                  name="chevron-down"
-                  size={16}
-                  className={tasksExpanded ? "" : "is-closed"}
-                />
-              </button>
-            </div>
-            <div className={`sidebar-section__content task-list ${tasksExpanded ? "is-open" : ""}`}>
-              <div className="sidebar-section__content-inner">
               {tasks.map((item, index) => {
                 const mappedTaskId = createdTaskIdsRef.current.get(`task:${item}`);
                 const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
@@ -1051,7 +1058,7 @@ export function Sidebar({
                     } ${isSelected ? "is-selected" : ""} ${
                       isMenuOpen ? "is-menu-open" : ""
                     }`}
-                    draggable={tasksExpanded}
+                    draggable={recentExpanded}
                     onDragStart={(event) => handleLooseTaskDragStart(event, index, item)}
                     onDragOver={(event) => handleTaskDragOver(event, null, index)}
                     onDrop={(event) => {
@@ -1095,6 +1102,7 @@ export function Sidebar({
               })}
               </div>
             </div>
+            </div>
           </section>
         </div>
       </div>
@@ -1117,9 +1125,9 @@ export function Sidebar({
         <div className="sidebar__collapsed-overflow">
           <div
             className="collapsed-menu-trigger"
-            onMouseEnter={() => openCollapsedMenu("projects")}
+            onMouseEnter={() => openCollapsedMenu("recent")}
             onMouseLeave={scheduleCollapsedMenuClose}
-            onFocus={() => openCollapsedMenu("projects")}
+            onFocus={() => openCollapsedMenu("recent")}
             onBlur={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
                 scheduleCollapsedMenuClose();
@@ -1127,18 +1135,18 @@ export function Sidebar({
             }}
           >
             <IconControl
-              label={t("项目")}
+              label={t("最近")}
               showTooltip={false}
               aria-haspopup="menu"
-              aria-expanded={collapsedMenu === "projects"}
+              aria-expanded={collapsedMenu === "recent"}
             >
-              <FigmaIcon name="project" size={20} />
+              <FigmaIcon name="task" size={20} />
             </IconControl>
             <div
-              className={`collapsed-flyout collapsed-flyout--projects ${collapsedMenu === "projects" ? "is-open" : ""}`}
+              className={`collapsed-flyout collapsed-flyout--recent ${collapsedMenu === "recent" ? "is-open" : ""}`}
               role="menu"
-              aria-label={t("项目")}
-              onMouseEnter={() => openCollapsedMenu("projects")}
+              aria-label={t("最近")}
+              onMouseEnter={() => openCollapsedMenu("recent")}
             >
               {groups.map((group, groupIndex) => (
                 <div className="tree-group" key={`flyout-${group.id}`}>
@@ -1183,17 +1191,17 @@ export function Sidebar({
                         setGroups((current) =>
                           current.map((currentGroup, currentIndex) =>
                             currentIndex === groupIndex
-                              ? { ...currentGroup, expanded: !currentGroup.expanded }
+                              ? {
+                                  ...currentGroup,
+                                  expanded: !currentGroup.expanded,
+                                  showAll: currentGroup.expanded ? false : currentGroup.showAll,
+                                }
                               : currentGroup,
                           ),
                         );
                       }}
                     >
-                      <FigmaIcon
-                        name={group.items.length > 0 ? "chevron-down" : "chevron-right"}
-                        size={16}
-                        className={group.items.length > 0 && !group.expanded ? "is-closed" : ""}
-                      />
+                      <ProjectDisclosureIcon expanded={group.expanded} />
                       <span>{group.title}</span>
                     </button>
                     <div className="tree-row__actions tree-row__actions--group">
@@ -1227,7 +1235,10 @@ export function Sidebar({
                     aria-hidden={!group.expanded}
                   >
                     <div className="tree-group__children-inner">
-                      {group.items.map((item, itemIndex) => {
+                      {(group.showAll
+                        ? group.items
+                        : group.items.slice(0, PROJECT_TASK_PREVIEW_LIMIT)
+                      ).map((item, itemIndex) => {
                         const mappedTaskId = createdTaskIdsRef.current.get(`${group.id}:${item}`);
                         const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
                           ? activeTaskId === mappedTaskId
@@ -1301,112 +1312,104 @@ export function Sidebar({
                           </div>
                         );
                       })}
+                      {!group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT ? (
+                        <button
+                          type="button"
+                          className="tree-group__show-more"
+                          onClick={() => setGroups((current) => current.map((currentGroup, currentIndex) =>
+                            currentIndex === groupIndex ? { ...currentGroup, showAll: true } : currentGroup,
+                          ))}
+                        >
+                          <FigmaIcon name="more-horizontal" size={16} />
+                          <span>{t("展示更多该项目任务")}</span>
+                        </button>
+                      ) : null}
+                      {group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT ? (
+                        <div className="tree-group__divider" aria-hidden="true" />
+                      ) : null}
                     </div>
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-          <div
-            className="collapsed-menu-trigger"
-            onMouseEnter={() => openCollapsedMenu("tasks")}
-            onMouseLeave={scheduleCollapsedMenuClose}
-            onFocus={() => openCollapsedMenu("tasks")}
-            onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                scheduleCollapsedMenuClose();
-              }
-            }}
-          >
-            <IconControl
-              label={t("任务")}
-              showTooltip={false}
-              aria-haspopup="menu"
-              aria-expanded={collapsedMenu === "tasks"}
-            >
-              <FigmaIcon name="task" size={20} />
-            </IconControl>
-            <div
-              className={`collapsed-flyout collapsed-flyout--tasks ${collapsedMenu === "tasks" ? "is-open" : ""}`}
-              role="menu"
-              aria-label={t("任务")}
-              onMouseEnter={() => openCollapsedMenu("tasks")}
-              onDragOver={(event) => {
-                if (!draggedRow || draggedRow.kind === "group") return;
-                event.preventDefault();
-                event.dataTransfer.dropEffect = "move";
-                setDropFocusedGroupIndex(null);
-                const rect = event.currentTarget.getBoundingClientRect();
-                setDropTarget({ kind: "task", groupIndex: null, index: tasks.length });
-                setIndicatorAt(rect, "bottom");
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                finishDrag();
-              }}
-            >
-              {tasks.map((item, index) => {
-                const mappedTaskId = createdTaskIdsRef.current.get(`task:${item}`);
-                const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
-                  ? activeTaskId === mappedTaskId
-                  : activeTaskId === null &&
-                    selectedRow?.kind === "task" && selectedRow.taskIndex === index);
-                const isMenuOpen =
-                  actionMenu?.target.kind === "task" &&
-                  actionMenu.target.taskIndex === index;
+              <div
+                className="collapsed-flyout__recent-tasks"
+                onDragOver={(event) => {
+                  if (!draggedRow || draggedRow.kind === "group") return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  setDropFocusedGroupIndex(null);
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setDropTarget({ kind: "task", groupIndex: null, index: tasks.length });
+                  setIndicatorAt(rect, "bottom");
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  finishDrag();
+                }}
+              >
+                {tasks.map((item, index) => {
+                  const mappedTaskId = createdTaskIdsRef.current.get(`task:${item}`);
+                  const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
+                    ? activeTaskId === mappedTaskId
+                    : activeTaskId === null &&
+                      selectedRow?.kind === "task" && selectedRow.taskIndex === index);
+                  const isMenuOpen =
+                    actionMenu?.target.kind === "task" &&
+                    actionMenu.target.taskIndex === index;
 
-                return (
-                  <div
-                    className={`task-row-shell ${
-                      draggedRow?.kind === "task" && draggedRow.taskIndex === index
-                        ? "is-dragging"
-                        : ""
-                    } ${isSelected ? "is-selected" : ""} ${
-                      isMenuOpen ? "is-menu-open" : ""
-                    }`}
-                    draggable
-                    onDragStart={(event) => handleLooseTaskDragStart(event, index, item)}
-                    onDragOver={(event) => handleTaskDragOver(event, null, index)}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      finishDrag();
-                    }}
-                    onDragEnd={cancelDrag}
-                    key={`${item}-flyout-${index}`}
-                  >
-                    <span className="task-row__selection-surface" aria-hidden="true" />
-                    <button
-                      className="task-row"
-                      type="button"
-                      role="menuitem"
-                      aria-current={isSelected ? "page" : undefined}
-                      onClick={() => {
-                        setSelectedRow({ kind: "task", taskIndex: index });
-                        openSavedTask(null, item);
+                  return (
+                    <div
+                      className={`task-row-shell ${
+                        draggedRow?.kind === "task" && draggedRow.taskIndex === index
+                          ? "is-dragging"
+                          : ""
+                      } ${isSelected ? "is-selected" : ""} ${
+                        isMenuOpen ? "is-menu-open" : ""
+                      }`}
+                      draggable
+                      onDragStart={(event) => handleLooseTaskDragStart(event, index, item)}
+                      onDragOver={(event) => handleTaskDragOver(event, null, index)}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        finishDrag();
                       }}
+                      onDragEnd={cancelDrag}
+                      key={`${item}-recent-flyout-${index}`}
                     >
-                      <span className={`tree-row__selection-indicator ${isSelected ? "is-selected" : ""}`} aria-hidden="true">
-                        <span className={`system-dot task-row__selection-dot ${isSelected ? "is-visible" : ""}`} />
-                      </span>
-                      <TaskListItemContent title={item} {...getTaskSidebarMeta(item)} />
-                    </button>
-                    <div className="tree-row__actions tree-row__actions--task">
-                      <IconControl
-                        size="small"
-                        label={t("更多")}
-                        tooltipPlacement="top"
-                        aria-haspopup="menu"
-                        aria-expanded={isMenuOpen}
-                        onClick={(event) =>
-                          openActionMenu(event, { kind: "task", taskIndex: index })
-                        }
+                      <span className="task-row__selection-surface" aria-hidden="true" />
+                      <button
+                        className="task-row"
+                        type="button"
+                        role="menuitem"
+                        aria-current={isSelected ? "page" : undefined}
+                        onClick={() => {
+                          setSelectedRow({ kind: "task", taskIndex: index });
+                          openSavedTask(null, item);
+                        }}
                       >
-                        <FigmaIcon name="more-horizontal" size={16} />
-                      </IconControl>
+                        <span className={`tree-row__selection-indicator ${isSelected ? "is-selected" : ""}`} aria-hidden="true">
+                          <span className={`system-dot task-row__selection-dot ${isSelected ? "is-visible" : ""}`} />
+                        </span>
+                        <TaskListItemContent title={item} {...getTaskSidebarMeta(item)} />
+                      </button>
+                      <div className="tree-row__actions tree-row__actions--task">
+                        <IconControl
+                          size="small"
+                          label={t("更多")}
+                          tooltipPlacement="top"
+                          aria-haspopup="menu"
+                          aria-expanded={isMenuOpen}
+                          onClick={(event) =>
+                            openActionMenu(event, { kind: "task", taskIndex: index })
+                          }
+                        >
+                          <FigmaIcon name="more-horizontal" size={16} />
+                        </IconControl>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

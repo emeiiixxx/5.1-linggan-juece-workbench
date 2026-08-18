@@ -46,7 +46,7 @@ export function TopBar({ theme, onToggleTheme }: TopBarProps) {
         </a>
 
         <div className="topbar__preferences">
-          <div className={`language-control ${languageOpen ? "is-open" : ""}`} ref={languageRef}>
+          <div className={`language-control ${languageOpen ? "is-open" : ""}`} ref={languageRef} data-i18n-static="true">
             <button className="language-select" type="button" aria-label={t("选择语言")} aria-haspopup="menu" aria-expanded={languageOpen} onClick={() => setLanguageOpen((open) => !open)}>
               <FigmaIcon name="global" size={16} />
               <span title={activeLanguage.label}>{activeLanguage.label}</span>

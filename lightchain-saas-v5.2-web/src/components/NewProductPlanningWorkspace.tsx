@@ -32,7 +32,7 @@ import { ResearchScopeForm } from "./ResearchScopeForm";
 import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
 import { ConversationUserAttachments } from "./ConversationUserAttachments";
 import { getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
-import { useI18n } from "../i18n";
+import { translateHtmlCopy, useI18n } from "../i18n";
 import { buildFashionProposalHtml, type FashionProposalPlan, type FashionProposalSource } from "../report/fashionProposalHtml";
 import { buildNewProductPlanHtml } from "../report/newProductPlanHtml";
 import { useModalFocus } from "../hooks/useModalFocus";
@@ -392,10 +392,14 @@ async function downloadReportFile(name: string, description: string, html: strin
 }
 
 function DownloadableFile({ name, description, html, onPreview }: { name: string; description: string; html?: string; onPreview?: () => void }) {
+  const { locale, t } = useI18n();
+  const localizedName = t(name);
+  const localizedDescription = t(description);
+  const localizedHtml = html ? translateHtmlCopy(html, locale) : html;
   return (
-    <ConversationFileCard icon="html" name={name} description={description}>
-      <button type="button" onClick={onPreview ?? (() => window.alert(`${name} 为只读在线查看版本。`))}>在线查看</button>
-      <DownloadFormatMenu onSelect={(format) => downloadReportFile(name, description, html, format)} />
+    <ConversationFileCard icon="html" name={localizedName} description={localizedDescription}>
+      <button type="button" onClick={onPreview ?? (() => window.alert(`${localizedName} ${t("为只读在线查看版本。")}`))}>{t("在线查看")}</button>
+      <DownloadFormatMenu onSelect={(format) => downloadReportFile(localizedName, localizedDescription, localizedHtml, format)} />
     </ConversationFileCard>
   );
 }
@@ -1089,14 +1093,14 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                   <div className="trend-preview-modal__actions">
                     <DownloadFormatMenu
                       triggerStyle="outline"
-                      onSelect={(format) => downloadReportFile(reportPreview.name, "AI 生成 · 在线预览", reportPreview.html, format)}
+                      onSelect={(format) => downloadReportFile(reportPreview.name, t("AI 生成 · 在线预览"), translateHtmlCopy(reportPreview.html, locale), format)}
                     />
                     <IconControl label={t("关闭在线查看")} variant="bare" size="small" autoFocus onClick={() => setReportPreview(null)}>
                       <FigmaIcon name="close" size={20} />
                     </IconControl>
                   </div>
                 </header>
-                <iframe className="trend-preview-modal__frame" title={`${reportPreview.name}${t("在线查看")}`} srcDoc={reportPreview.html} sandbox="allow-scripts allow-popups" referrerPolicy="no-referrer" />
+                <iframe className="trend-preview-modal__frame" title={`${reportPreview.name}${t("在线查看")}`} srcDoc={translateHtmlCopy(reportPreview.html, locale)} sandbox="allow-scripts allow-popups" referrerPolicy="no-referrer" />
               </motion.section>
             </motion.div>
           ) : null}

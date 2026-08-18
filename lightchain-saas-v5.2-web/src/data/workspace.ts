@@ -1,20 +1,26 @@
-import { assetUrl } from "../utils/assets";
-
 export const projectGroups = [
   {
     title: "GG酱的灵感",
     items: ["27年宠物流行服饰趋势", "27年颜色流行趋势"],
   },
-  { title: "冬季大促营销策划", items: [] },
-  { title: "Untitled", items: [] },
-  { title: "Untitled", items: [] },
-  { title: "Untitled", items: [] },
-  { title: "Untitled", items: [] },
+  {
+    title: "冬季大促营销策划",
+    items: [
+      "大促市场与销售目标确认",
+      "核心客群与促销场景梳理",
+      "主推品类与价格带规划",
+      "竞品促销机制调研",
+      "冬季主题视觉方向",
+      "重点款式与商品结构",
+      "AI 改款与营销素材",
+      "上线节奏与复盘指标",
+    ],
+  },
 ];
 
-export type TaskWorkflow = "new-product" | "default" | "apparel" | "plan";
+export type TaskWorkflow = "new-product" | "default" | "apparel" | "pattern" | "plan";
 export type TaskStatus = "running" | "pending" | "completed";
-export type TaskSourceLabel = "新品企划" | "客户提案" | "灵感设计" | "企划案";
+export type TaskSourceLabel = "新品企划" | "客户提案" | "服装设计" | "图案设计" | "企划案";
 export type TaskSidebarMeta = {
   workflow: TaskWorkflow;
   sourceLabel?: TaskSourceLabel;
@@ -25,13 +31,22 @@ export type TaskSidebarMeta = {
 export const taskWorkflowLabels: Record<TaskWorkflow, TaskSourceLabel> = {
   "new-product": "新品企划",
   default: "客户提案",
-  apparel: "灵感设计",
+  apparel: "服装设计",
+  pattern: "图案设计",
   plan: "企划案",
 };
 
 export const initialTaskSidebarMeta: Record<string, TaskSidebarMeta> = {
   "27年宠物流行服饰趋势": { workflow: "new-product", status: "completed", updatedAt: "2026-08-18" },
   "27年颜色流行趋势": { workflow: "default", status: "completed", updatedAt: "2026-08-18" },
+  "大促市场与销售目标确认": { workflow: "plan", status: "completed", updatedAt: "2026-08-18" },
+  "核心客群与促销场景梳理": { workflow: "default", status: "completed", updatedAt: "2026-08-18" },
+  "主推品类与价格带规划": { workflow: "new-product", status: "completed", updatedAt: "2026-08-18" },
+  "竞品促销机制调研": { workflow: "default", status: "completed", updatedAt: "2026-08-18" },
+  "冬季主题视觉方向": { workflow: "apparel", status: "pending", updatedAt: "2026-08-18" },
+  "重点款式与商品结构": { workflow: "new-product", status: "pending", updatedAt: "2026-08-18" },
+  "AI 改款与营销素材": { workflow: "apparel", status: "pending", updatedAt: "2026-08-18" },
+  "上线节奏与复盘指标": { workflow: "plan", status: "pending", updatedAt: "2026-08-18" },
   "2027春夏北美宠物雨衣趋势调研": { workflow: "new-product", status: "running" },
   "米白针织开衫设计方向确认": { workflow: "apparel", status: "pending", updatedAt: "2026-08-17" },
   "Loro Piana 2027春夏男装企划": { workflow: "plan", status: "completed", updatedAt: "2026-08-16" },
@@ -117,42 +132,9 @@ export const allDemoTaskExamples = [
 ];
 
 export const quickStartCards = [
-  {
-    title: "面料套版",
-    description: "面料·指定版式快速设计",
-    images: [
-      assetUrl("assets/quick-start/fabric-template-2.jpg"),
-      assetUrl("assets/quick-start/fabric-template-3.jpg"),
-      assetUrl("assets/quick-start/fabric-template-1.jpg"),
-    ],
-  },
-  {
-    title: "转线稿图",
-    description: "批量转换，秒速生成线稿",
-    images: [
-      assetUrl("assets/quick-start/single-style-2.jpg"),
-      assetUrl("assets/quick-start/single-style-3.jpg"),
-      assetUrl("assets/quick-start/single-style-1.jpg"),
-    ],
-  },
-  {
-    title: "款式融合",
-    description: "融合特征，焕新呈现",
-    images: [
-      assetUrl("assets/quick-start/multi-style-2.jpg"),
-      assetUrl("assets/quick-start/multi-style-3.jpg"),
-      assetUrl("assets/quick-start/multi-style-1.jpg"),
-    ],
-  },
-  {
-    title: "印花设计",
-    description: "基于参考图或内容生成印花图案",
-    images: [
-      assetUrl("assets/quick-start/print-design-2.jpg"),
-      assetUrl("assets/quick-start/print-design-3.jpg"),
-      assetUrl("assets/quick-start/print-design-1.jpg"),
-    ],
-  },
+  "以ZIMMERMANN的RESORT2026系列做为设计灵感，需要包含短款外套、衬衫连衣裙、印花连衣裙、半裙、生成一份女装主题设计企划。",
+  "以PDF的2025秋冬系列做为设计灵感，需要包含印花外套、棒球外套、卫衣、毛衣、长裤生成一份男童主题设计企划。",
+  "以PDF的2025秋冬系列做为设计灵感，需要包含印花外套、棒球外套、卫衣、毛衣、长裤生成一份男童主题设计企划。",
 ];
 
 export const recentItems = [

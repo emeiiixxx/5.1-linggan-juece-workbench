@@ -14,7 +14,7 @@ import { SelectionCard } from "./SelectionCard";
 import { AnalysisStepIcon, ConversationFeed, ConversationFileCard, ConversationFollowUpExchange, ConversationFormTitle, ConversationTaskCompletion, ConversationUserMessage, ImageSelectionActions, SelectAllControl, TaskArtifactRow, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
 import { candidateCategories, candidatePageCount, candidateReferenceImages, formatCandidateSelection, formatTrendDirectionSelection, getCandidateCategoryLabel, getCandidateReference, trendDirections, trendReportDetails, type CandidateCategoryId } from "../data/referenceCatalog";
 import { buildFashionProposalHtml } from "../report/fashionProposalHtml";
-import { useI18n } from "../i18n";
+import { translateHtmlCopy, translateSystemCopy, useI18n } from "../i18n";
 import { extractPromptContext } from "../utils/promptContext";
 import { getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
 import { useModalFocus } from "../hooks/useModalFocus";
@@ -142,15 +142,16 @@ function downloadCustomerProposalFile(
   format: TrendDownloadFormat,
   selectedDirectionIds: string[],
   selectedResultIds: string[],
+  locale: "zh-CN" | "ja-JP" | "en-US",
 ) {
-  const baseName = kind === "proposal" ? "正式客户提案" : "AI改款结果";
-  const html = buildTrendReportHtml(kind, selectedDirectionIds, selectedResultIds);
+  const baseName = translateSystemCopy(kind === "proposal" ? "正式客户提案" : "AI改款结果", locale);
+  const html = translateHtmlCopy(buildTrendReportHtml(kind, selectedDirectionIds, selectedResultIds), locale);
   const mimeType = format === "HTML"
     ? "text/html;charset=utf-8"
     : format === "PPT"
       ? "application/vnd.ms-powerpoint"
       : "application/pdf";
-  const content = format === "HTML" ? html : `${baseName}\n\n${formatTrendDirectionSelection(selectedDirectionIds)}\n已确认 ${selectedResultIds.length} 张 AI 改款图`;
+  const content = format === "HTML" ? html : translateSystemCopy(`${baseName}\n\n${formatTrendDirectionSelection(selectedDirectionIds)}\n已确认 ${selectedResultIds.length} 张 AI 改款图`, locale);
   const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
   const link = document.createElement("a");
   link.href = url;
@@ -171,33 +172,34 @@ function downloadCustomerAiImage(item: ImageGalleryItem) {
   link.remove();
 }
 
-function downloadTrendAnalysis(format: TrendDownloadFormat) {
+function downloadTrendAnalysis(format: TrendDownloadFormat, locale: "zh-CN" | "ja-JP" | "en-US") {
+  const analysisName = translateSystemCopy("趋势方向分析", locale);
   if (format === "HTML") {
-    const url = URL.createObjectURL(new Blob([buildTrendReportHtml("research")], { type: "text/html;charset=utf-8" }));
+    const url = URL.createObjectURL(new Blob([translateHtmlCopy(buildTrendReportHtml("research"), locale)], { type: "text/html;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = "客户需求调研与视觉方向.html";
+    link.download = `${translateSystemCopy("客户需求调研与视觉方向", locale)}.html`;
     document.body.appendChild(link);
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
     return;
   }
-  const reportText = [
+  const reportText = translateSystemCopy([
     "趋势方向分析",
     "",
     "主市场：日本",
     "电商平台：Rakuten Fashion、其他",
     "社媒平台：Instagram、TikTok",
     "方向数量：4",
-  ].join("\n");
+  ].join("\n"), locale);
   const extension = format.toLowerCase();
   const mimeType = format === "PPT" ? "application/vnd.ms-powerpoint" : "application/pdf";
   const content = reportText;
   const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
   const link = document.createElement("a");
   link.href = url;
-  link.download = `趋势方向分析.${extension}`;
+  link.download = `${analysisName}.${extension}`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -1110,7 +1112,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                 description="刚刚 · 4个待确认方向 · 分来源展示样本、时间、充分度与缺口"
                               >
                                 <button type="button" onClick={() => openTrendPreview("research")}>在线查看</button>
-                                <DownloadFormatMenu onSelect={(format) => downloadTrendAnalysis(format.toUpperCase() as TrendDownloadFormat)} />
+                                <DownloadFormatMenu onSelect={(format) => downloadTrendAnalysis(format.toUpperCase() as TrendDownloadFormat, locale)} />
                               </ConversationFileCard>
                               <p>本次判断综合参考了目标市场电商商品、社媒内容、趋势资料和用户上传资料。具体来源、样本范围与数据缺口可在调研报告中查看。</p>
                             </>
@@ -1437,7 +1439,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                     description="刚刚 · 服装改款提示词已在后台通过完整性检查 · AI概念表达"
                                   >
                                     <button type="button" onClick={() => openTrendPreview("ai-results")}>在线查看</button>
-                                    <DownloadFormatMenu onSelect={(format) => downloadCustomerProposalFile("ai-results", format.toUpperCase() as TrendDownloadFormat, selectedTrendIds, customerAiResultImages.map((item) => item.id))} />
+                                    <DownloadFormatMenu onSelect={(format) => downloadCustomerProposalFile("ai-results", format.toUpperCase() as TrendDownloadFormat, selectedTrendIds, customerAiResultImages.map((item) => item.id), locale)} />
                                   </ConversationFileCard>
                                   <p>请从改款结果中，选择你喜欢的图片</p>
                                   <section className={`new-product-results-form customer-ai-results-form ${aiResultsConfirmed ? "is-confirmed" : ""}`} aria-label="选择进入正式客户提案的 AI 改款图">
@@ -1546,7 +1548,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                   >
                                     <ConversationFileCard icon="html" name="正式客户提案.html" description="刚刚 · 统一HTML查看器 · 可下载HTML/PPT/PDF · 不支持在线编辑">
                                       <button type="button" onClick={() => openTrendPreview("proposal")}>在线查看</button>
-                                      <DownloadFormatMenu onSelect={(format) => downloadCustomerProposalFile("proposal", format.toUpperCase() as TrendDownloadFormat, selectedTrendIds, selectedAiResultIds)} />
+                                      <DownloadFormatMenu onSelect={(format) => downloadCustomerProposalFile("proposal", format.toUpperCase() as TrendDownloadFormat, selectedTrendIds, selectedAiResultIds, locale)} />
                                     </ConversationFileCard>
                                   </ConversationTaskCompletion>
                                 </motion.article>
@@ -1691,8 +1693,8 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                       triggerStyle="outline"
                       onSelect={(format) => {
                         const downloadFormat = format.toUpperCase() as TrendDownloadFormat;
-                        if (trendPreviewKind === "ai-results" || trendPreviewKind === "proposal") downloadCustomerProposalFile(trendPreviewKind, downloadFormat, selectedTrendIds, trendPreviewKind === "ai-results" ? customerAiResultImages.map((item) => item.id) : selectedAiResultIds);
-                        else downloadTrendAnalysis(downloadFormat);
+                        if (trendPreviewKind === "ai-results" || trendPreviewKind === "proposal") downloadCustomerProposalFile(trendPreviewKind, downloadFormat, selectedTrendIds, trendPreviewKind === "ai-results" ? customerAiResultImages.map((item) => item.id) : selectedAiResultIds, locale);
+                        else downloadTrendAnalysis(downloadFormat, locale);
                       }}
                     />
                     <IconControl label={t("关闭在线查看")} variant="bare" size="small" autoFocus onClick={() => setTrendPreviewOpen(false)}>
@@ -1703,7 +1705,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                 <iframe
                   className="trend-preview-modal__frame"
                   title={trendPreviewKind === "ai-results" ? "AI改款结果在线预览" : trendPreviewKind === "proposal" ? "正式客户提案在线预览" : "客户需求调研与视觉方向在线预览"}
-                  srcDoc={buildTrendReportHtml(trendPreviewKind, selectedTrendIds, selectedCandidateIds)}
+                  srcDoc={translateHtmlCopy(buildTrendReportHtml(trendPreviewKind, selectedTrendIds, selectedCandidateIds), locale)}
                   sandbox="allow-scripts allow-popups"
                   referrerPolicy="no-referrer"
                 />

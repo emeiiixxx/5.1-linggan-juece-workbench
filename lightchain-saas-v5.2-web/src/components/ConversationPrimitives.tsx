@@ -837,7 +837,7 @@ export function TaskDetailPanel({
                     type="button"
                     onClick={() => setReferenceExpanded(true)}
                   >
-                    <span>{t("查看全部")} {references.length} 条</span>
+                    <span>{t("查看全部 {count} 条", { count: references.length })}</span>
                     <FigmaIcon name="chevron-right" size={16} />
                   </button>
                 ) : null}

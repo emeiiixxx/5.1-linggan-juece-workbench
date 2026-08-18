@@ -4,7 +4,6 @@ import { useAutoGrowTextarea } from "../hooks/useAutoGrowTextarea";
 import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
-import { InspirationDesignSelect, type InspirationDesignType } from "./InspirationDesignSelect";
 
 export type TaskConversationAttachment = {
   name: string;
@@ -28,8 +27,6 @@ type TaskConversationComposerProps = {
   className?: string;
   motionDelay?: number;
   focusRequest?: number;
-  inspirationDesignType?: InspirationDesignType;
-  onInspirationDesignTypeChange?: (value: InspirationDesignType) => void;
 };
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
@@ -46,8 +43,6 @@ export function TaskConversationComposer({
   className = "",
   motionDelay = 0,
   focusRequest = 0,
-  inspirationDesignType,
-  onInspirationDesignTypeChange,
 }: TaskConversationComposerProps) {
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
@@ -291,19 +286,6 @@ export function TaskConversationComposer({
           <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple onChange={(event) => addAttachments(event, "file")} />
           <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple onChange={(event) => addAttachments(event, "image")} />
         </div>
-        {inspirationDesignType && onInspirationDesignTypeChange && (
-          <>
-            <span className="conversation-composer__left-divider" aria-hidden="true" />
-            <InspirationDesignSelect
-              value={inspirationDesignType}
-              onChange={onInspirationDesignTypeChange}
-              menuPlacement="above"
-              onOpenChange={(open) => {
-                if (open) setAttachmentMenuOpen(false);
-              }}
-            />
-          </>
-        )}
       </div>
       <span>Enter 发送 · Shift + Enter 换行</span>
       <IconControl

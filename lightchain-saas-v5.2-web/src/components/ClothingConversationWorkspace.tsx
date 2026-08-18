@@ -9,7 +9,6 @@ import { TaskConversationComposer, type TaskConversationAttachment } from "./Tas
 import { useGsapEntrance } from "../motion/gsap";
 import { SelectionCard, SelectionControl } from "./SelectionCard";
 import { ConversationUserAttachments } from "./ConversationUserAttachments";
-import type { InspirationDesignType } from "./InspirationDesignSelect";
 import { extractPromptContext, getPromptExclusions } from "../utils/promptContext";
 import { ProgressiveImage } from "./ProgressiveImage";
 import { buildConditionAcknowledgement } from "../utils/taskAcknowledgement";
@@ -160,7 +159,6 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
   const [analysisExpanded, setAnalysisExpanded] = useState(!startsAtConfirmation);
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [followUp, setFollowUp] = useState("");
-  const [inspirationDesignType, setInspirationDesignType] = useState<InspirationDesignType>("apparel");
   const [briefReply, setBriefReply] = useState("");
   const [quantityChoice, setQuantityChoice] = useState(quantityOptions[0]);
   const [styleChoices, setStyleChoices] = useState<string[]>(startsAtConfirmation ? ["延续经典", "轻奢商务"] : []);
@@ -810,8 +808,6 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
           onSubmit={(submittedAttachments) => submitMessage(undefined, submittedAttachments)}
           placeholder={composerPlaceholder[stage]}
           disabled={!composerEnabled}
-          inspirationDesignType={inspirationDesignType}
-          onInspirationDesignTypeChange={setInspirationDesignType}
         />
       </section>
 

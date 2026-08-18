@@ -16,6 +16,9 @@ const ICON_ASSETS: Record<string, string> = {
   "image-generation": "image-generation.svg",
   "like-filled": "like-filled.svg",
   "pattern-material": "pattern-material.svg",
+  plan: "plan.svg",
+  "project-closed": "project-closed.svg",
+  "project-open": "project-open.svg",
   stop: "stop.svg",
 };
 
@@ -60,8 +63,11 @@ const ART_INSETS: Record<string, string> = {
   "new-task": "8.75% 7.99% 12.5% 12.5%",
   plus: "14.06%",
   "pattern-material": "4.17% 4.4% 3.95% 4.04%",
+  plan: "7.03% 6.25% 6.25% 6.59%",
   "points-star": "12.81% 3.54% 9.79% 5.94%",
   project: "12.69% 9.54% 12.68%",
+  "project-closed": "12.69% 9.54% 12.68% 9.54%",
+  "project-open": "12.5% 5.16% 12.5% 4.48%",
   "regenerate-image": "10%",
   search: "12.5%",
   stop: "18.75%",
