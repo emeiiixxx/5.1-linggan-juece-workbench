@@ -186,7 +186,7 @@ function buildTrendReportHtml(
       references: selectedResults.map((reference) => ({
         code: reference.code,
         title: reference.title,
-        category: getCandidateCategoryLabel(reference.categoryId),
+        category: getCandidateCategoryLabel(reference.categoryId as CandidateCategoryId),
         imageUrl: new URL(assetUrl(reference.src), window.location.href).href,
       })),
       categoryCount: new Set(selectedResults.map((reference) => reference.categoryId)).size,
