@@ -19,6 +19,7 @@ import { extractPromptContext } from "../utils/promptContext";
 import { getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, type ResearchMarket } from "../data/researchScope";
 import { useModalFocus } from "../hooks/useModalFocus";
 import { buildConditionAcknowledgement } from "../utils/taskAcknowledgement";
+import { scrollWithinConversation } from "../utils/conversationScroll";
 
 type AnalysisPhase = "parsing" | "complete";
 type GenerationDecision = "skip" | "confirm";
@@ -85,6 +86,69 @@ const customerAiResultImages = candidateCategories.flatMap((category) =>
     .slice(0, 3),
 );
 
+type CustomerAiResultBatch = {
+  id: string;
+  createdAt: string;
+  items: ImageGalleryItem[];
+};
+
+type CustomerAiRevisionMessage = {
+  id: string;
+  request: string;
+  attachments: TaskConversationAttachment[];
+  response: string;
+  isGenerating: boolean;
+  resultBatchId?: string;
+};
+
+type PendingCustomerAiRevision = {
+  messageId: string;
+  round: number;
+  sourceBatchId: string;
+  selectedItemIds: string[];
+  selectedItemLabels: string[];
+};
+
+const initialCustomerAiResultBatch: CustomerAiResultBatch = {
+  id: "customer-ai-initial",
+  createdAt: "2026-08-18 16:33",
+  items: customerAiResultImages.map((item) => ({ ...item })),
+};
+
+function formatCustomerGenerationTime() {
+  const date = new Date();
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function createCustomerAiResultBatch(
+  round: number,
+  sourceItems: readonly ImageGalleryItem[],
+  selectedItemIds: readonly string[],
+): CustomerAiResultBatch {
+  const selected = new Set(selectedItemIds);
+  const regenerateAll = selected.size === 0;
+  const revisionSources = [
+    "assets/figma-confirmed/candidate-gallery-look-01.png",
+    "assets/figma-confirmed/candidate-gallery-look-02.png",
+    "assets/figma-confirmed/trend-reference-primary.jpg",
+  ];
+  return {
+    id: `customer-ai-revision-${round}`,
+    createdAt: formatCustomerGenerationTime(),
+    items: sourceItems.map((item, index) => {
+      const revised = regenerateAll || selected.has(item.id);
+      return {
+        ...item,
+        id: `customer-B${round}-${String(index + 1).padStart(2, "0")}`,
+        code: `B${round}-${String(index + 1).padStart(2, "0")}`,
+        src: revised ? revisionSources[(index + round) % revisionSources.length] : item.src,
+        subtitle: revised && !item.subtitle?.includes("修改版") ? `${item.subtitle ?? item.title} · 修改版` : item.subtitle,
+      };
+    }),
+  };
+}
+
 function StreamingText({ children }: { children: string; delay?: number }) {
   return <span className="conversation-streaming-text">{children}</span>;
 }
@@ -96,9 +160,14 @@ function getProfileSummary(profileName: string) {
   return "已应用该档案中保存的品类、价格、市场与年龄范围";
 }
 
-function buildTrendReportHtml(kind: TrendPreviewKind, selectedDirectionIds: string[] = [], selectedCandidateIds: string[] = []) {
+function buildTrendReportHtml(
+  kind: TrendPreviewKind,
+  selectedDirectionIds: string[] = [],
+  selectedCandidateIds: string[] = [],
+  resultItems: readonly ImageGalleryItem[] = customerAiResultImages,
+) {
   if (kind === "ai-results" || kind === "proposal") {
-    const selectedResults = customerAiResultImages.filter((item) =>
+    const selectedResults = resultItems.filter((item) =>
       kind === "ai-results" || selectedCandidateIds.includes(item.id),
     );
     const selectedDirections = trendDirections.filter((direction) => selectedDirectionIds.includes(direction.id));
@@ -143,9 +212,10 @@ function downloadCustomerProposalFile(
   selectedDirectionIds: string[],
   selectedResultIds: string[],
   locale: "zh-CN" | "ja-JP" | "en-US",
+  resultItems: readonly ImageGalleryItem[] = customerAiResultImages,
 ) {
   const baseName = translateSystemCopy(kind === "proposal" ? "正式客户提案" : "AI改款结果", locale);
-  const html = translateHtmlCopy(buildTrendReportHtml(kind, selectedDirectionIds, selectedResultIds), locale);
+  const html = translateHtmlCopy(buildTrendReportHtml(kind, selectedDirectionIds, selectedResultIds, resultItems), locale);
   const mimeType = format === "HTML"
     ? "text/html;charset=utf-8"
     : format === "PPT"
@@ -211,14 +281,12 @@ function TrendDirectionSelectionForm({
   confirmed,
   onToggle,
   onToggleAll,
-  onReset,
   onConfirm,
 }: {
   selectedIds: string[];
   confirmed: boolean;
   onToggle: (directionId: string) => void;
   onToggleAll: () => void;
-  onReset: () => void;
   onConfirm: () => void;
 }) {
   return (
@@ -250,7 +318,6 @@ function TrendDirectionSelectionForm({
       {!confirmed ? (
         <div className="new-product-form-actions">
           <SelectAllControl selected={selectedIds.length === trendDirections.length} className="selection-select-all--leading" onToggle={onToggleAll} />
-          <Button variant="secondary" size="small" onClick={onReset}>重置选择</Button>
           <BusinessButton points={10} disabled={!selectedIds.length} onClick={onConfirm}>确认并继续</BusinessButton>
         </div>
       ) : null}
@@ -326,10 +393,12 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   );
   const [aiResultsConfirmed, setAiResultsConfirmed] = useState(startsComplete);
   const [aiResultPreviewId, setAiResultPreviewId] = useState<string | null>(null);
-  const [customerRegenerationPhase, setCustomerRegenerationPhase] = useState<"idle" | "queued" | "generating">("idle");
-  const [customerRegenerationTargetIds, setCustomerRegenerationTargetIds] = useState<string[]>([]);
-  const [customerRegeneratedSources, setCustomerRegeneratedSources] = useState<Record<string, string>>({});
-  const [customerRegenerationRound, setCustomerRegenerationRound] = useState(0);
+  const [aiResultPreviewReadOnly, setAiResultPreviewReadOnly] = useState(false);
+  const [customerAiResultBatches, setCustomerAiResultBatches] = useState<CustomerAiResultBatch[]>([initialCustomerAiResultBatch]);
+  const [customerAiRevisionMessages, setCustomerAiRevisionMessages] = useState<CustomerAiRevisionMessage[]>([]);
+  const [pendingCustomerAiRevision, setPendingCustomerAiRevision] = useState<PendingCustomerAiRevision | null>(null);
+  const [customerProposalEntryMessage, setCustomerProposalEntryMessage] = useState("");
+  const [customerProposalEntryAttachments, setCustomerProposalEntryAttachments] = useState<TaskConversationAttachment[]>([]);
   const [candidatePreviewId, setCandidatePreviewId] = useState<string | null>(null);
   const [referenceStylePreviewId, setReferenceStylePreviewId] = useState<string | null>(null);
   const [activeCandidateCategory, setActiveCandidateCategory] = useState<CandidateCategoryId>(candidateCategories[0].id);
@@ -353,7 +422,15 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const analysisComplete = analysisPhase === "complete";
   const trendScanComplete = scopeResultStage >= 3;
   const candidateSearchComplete = candidateSearchStage >= 4;
-  const customerRegenerationBusy = customerRegenerationPhase !== "idle";
+  const displayedCustomerAiResults = customerAiResultBatches[customerAiResultBatches.length - 1]?.items ?? customerAiResultImages;
+  const allCustomerGeneratedItems = useMemo(() => [...customerAiResultBatches].reverse().flatMap((batch) =>
+    batch.items.map((item) => ({ ...item, groupDate: batch.createdAt })),
+  ), [customerAiResultBatches]);
+  const selectedAiResultSummary = displayedCustomerAiResults
+    .filter((item) => selectedAiResultIds.includes(item.id))
+    .map((item) => `${item.code} · ${item.title}`)
+    .join("、");
+  const customerRegenerationBusy = Boolean(pendingCustomerAiRevision);
   const customerProposalRunning = customerProposalStage === "ai-generating" || customerProposalStage === "proposal-generating" || customerRegenerationBusy;
   useModalFocus(trendPreviewDialogRef, trendPreviewOpen, () => setTrendPreviewOpen(false));
 
@@ -405,7 +482,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   useEffect(() => {
     if (!scopeFormVisible) return;
     const frame = window.requestAnimationFrame(() => {
-      scopePhaseRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+      scrollWithinConversation(scopePhaseRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "start" });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [reduceMotion, scopeFormVisible]);
@@ -414,7 +491,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     if (!scopeConfirmed) return;
     if (startsComplete) return;
     const frame = window.requestAnimationFrame(() => {
-      confirmedResultsRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+      scrollWithinConversation(confirmedResultsRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "start" });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [reduceMotion, scopeConfirmed, startsComplete]);
@@ -459,7 +536,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   useEffect(() => {
     if (candidateSearchStage !== 1 && candidateSearchStage !== 5) return;
     const frame = window.requestAnimationFrame(() => {
-      candidatePoolRef.current?.scrollIntoView({
+      scrollWithinConversation(candidatePoolRef.current, {
         behavior: reduceMotion ? "auto" : "smooth",
         block: candidateSearchStage >= 5 ? "end" : "center",
       });
@@ -470,7 +547,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   useEffect(() => {
     if (!candidateSelectionConfirmed) return;
     const frame = window.requestAnimationFrame(() => {
-      candidatePoolRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
+      scrollWithinConversation(candidatePoolRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "end" });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [candidateSelectionConfirmed, reduceMotion]);
@@ -478,7 +555,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   useEffect(() => {
     if (!customerFeedbackSkipped) return;
     const frame = window.requestAnimationFrame(() => {
-      candidatePoolRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
+      scrollWithinConversation(candidatePoolRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "end" });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [customerFeedbackSkipped, generationDecision, reduceMotion]);
@@ -518,38 +595,33 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   }, [customerProposalStage, reduceMotion]);
 
   useEffect(() => {
-    if (customerRegenerationPhase !== "queued") return;
-    const timer = window.setTimeout(() => setCustomerRegenerationPhase("generating"), reduceMotion ? 0 : 320);
-    return () => window.clearTimeout(timer);
-  }, [customerRegenerationPhase, reduceMotion]);
-
-  useEffect(() => {
-    if (customerRegenerationPhase !== "generating") return;
+    if (!pendingCustomerAiRevision) return;
+    const pending = pendingCustomerAiRevision;
     const timer = window.setTimeout(() => {
-      setCustomerRegeneratedSources((current) => {
-        const next = { ...current };
-        customerRegenerationTargetIds.forEach((id, index) => {
-          const original = customerAiResultImages.find((item) => item.id === id)?.src;
-          const currentSource = current[id] ?? original;
-          next[id] = currentSource?.includes("candidate-gallery-look-01")
-            ? "assets/figma-confirmed/candidate-gallery-look-02.png"
-            : "assets/figma-confirmed/candidate-gallery-look-01.png";
-          if (index % 2 === customerRegenerationRound % 2) next[id] = "assets/figma-confirmed/trend-reference-primary.jpg";
-        });
-        return next;
-      });
-      setCustomerRegenerationPhase("idle");
-      setCustomerRegenerationTargetIds([]);
-      setCustomerRegenerationRound((round) => round + 1);
-      setSelectedAiResultIds((current) => current.filter((id) => !customerRegenerationTargetIds.includes(id)));
-    }, reduceMotion ? 0 : 1700);
+      const sourceBatch = customerAiResultBatches.find((batch) => batch.id === pending.sourceBatchId)
+        ?? customerAiResultBatches[customerAiResultBatches.length - 1]
+        ?? initialCustomerAiResultBatch;
+      const nextBatch = createCustomerAiResultBatch(pending.round, sourceBatch.items, pending.selectedItemIds);
+      const unchangedCount = Math.max(sourceBatch.items.length - pending.selectedItemIds.length, 0);
+      setCustomerAiResultBatches((current) => [...current, nextBatch]);
+      setCustomerAiRevisionMessages((current) => current.map((message) => message.id === pending.messageId ? {
+        ...message,
+        isGenerating: false,
+        resultBatchId: nextBatch.id,
+        response: pending.selectedItemLabels.length
+          ? `已完成 ${pending.selectedItemLabels.join("、")} 的修改，并与 ${unchangedCount} 张未提出修改意见的图片合并为一组新的完整候选。旧版本和本组图片都已保留，请从下面的新表单重新选择。`
+          : "已根据你的修改要求生成一组新的完整候选。旧版本和本组图片都已保留，请从下面的新表单重新选择。",
+      } : message));
+      setSelectedAiResultIds([]);
+      setPendingCustomerAiRevision(null);
+    }, reduceMotion ? 0 : 2200);
     return () => window.clearTimeout(timer);
-  }, [customerRegenerationPhase, customerRegenerationRound, customerRegenerationTargetIds, reduceMotion]);
+  }, [customerAiResultBatches, pendingCustomerAiRevision, reduceMotion]);
 
   useEffect(() => {
     if (customerProposalStage === "idle") return;
     const frame = window.requestAnimationFrame(() => {
-      candidatePoolRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
+      scrollWithinConversation(candidatePoolRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "end" });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [customerProposalStage, reduceMotion]);
@@ -563,17 +635,34 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   useEffect(() => {
     if (!additionalMessages.length) return;
     const frame = window.requestAnimationFrame(() => {
-      feedEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
+      scrollWithinConversation(feedEndRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "end" });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [additionalMessages.length, reduceMotion]);
+
+  useEffect(() => {
+    if (!customerAiRevisionMessages.length) return;
+    const frame = window.requestAnimationFrame(() => {
+      scrollWithinConversation(feedEndRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "end" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [customerAiResultBatches.length, customerAiRevisionMessages.length, pendingCustomerAiRevision, reduceMotion]);
 
   const submitFollowUp = (submittedAttachments: TaskConversationAttachment[]) => {
     const message = followUp.trim();
     if (!message && !submittedAttachments.length) return;
     onTaskProgress?.();
     let handled = false;
-    if (trendDirectionsConfirmed && customerProposalStage === "idle") {
+    if (customerProposalStage === "results") {
+      const normalizedMessage = message.replace(selectedAiResultSummary, "").replace(/^\s*[，,、:：]\s*/, "").trim();
+      const confirmsProposal = selectedAiResultIds.length > 0 && (
+        !normalizedMessage
+        || ["确认", "发送", "生成提案", "确认并生成提案"].includes(normalizedMessage)
+      );
+      if (confirmsProposal) generateFormalCustomerProposal(message || selectedAiResultSummary, submittedAttachments);
+      else startCustomerAiRevision(message, submittedAttachments);
+      handled = true;
+    } else if (trendDirectionsConfirmed && customerProposalStage === "idle") {
       setGenerationEntryMessage(message);
       setGenerationEntryAttachments(submittedAttachments);
       startCustomerAiGeneration();
@@ -693,31 +782,62 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
 
   const toggleAiResult = (resultId: string) => {
     if (aiResultsConfirmed || customerProposalRunning) return;
-    setSelectedAiResultIds((current) => current.includes(resultId)
-      ? current.filter((id) => id !== resultId)
-      : [...current, resultId]);
+    const next = selectedAiResultIds.includes(resultId)
+      ? selectedAiResultIds.filter((id) => id !== resultId)
+      : [...selectedAiResultIds, resultId];
+    setSelectedAiResultIds(next);
+    setFollowUp(displayedCustomerAiResults
+      .filter((item) => next.includes(item.id))
+      .map((item) => `${item.code} · ${item.title}`)
+      .join("、"));
   };
 
-  const generateFormalCustomerProposal = () => {
+  const generateFormalCustomerProposal = (
+    message = followUp.trim() || selectedAiResultSummary,
+    submittedAttachments: TaskConversationAttachment[] = [],
+  ) => {
     if (!selectedAiResultIds.length || customerProposalRunning) return;
+    setCustomerProposalEntryMessage(message);
+    setCustomerProposalEntryAttachments(submittedAttachments);
+    setFollowUp("");
     setAiResultsConfirmed(true);
     setProposalGenerationProgress(0);
     setProposalGenerationExpanded(true);
     setCustomerProposalStage("proposal-generating");
   };
 
-  const regenerateCustomerAiResults = (resultIds: string[]) => {
-    if (!resultIds.length || customerRegenerationBusy || aiResultsConfirmed) return;
-    setCustomerRegenerationTargetIds([...resultIds]);
-    setCustomerRegenerationPhase("queued");
+  const startCustomerAiRevision = (message: string, submittedAttachments: TaskConversationAttachment[]) => {
+    if (customerRegenerationBusy || aiResultsConfirmed) return;
+    const latestBatch = customerAiResultBatches[customerAiResultBatches.length - 1] ?? initialCustomerAiResultBatch;
+    const selectedItems = latestBatch.items.filter((item) => selectedAiResultIds.includes(item.id));
+    const messageId = `customer-ai-revision-message-${Date.now()}`;
+    setCustomerAiRevisionMessages((current) => [...current, {
+      id: messageId,
+      request: message || "请重新调整这一组方案",
+      attachments: submittedAttachments,
+      response: selectedItems.length
+        ? `收到你的修改需求，我将修改你选中的 ${selectedItems.map((item) => `${item.code} · ${item.title}`).join("、")}，并与没有提出修改意见的图片重新组合。`
+        : "收到你的修改需求，我将重新调整整组方案，并保留已生成的旧版本。",
+      isGenerating: true,
+    }]);
+    setPendingCustomerAiRevision({
+      messageId,
+      round: customerAiResultBatches.length,
+      sourceBatchId: latestBatch.id,
+      selectedItemIds: selectedItems.map((item) => item.id),
+      selectedItemLabels: selectedItems.map((item) => `${item.code} · ${item.title}`),
+    });
+    setAiResultPreviewId(null);
   };
-
-  const startCustomerRegeneration = () => regenerateCustomerAiResults(selectedAiResultIds);
 
   const stopCustomerProposalTask = () => {
     if (customerRegenerationBusy) {
-      setCustomerRegenerationPhase("idle");
-      setCustomerRegenerationTargetIds([]);
+      setPendingCustomerAiRevision(null);
+      setCustomerAiRevisionMessages((current) => current.map((message) => message.isGenerating ? {
+        ...message,
+        isGenerating: false,
+        response: "本次修改已停止，已生成的图片不会被覆盖。",
+      } : message));
       return;
     }
     if (customerProposalStage === "ai-generating") {
@@ -772,13 +892,16 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const visibleCandidateImages = candidateReferenceImages.filter((candidate) =>
     candidate.categoryId === activeCandidateCategory && candidate.page === activeCandidatePage,
   );
-  const displayedCustomerAiResults = customerAiResultImages.map((item) => ({
-    ...item,
-    src: customerRegeneratedSources[item.id] ?? item.src,
-  }));
   const toggleAllAiResults = () => {
     if (aiResultsConfirmed || customerProposalRunning) return;
-    setSelectedAiResultIds((current) => current.length === displayedCustomerAiResults.length ? [] : displayedCustomerAiResults.map((item) => item.id));
+    const next = selectedAiResultIds.length === displayedCustomerAiResults.length
+      ? []
+      : displayedCustomerAiResults.map((item) => item.id);
+    setSelectedAiResultIds(next);
+    setFollowUp(displayedCustomerAiResults
+      .filter((item) => next.includes(item.id))
+      .map((item) => `${item.code} · ${item.title}`)
+      .join("、"));
   };
   const conversationPlaceholder = !analysisComplete
     ? "Agent 正在解析需求，请稍候..."
@@ -793,12 +916,63 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
             : customerProposalStage === "ai-generating"
                 ? "Agent 正在生成专业改款提示词与 AI 概念图..."
                 : customerProposalStage === "results"
-                  ? "请选择喜欢的图片，或输入局部修改要求..."
+                  ? "请选择图片；名称会回显到输入框，也可输入修改要求..."
                   : customerProposalStage === "proposal-generating"
                     ? "Agent 正在写入正式客户提案，请稍候..."
                     : customerProposalStage === "complete"
                       ? "任务已完成，可提出修改意见或追加任务..."
                       : "继续补充条件或提出修改意见...";
+
+  const renderCustomerAiResultForm = (batch: CustomerAiResultBatch) => {
+    const activeBatch = batch.id === customerAiResultBatches[customerAiResultBatches.length - 1]?.id
+      && customerProposalStage === "results"
+      && !aiResultsConfirmed;
+    const selectedIds = activeBatch ? selectedAiResultIds : [];
+    return (
+      <section
+        className={`new-product-results-form customer-ai-results-form ${activeBatch ? "" : "is-confirmed"}`}
+        aria-label="选择进入正式客户提案的 AI 改款图"
+        key={batch.id}
+      >
+        <ConversationFormTitle
+          title="选择进入正式客户提案的 AI 改款图"
+          helper="选择后名称会回显到输入框；可直接发送、生成提案，或在输入框说明修改要求。"
+          status={activeBatch ? "pending" : "confirmed"}
+          statusLabel={activeBatch ? "待确认" : "已保留"}
+        />
+        <div className="customer-ai-result-grid customer-ai-result-grid--all">
+          {batch.items.map((item) => (
+            <MasonryImageSelection
+              key={item.id}
+              src={assetUrl(item.src)}
+              alt={`${item.code} ${item.title}`}
+              label={`${item.code} · ${item.title}`}
+              selected={selectedIds.includes(item.id)}
+              disabled={!activeBatch || customerProposalRunning}
+              onSelect={() => toggleAiResult(item.id)}
+              onPreview={() => {
+                setAiResultPreviewReadOnly(!activeBatch);
+                setAiResultPreviewId(item.id);
+              }}
+            />
+          ))}
+        </div>
+        <ImageSelectionActions
+          selectedCount={selectedIds.length}
+          totalCount={batch.items.length}
+          disabled={!activeBatch || customerProposalRunning}
+          hint=""
+          onToggleAll={toggleAllAiResults}
+        >
+          {activeBatch ? (
+            <BusinessButton points={999} disabled={!selectedAiResultIds.length || customerProposalRunning} onClick={() => generateFormalCustomerProposal()}>
+              生成提案
+            </BusinessButton>
+          ) : null}
+        </ImageSelectionActions>
+      </section>
+    );
+  };
 
   return (
     <motion.main
@@ -1142,7 +1316,6 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                               confirmed={trendDirectionsConfirmed}
                               onToggle={toggleTrendDirection}
                               onToggleAll={() => setSelectedTrendIds(selectedTrendIds.length === trendDirections.length ? [] : trendDirections.map((direction) => direction.id))}
-                              onReset={() => setSelectedTrendIds([])}
                               onConfirm={confirmTrendDirections}
                             />
                           </motion.article>
@@ -1429,83 +1602,48 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                   transition={{ duration: reduceMotion ? 0 : 0.32, ease: revealEase }}
                                   data-node-id={aiResultsConfirmed ? "620:33330" : selectedAiResultIds.length ? "620:32881" : "620:32330"}
                                 >
-                                  <p>首批 12 张 AI 改款图已完成。已继承客户确认的视觉方向与需求约束，并分别在廓形、比例、结构、花型或细节上形成差异，不以换色充当新款。请选择需要重生成或写入正式提案的图片。</p>
+                                  <p>首批 12 张 AI 改款图已完成。已继承客户确认的视觉方向与需求约束，并分别在廓形、比例、结构、花型或细节上形成差异，不以换色充当新款。选择图片后可直接生成提案；如需调整，请在输入框说明，系统会追加一组新方案，已生成图片不会被覆盖。</p>
                                   <ConversationFileCard
                                     icon="html"
                                     name="AI改款结果（12张）.html"
                                     description="刚刚 · 服装改款提示词已在后台通过完整性检查 · AI概念表达"
                                   >
                                     <button type="button" onClick={() => openTrendPreview("ai-results")}>在线查看</button>
-                                    <DownloadFormatMenu onSelect={(format) => downloadCustomerProposalFile("ai-results", format.toUpperCase() as TrendDownloadFormat, selectedTrendIds, customerAiResultImages.map((item) => item.id), locale)} />
+                                    <DownloadFormatMenu onSelect={(format) => downloadCustomerProposalFile("ai-results", format.toUpperCase() as TrendDownloadFormat, selectedTrendIds, displayedCustomerAiResults.map((item) => item.id), locale, displayedCustomerAiResults)} />
                                   </ConversationFileCard>
-                                  <p>请从改款结果中，选择你喜欢的图片</p>
-                                  <section className={`new-product-results-form customer-ai-results-form ${aiResultsConfirmed ? "is-confirmed" : ""}`} aria-label="选择进入正式客户提案的 AI 改款图">
-                                    <ConversationFormTitle
-                                      title="选择进入正式客户提案的 AI 改款图"
-                                      helper="AI 图只作概念表达，不作为市场证据。"
-                                      status={aiResultsConfirmed ? "confirmed" : "pending"}
-                                      statusLabel={aiResultsConfirmed ? "已确认" : "待确认"}
-                                    />
-                                    <div className="customer-ai-result-grid customer-ai-result-grid--all">
-                                      {displayedCustomerAiResults.map((item) => (
-                                        <MasonryImageSelection
-                                          key={item.id}
-                                          src={assetUrl(item.src)}
-                                          alt={`${item.code} ${item.title}`}
-                                          label={`${item.code} · ${item.title}`}
-                                          selected={selectedAiResultIds.includes(item.id)}
-                                          disabled={aiResultsConfirmed || customerProposalRunning}
-                                          loading={customerRegenerationPhase === "generating" && customerRegenerationTargetIds.includes(item.id)}
-                                          loadingLabel="生成中..."
-                                          onSelect={() => toggleAiResult(item.id)}
-                                          onPreview={() => {
-                                            setAiResultPreviewId(item.id);
-                                          }}
-                                        />
-                                      ))}
-                                    </div>
-                                    <ImageSelectionActions
-                                      selectedCount={selectedAiResultIds.length}
-                                      totalCount={displayedCustomerAiResults.length}
-                                      disabled={aiResultsConfirmed || customerProposalRunning}
-                                      onToggleAll={toggleAllAiResults}
-                                    >
-                                      {!aiResultsConfirmed ? (
-                                        <>
-                                          <Button
-                                            variant="secondary"
-                                            className="new-product-regenerate-button"
-                                            size="small"
-                                            disabled={!selectedAiResultIds.length || customerRegenerationBusy}
-                                            onClick={startCustomerRegeneration}
-                                          >
-                                            <FigmaIcon name="regenerate-image" size={16} />
-                                            {customerRegenerationBusy ? "重新生成中" : "重新生成"}
-                                          </Button>
-                                          <Button variant="primary" size="small" disabled={!selectedAiResultIds.length || customerProposalRunning} onClick={generateFormalCustomerProposal}>生成提案</Button>
-                                        </>
-                                      ) : null}
-                                    </ImageSelectionActions>
-                                  </section>
+                                  <p>请从改款结果中选择进入正式客户提案的图片。</p>
+                                  {renderCustomerAiResultForm(customerAiResultBatches[0])}
                                 </motion.article>
                               ) : null}
-                              {customerRegenerationRound > 0 && !customerRegenerationBusy && customerProposalStage === "results" ? (
-                                <motion.article
-                                  className="conversation-message conversation-message--assistant"
-                                  initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
-                                >
-                                  <p>已完成局部重新生成，继续在上方表单选择你满意的图片。</p>
-                                </motion.article>
-                              ) : null}
+                              {customerAiRevisionMessages.map((message) => {
+                                const resultBatch = message.resultBatchId
+                                  ? customerAiResultBatches.find((batch) => batch.id === message.resultBatchId)
+                                  : undefined;
+                                return (
+                                  <ConversationFollowUpExchange
+                                    request={message.request}
+                                    attachments={message.attachments}
+                                    response={message.response}
+                                    key={message.id}
+                                  >
+                                    {message.isGenerating ? (
+                                      <TaskDisclosure title="AI改款工具调用" expanded complete={false} controlsId={`${message.id}-details`} onToggle={() => undefined}>
+                                        <div><AnalysisStepIcon complete delay={0.02} /><span>已锁定需要修改的图片与用户意见</span></div>
+                                        <div><AnalysisStepIcon complete={false} delay={0.1} /><span>正在生成修改款，并与未修改图片合并为完整候选</span></div>
+                                        <div><AnalysisStepIcon complete={false} delay={0.18} /><span>正在保留旧版本并写入新的时间分组</span></div>
+                                      </TaskDisclosure>
+                                    ) : resultBatch ? renderCustomerAiResultForm(resultBatch) : null}
+                                  </ConversationFollowUpExchange>
+                                );
+                              })}
                               {aiResultsConfirmed ? (
                                 <ConversationUserMessage
                                   initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
                                 >
-                                  {customerAiResultImages.filter((item) => selectedAiResultIds.includes(item.id)).map((item) => `${item.code} · ${item.title}`).join("、")}
+                                  <ConversationUserAttachments attachments={customerProposalEntryAttachments} />
+                                  {customerProposalEntryMessage || selectedAiResultSummary}
                                 </ConversationUserMessage>
                               ) : null}
                               {["proposal-generating", "complete"].includes(customerProposalStage) ? (
@@ -1545,7 +1683,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                   >
                                     <ConversationFileCard icon="html" name="正式客户提案.html" description="刚刚 · 统一HTML查看器 · 可下载HTML/PPT/PDF · 不支持在线编辑">
                                       <button type="button" onClick={() => openTrendPreview("proposal")}>在线查看</button>
-                                      <DownloadFormatMenu onSelect={(format) => downloadCustomerProposalFile("proposal", format.toUpperCase() as TrendDownloadFormat, selectedTrendIds, selectedAiResultIds, locale)} />
+                                      <DownloadFormatMenu onSelect={(format) => downloadCustomerProposalFile("proposal", format.toUpperCase() as TrendDownloadFormat, selectedTrendIds, selectedAiResultIds, locale, displayedCustomerAiResults)} />
                                     </ConversationFileCard>
                                   </ConversationTaskCompletion>
                                 </motion.article>
@@ -1592,6 +1730,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
             || (scopeConfirmed && !trendScanComplete)
           }
           isRunning={customerProposalRunning}
+          hint={customerProposalStage === "results" ? "生成提案将扣除 999 积分" : undefined}
           onStop={stopCustomerProposalTask}
           motionDelay={0.16}
           focusRequest={composerFocusRequest}
@@ -1647,6 +1786,21 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
           onReferenceSelect={(reference) => {
             if (reference.id) setReferenceStylePreviewId(reference.id);
           }}
+          generatedReferences={(["results", "proposal-generating", "complete"].includes(customerProposalStage) ? allCustomerGeneratedItems : []).map((item) => ({
+            id: item.id,
+            label: `${item.code} · ${item.title}`,
+            href: "#",
+            thumbnail: item.src,
+            meta: item.subtitle,
+            date: item.groupDate.slice(0, 10),
+            groupDate: item.groupDate,
+          }))}
+          generatedTitle="生成款式"
+          onGeneratedSelect={(reference) => {
+            if (!reference.id) return;
+            setAiResultPreviewReadOnly(!displayedCustomerAiResults.some((item) => item.id === reference.id) || customerProposalStage !== "results");
+            setAiResultPreviewId(reference.id);
+          }}
         />
         <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
       </aside>
@@ -1690,7 +1844,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                       triggerStyle="outline"
                       onSelect={(format) => {
                         const downloadFormat = format.toUpperCase() as TrendDownloadFormat;
-                        if (trendPreviewKind === "ai-results" || trendPreviewKind === "proposal") downloadCustomerProposalFile(trendPreviewKind, downloadFormat, selectedTrendIds, trendPreviewKind === "ai-results" ? customerAiResultImages.map((item) => item.id) : selectedAiResultIds, locale);
+                        if (trendPreviewKind === "ai-results" || trendPreviewKind === "proposal") downloadCustomerProposalFile(trendPreviewKind, downloadFormat, selectedTrendIds, trendPreviewKind === "ai-results" ? displayedCustomerAiResults.map((item) => item.id) : selectedAiResultIds, locale, displayedCustomerAiResults);
                         else downloadTrendAnalysis(downloadFormat, locale);
                       }}
                     />
@@ -1702,7 +1856,12 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                 <iframe
                   className="trend-preview-modal__frame"
                   title={trendPreviewKind === "ai-results" ? "AI改款结果在线预览" : trendPreviewKind === "proposal" ? "正式客户提案在线预览" : "客户需求调研与视觉方向在线预览"}
-                  srcDoc={translateHtmlCopy(buildTrendReportHtml(trendPreviewKind, selectedTrendIds, selectedCandidateIds), locale)}
+                  srcDoc={translateHtmlCopy(buildTrendReportHtml(
+                    trendPreviewKind,
+                    selectedTrendIds,
+                    trendPreviewKind === "proposal" ? selectedAiResultIds : displayedCustomerAiResults.map((item) => item.id),
+                    displayedCustomerAiResults,
+                  ), locale)}
                   sandbox="allow-scripts allow-popups"
                   referrerPolicy="no-referrer"
                 />
@@ -1751,26 +1910,33 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
       ) : null}
       {aiResultPreviewId ? (
         <ImageGalleryLightbox
+          title="选择进入正式客户提案的 AI 改款图"
           categories={candidateCategories}
-          items={displayedCustomerAiResults}
-          activeCategoryId={getCandidateReference(aiResultPreviewId)?.categoryId ?? candidateCategories[0].id}
+          items={allCustomerGeneratedItems}
+          activeCategoryId={allCustomerGeneratedItems.find((item) => item.id === aiResultPreviewId)?.categoryId ?? candidateCategories[0].id}
           activeItemId={aiResultPreviewId}
-          selectedIds={selectedAiResultIds}
-          selectionDisabled={aiResultsConfirmed || customerProposalRunning || customerRegenerationBusy}
+          selectedIds={aiResultPreviewReadOnly ? [] : selectedAiResultIds}
+          selectionDisabled={aiResultPreviewReadOnly || aiResultsConfirmed || customerProposalStage !== "results" || customerProposalRunning}
           resultActions={{
             onDownload: downloadCustomerAiImage,
-            onRegenerate: (item) => regenerateCustomerAiResults([item.id]),
-            regenerateDisabled: aiResultsConfirmed || customerProposalRunning || customerRegenerationBusy,
-            regenerating: customerRegenerationBusy && customerRegenerationTargetIds.includes(aiResultPreviewId),
           }}
           showCategories={false}
           onCategoryChange={(categoryId) => {
-            const firstResult = displayedCustomerAiResults.find((item) => item.categoryId === categoryId);
-            if (firstResult) setAiResultPreviewId(firstResult.id);
+            const firstResult = allCustomerGeneratedItems.find((item) => item.categoryId === categoryId);
+            if (firstResult) {
+              setAiResultPreviewReadOnly(!displayedCustomerAiResults.some((item) => item.id === firstResult.id));
+              setAiResultPreviewId(firstResult.id);
+            }
           }}
-          onNavigate={setAiResultPreviewId}
+          onNavigate={(itemId) => {
+            setAiResultPreviewReadOnly(!displayedCustomerAiResults.some((item) => item.id === itemId) || customerProposalStage !== "results");
+            setAiResultPreviewId(itemId);
+          }}
           onToggleSelection={toggleAiResult}
-          onClose={() => setAiResultPreviewId(null)}
+          onClose={() => {
+            setAiResultPreviewId(null);
+            setAiResultPreviewReadOnly(false);
+          }}
         />
       ) : null}
     </motion.main>

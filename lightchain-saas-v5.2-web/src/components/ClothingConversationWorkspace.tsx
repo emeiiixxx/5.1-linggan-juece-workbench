@@ -12,6 +12,7 @@ import { ConversationUserAttachments } from "./ConversationUserAttachments";
 import { extractPromptContext, getPromptExclusions } from "../utils/promptContext";
 import { ProgressiveImage } from "./ProgressiveImage";
 import { buildConditionAcknowledgement } from "../utils/taskAcknowledgement";
+import { scrollWithinConversation } from "../utils/conversationScroll";
 
 type ApparelStage =
   | "analyzing"
@@ -247,7 +248,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      feedEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
+      scrollWithinConversation(feedEndRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "end" });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [batchProgress, reduceMotion, resultFollowUps.length, stage]);

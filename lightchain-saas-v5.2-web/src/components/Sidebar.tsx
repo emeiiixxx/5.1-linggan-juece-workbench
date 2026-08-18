@@ -1033,16 +1033,19 @@ export function Sidebar({
                       ))}
                     >
                       <FigmaIcon name="more-horizontal" size={16} />
-                      <span>{t("展示更多该项目任务")}</span>
+                      <span>{t("展示更多该项目任务")} {group.items.length}</span>
                     </button>
                   ) : null}
-                  {group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT ? (
+                  {group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT && groupIndex < groups.length - 1 ? (
                     <div className="tree-group__divider" aria-hidden="true" />
                   ) : null}
                     </div>
                   </div>
                 </div>
               ))}
+              {groups.length > 0 && tasks.length > 0 ? (
+                <div className="recent-content-divider" aria-hidden="true" />
+              ) : null}
               <div
                 className="recent-task-list"
                 onDragOver={(event) => {
@@ -1355,16 +1358,19 @@ export function Sidebar({
                           ))}
                         >
                           <FigmaIcon name="more-horizontal" size={16} />
-                          <span>{t("展示更多该项目任务")}</span>
+                          <span>{t("展示更多该项目任务")} {group.items.length}</span>
                         </button>
                       ) : null}
-                      {group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT ? (
+                      {group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT && groupIndex < groups.length - 1 ? (
                         <div className="tree-group__divider" aria-hidden="true" />
                       ) : null}
                     </div>
                   </div>
                 </div>
               ))}
+              {groups.length > 0 && tasks.length > 0 ? (
+                <div className="recent-content-divider" aria-hidden="true" />
+              ) : null}
               <div
                 className="collapsed-flyout__recent-tasks"
                 onDragOver={(event) => {

@@ -38,6 +38,7 @@ import { buildNewProductPlanHtml } from "../report/newProductPlanHtml";
 import { useModalFocus } from "../hooks/useModalFocus";
 import { extractPromptContext, getPromptExclusions } from "../utils/promptContext";
 import { buildConditionAcknowledgement } from "../utils/taskAcknowledgement";
+import { scrollWithinConversation } from "../utils/conversationScroll";
 
 type PlanningStage =
   | "analyzing"
@@ -235,6 +236,9 @@ type AdditionalMessage = {
 type PendingResultGeneration = {
   messageId: string;
   round: number;
+  sourceBatchId: string;
+  selectedItemIds: string[];
+  selectedItemLabels: string[];
 };
 
 const initialResultBatch: GeneratedResultBatch = {
@@ -256,16 +260,24 @@ function formatGenerationTime(date = new Date()) {
   return `${value("year")}-${value("month")}-${value("day")} ${value("hour")}:${value("minute")}`;
 }
 
-function createResultBatch(round: number): GeneratedResultBatch {
+function createResultBatch(round: number, sourceItems: readonly ImageGalleryItem[], selectedItemIds: readonly string[]): GeneratedResultBatch {
+  const selectedIdSet = new Set(selectedItemIds);
+  const regenerateAll = selectedIdSet.size === 0;
   return {
     id: `result-batch-${round}`,
     createdAt: formatGenerationTime(),
-    items: resultItems.map((item, index) => ({
-      ...item,
-      id: `B${round}-${item.id}`,
-      code: `B${round}-${item.code}`,
-      src: regeneratedResultSources[(round + index - 1) % regeneratedResultSources.length] ?? item.src,
-    })),
+    items: sourceItems.map((item, index) => {
+      const shouldRegenerate = regenerateAll || selectedIdSet.has(item.id);
+      const baseSubtitle = (item.subtitle ?? item.title).replace(/ · 修改版$/, "");
+      return {
+        ...item,
+        id: `B${round}-${String(index + 1).padStart(2, "0")}`,
+        src: shouldRegenerate
+          ? regeneratedResultSources[(round + index - 1) % regeneratedResultSources.length] ?? item.src
+          : item.src,
+        subtitle: shouldRegenerate ? `${baseSubtitle} · 修改版` : item.subtitle,
+      };
+    }),
   };
 }
 
@@ -565,12 +577,24 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   useEffect(() => {
     if (!pendingResultGeneration) return;
     const timer = window.setTimeout(() => {
-      const nextBatch = createResultBatch(pendingResultGeneration.round);
+      const sourceBatch = resultBatches.find((batch) => batch.id === pendingResultGeneration.sourceBatchId)
+        ?? resultBatches[resultBatches.length - 1]
+        ?? initialResultBatch;
+      const nextBatch = createResultBatch(
+        pendingResultGeneration.round,
+        sourceBatch.items,
+        pendingResultGeneration.selectedItemIds,
+      );
+      const modifiedCount = pendingResultGeneration.selectedItemIds.length || nextBatch.items.length;
+      const retainedCount = Math.max(0, nextBatch.items.length - modifiedCount);
+      const modifiedLabels = pendingResultGeneration.selectedItemLabels.join("、");
       setResultBatches((current) => [...current, nextBatch]);
       setAdditionalMessages((current) => current.map((message) => message.id === pendingResultGeneration.messageId
         ? {
             ...message,
-            response: `已根据你的反馈生成 ${nextBatch.items.length} 张新的 AI 改款图。上一组和本组图片都已保留在右侧“生成款式”中，并按生成时间分组。请从下面的新表单继续选择，或输入新的修改要求。`,
+            response: pendingResultGeneration.selectedItemIds.length
+              ? `已完成 ${modifiedLabels} 的修改，并与 ${retainedCount} 张未提出修改意见的图片合并为新的 ${nextBatch.items.length} 张候选。旧版本和本组图片均已保留在右侧“生成款式”中，并按生成时间分组。请从下面的新表单重新选择。`
+              : `已根据你的反馈生成 ${nextBatch.items.length} 张新的 AI 改款图。上一组和本组图片都已保留在右侧“生成款式”中，并按生成时间分组。请从下面的新表单继续选择，或输入新的修改要求。`,
             resultBatchId: nextBatch.id,
             isGenerating: false,
           }
@@ -579,7 +603,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
       setPendingResultGeneration(null);
     }, reduceMotion ? 600 : 2200);
     return () => window.clearTimeout(timer);
-  }, [pendingResultGeneration, reduceMotion]);
+  }, [pendingResultGeneration, reduceMotion, resultBatches]);
 
   useEffect(() => {
     if (stage !== "complete" || completionReportedRef.current) return;
@@ -595,7 +619,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   }, [reportPreview]);
 
   useEffect(() => {
-    feedEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
+    scrollWithinConversation(feedEndRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "end" });
   }, [additionalMessages.length, reduceMotion, resultBatches.length, selectedResults.length, stage]);
 
   const toggle = (value: string, setter: Dispatch<SetStateAction<string[]>>) => {
@@ -682,7 +706,41 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     }
     if (stage === "results") {
       if (selectedResults.length) {
-        continueToPlanFromSelection(value, submittedAttachments, false);
+        const normalizedSelectionSummary = selectedResultSummary.toLocaleLowerCase().replace(/[\s，。！!、]/g, "");
+        const selectionPrefixRemoved = value.startsWith(selectedResultSummary)
+          ? value.slice(selectedResultSummary.length).trim().replace(/^[，。！!、:：；;]+/, "").trim()
+          : value;
+        const normalizedSelectionFollowUp = selectionPrefixRemoved.toLocaleLowerCase().replace(/[\s，。！!、]/g, "");
+        const confirmsSelection = !submittedAttachments.length && (
+          !normalizedSelectionFollowUp
+          || normalizedSelectionFollowUp === normalizedSelectionSummary
+          || ["生成企划", "确认生成企划", "确认", "继续"].includes(normalizedSelectionFollowUp)
+        );
+        if (confirmsSelection) {
+          continueToPlanFromSelection(value, submittedAttachments, false);
+          return;
+        }
+
+        const selectedItems = displayedResultItems.filter((item) => selectedResults.includes(item.id));
+        const selectedItemLabels = selectedItems.map((item) => `${item.code}·${item.title}`);
+        const messageId = `result-generation-${Date.now()}`;
+        const sourceBatchId = resultBatches[resultBatches.length - 1]?.id ?? initialResultBatch.id;
+        setPreviewId(null);
+        setAdditionalMessages((current) => [...current, {
+          id: messageId,
+          request: value,
+          attachments: submittedAttachments,
+          response: `收到你的修改需求，我将修改你选中的 ${selectedItemLabels.join("、")}，并保留其余未提出修改意见的图片。正在调用 AI 改款工具生成修改版本。`,
+          resultGeneration: true,
+          isGenerating: true,
+        }]);
+        setPendingResultGeneration({
+          messageId,
+          round: resultBatches.length,
+          sourceBatchId,
+          selectedItemIds: [...selectedResults],
+          selectedItemLabels,
+        });
         return;
       }
       const messageId = `result-generation-${Date.now()}`;
@@ -696,7 +754,13 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
         resultGeneration: true,
         isGenerating: true,
       }]);
-      setPendingResultGeneration({ messageId, round: resultBatches.length });
+      setPendingResultGeneration({
+        messageId,
+        round: resultBatches.length,
+        sourceBatchId: resultBatches[resultBatches.length - 1]?.id ?? initialResultBatch.id,
+        selectedItemIds: [],
+        selectedItemLabels: [],
+      });
       return;
     }
     setAdditionalMessages((current) => [...current, {
@@ -1077,7 +1141,9 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                   {message.isGenerating ? (
                     <NewProductLoadingTask
                       title="AI 改款工具调用中"
-                      lines={["解析本轮不满意点与修改要求", "保留已确认的视觉方向和商品结构", "生成一组新的 AI 改款图", "检查结果完整性并写入生成款式"]}
+                      lines={pendingResultGeneration?.messageId === message.id && pendingResultGeneration.selectedItemIds.length
+                        ? ["解析选中图片与对应修改要求", "仅重做用户选中的 AI 款式图", "合并未提出修改意见的原有图片", "检查完整性并生成新的选择表单"]
+                        : ["解析本轮不满意点与修改要求", "保留已确认的视觉方向和商品结构", "生成一组新的 AI 改款图", "检查结果完整性并写入生成款式"]}
                     />
                   ) : resultBatch ? renderResultForm(resultBatch) : null}
                 </ConversationFollowUpExchange>

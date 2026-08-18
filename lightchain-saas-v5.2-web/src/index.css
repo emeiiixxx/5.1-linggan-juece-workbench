@@ -720,7 +720,7 @@ a:focus-visible {
   gap: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 12px 0;
+  padding: 0 0 12px;
   scrollbar-width: none;
 }
 
@@ -737,6 +737,15 @@ a:focus-visible {
   height: 32px;
   justify-content: space-between;
   gap: 8px;
+}
+
+.sidebar__expanded .sidebar-section--recent > .sidebar-section__heading {
+  position: sticky;
+  z-index: 4;
+  top: 0;
+  height: 44px;
+  padding-top: 12px;
+  background: var(--surface-default);
 }
 
 .sidebar-section__heading--tasks {
@@ -804,6 +813,13 @@ a:focus-visible {
 .recent-task-list {
   display: grid;
   gap: 4px;
+}
+
+.recent-content-divider {
+  width: 100%;
+  height: 1px;
+  margin: 4px 0;
+  background: var(--border-weak);
 }
 
 .tree-group {
@@ -3127,8 +3143,29 @@ a:focus-visible {
 }
 
 .quick-card__text {
+  display: -webkit-box;
   width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: justify;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+}
+
+html:lang(en) .quick-card__text {
+  text-align: left;
+}
+
+.quick-card__tooltip {
+  width: max-content;
+  min-width: 0;
+  max-width: min(360px, calc(100vw - 24px));
+  height: auto;
+  min-height: 24px;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
 }
 
 @media (max-height: 820px) {

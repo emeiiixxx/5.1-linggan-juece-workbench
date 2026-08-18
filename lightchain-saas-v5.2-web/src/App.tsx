@@ -94,6 +94,10 @@ export default function App() {
     document.documentElement.style.colorScheme = theme;
   }, [theme]);
 
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [activeTaskId, activeView]);
+
   return (
     <I18nProvider>
     <div className="app-shell" ref={appShellRef}>

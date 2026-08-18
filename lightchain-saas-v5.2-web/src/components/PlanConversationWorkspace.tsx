@@ -21,6 +21,7 @@ import {
 import { useGsapEntrance } from "../motion/gsap";
 import { extractPromptContext } from "../utils/promptContext";
 import { ProgressiveImage } from "./ProgressiveImage";
+import { scrollWithinConversation } from "../utils/conversationScroll";
 
 type PlanStage =
   | "theme"
@@ -339,7 +340,7 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
   }, [onTaskComplete, stage]);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => feedEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" }));
+    const frame = window.requestAnimationFrame(() => scrollWithinConversation(feedEndRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "end" }));
     return () => window.cancelAnimationFrame(frame);
   }, [generationStep, initialImageReady, initialTrendReady, reduceMotion, referenceToolsReady, stage]);
 

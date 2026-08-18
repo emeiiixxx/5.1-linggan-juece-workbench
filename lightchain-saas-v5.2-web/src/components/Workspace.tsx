@@ -427,6 +427,35 @@ export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selected
     }
   };
 
+  const fillComposerFromQuickStart = (text: string) => {
+    if (!isPlanMode) {
+      setMessage(text);
+      window.requestAnimationFrame(() => {
+        const textarea = composerTextareaRef.current;
+        if (!textarea) return;
+        textarea.focus();
+        textarea.setSelectionRange(text.length, text.length);
+      });
+      return;
+    }
+
+    planPromptRef.current = text;
+    planHasUserDraftRef.current = true;
+    savedPlanEditorHtmlRef.current = text;
+    const editor = planEditorRef.current;
+    if (!editor) return;
+    editor.textContent = text;
+    editor.dataset.empty = "false";
+    syncPlanEditorValue(editor);
+    editor.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  };
+
   const selectPlanEditorContext = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key.toLowerCase() !== "a" || (!event.metaKey && !event.ctrlKey) || event.altKey) return;
 
@@ -945,6 +974,7 @@ export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selected
                 {quickStartCards.map((card, index) => (
                   <QuickStartCard
                     text={t(card)}
+                    onSelect={fillComposerFromQuickStart}
                     key={`${card}-${index}`}
                   />
                 ))}

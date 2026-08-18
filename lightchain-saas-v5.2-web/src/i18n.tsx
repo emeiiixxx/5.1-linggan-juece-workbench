@@ -65,7 +65,7 @@ const copy: Record<string, Translation> = {
   "删除此任务？": { ja: "このタスクを削除しますか？", en: "Delete this task?" },
   "删除此对话？": { ja: "このチャットを削除しますか？", en: "Delete this chat?" },
   "今天想从哪里开始？": { ja: "今日は何から始めますか？", en: "What will you create?" },
-  "选择一个业务场景，描述你的目标，Agent 会带你完成后续步骤。": { ja: "用途を選んで目標を入力すると、AIエージェントが次のステップをご案内します。", en: "Choose a workflow and enter your goal." },
+  "选择一个业务场景，描述你的目标，Agent 会带你完成后续步骤。": { ja: "用途を選び、目標を入力してください。", en: "Choose a workflow and enter your goal." },
   "业务场景": { ja: "ワークフロー", en: "Workflow" },
   "商品企划": { ja: "商品企画", en: "Product Planning" },
   "选择商品企划类型": { ja: "商品企画タイプを選択", en: "Select product planning type" },
