@@ -21,6 +21,7 @@ type TaskConversationComposerProps = {
   onSubmit: (attachments: TaskConversationAttachment[]) => void;
   placeholder: string;
   ariaLabel: string;
+  hint?: string;
   disabled?: boolean;
   isRunning?: boolean;
   onStop?: () => void;
@@ -37,6 +38,7 @@ export function TaskConversationComposer({
   onSubmit,
   placeholder,
   ariaLabel,
+  hint = "Enter 发送 · Shift + Enter 换行",
   disabled = false,
   isRunning = false,
   onStop,
@@ -55,12 +57,12 @@ export function TaskConversationComposer({
   const { textareaRef, height } = useAutoGrowTextarea(value, 144, 320, 64 + (attachments.length ? 36 : 0));
 
   useEffect(() => {
-    if (!focusRequest || disabled) return;
+    if (!focusRequest || disabled || isRunning) return;
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.focus();
     textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-  }, [disabled, focusRequest, textareaRef]);
+  }, [disabled, focusRequest, isRunning, textareaRef]);
 
   useEffect(() => {
     const conversationStage = composerRef.current?.closest<HTMLElement>(".conversation-stage");
@@ -243,7 +245,7 @@ export function TaskConversationComposer({
             }}
             placeholder={placeholder}
             aria-label={placeholder}
-            disabled={disabled}
+            disabled={disabled || isRunning}
           />
         </div>
       </div>
@@ -254,7 +256,7 @@ export function TaskConversationComposer({
             label="添加附件"
             tooltipPlacement="top"
             selected={attachmentMenuOpen}
-            disabled={disabled}
+            disabled={disabled || isRunning}
             aria-haspopup="menu"
             aria-expanded={attachmentMenuOpen}
             onClick={() => setAttachmentMenuOpen((open) => !open)}
@@ -287,7 +289,7 @@ export function TaskConversationComposer({
           <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple onChange={(event) => addAttachments(event, "image")} />
         </div>
       </div>
-      <span>Enter 发送 · Shift + Enter 换行</span>
+      <span>{hint}</span>
       <IconControl
         className={`composer__send conversation-composer__send ${isRunning ? "is-running" : ""}`}
         label={isRunning ? "停止当前任务" : "发送"}

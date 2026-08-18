@@ -145,7 +145,9 @@ export function Sidebar({
   const actionMenuAnchorRef = useRef<HTMLButtonElement | null>(null);
   const actionMenuStateRef = useRef<ActionMenuState | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const collapsedRecentTriggerRef = useRef<HTMLDivElement>(null);
   const collapsedMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [collapsedFlyoutMaxHeight, setCollapsedFlyoutMaxHeight] = useState<number>();
   const lastCreatedTaskIdRef = useRef<number | null>(null);
   const createdTaskIdsRef = useRef(new Map<string, number>(
     allDemoTaskExamples.map((task) => [`${task.projectId ?? "task"}:${task.title}`, task.id]),
@@ -281,6 +283,10 @@ export function Sidebar({
       clearTimeout(collapsedMenuCloseTimerRef.current);
       collapsedMenuCloseTimerRef.current = null;
     }
+    const triggerTop = collapsedRecentTriggerRef.current?.getBoundingClientRect().top;
+    if (triggerTop !== undefined) {
+      setCollapsedFlyoutMaxHeight(Math.max(160, window.innerHeight - triggerTop - 12));
+    }
     setCollapsedMenu(menu);
   };
 
@@ -355,6 +361,19 @@ export function Sidebar({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [createProjectOpen]);
+
+  useEffect(() => {
+    if (collapsedMenu !== "recent") return;
+    const updateFlyoutMaxHeight = () => {
+      const triggerTop = collapsedRecentTriggerRef.current?.getBoundingClientRect().top;
+      if (triggerTop !== undefined) {
+        setCollapsedFlyoutMaxHeight(Math.max(160, window.innerHeight - triggerTop - 12));
+      }
+    };
+    updateFlyoutMaxHeight();
+    window.addEventListener("resize", updateFlyoutMaxHeight);
+    return () => window.removeEventListener("resize", updateFlyoutMaxHeight);
+  }, [collapsedMenu]);
 
   useEffect(() => {
     if (!expanded) {
@@ -1124,6 +1143,7 @@ export function Sidebar({
         </div>
         <div className="sidebar__collapsed-overflow">
           <div
+            ref={collapsedRecentTriggerRef}
             className="collapsed-menu-trigger"
             onMouseEnter={() => openCollapsedMenu("recent")}
             onMouseLeave={scheduleCollapsedMenuClose}
@@ -1147,7 +1167,21 @@ export function Sidebar({
               role="menu"
               aria-label={t("最近")}
               onMouseEnter={() => openCollapsedMenu("recent")}
+              style={{ maxHeight: collapsedFlyoutMaxHeight }}
             >
+              <div className="collapsed-flyout__header">
+                <span>{t("最近")}</span>
+                <IconControl
+                  label={t("新建项目")}
+                  tooltipPlacement="left"
+                  aria-haspopup="dialog"
+                  aria-expanded={createProjectOpen}
+                  onClick={openCreateProject}
+                >
+                  <FigmaIcon name="add-project" size={20} />
+                </IconControl>
+              </div>
+              <div className="collapsed-flyout__recent-content">
               {groups.map((group, groupIndex) => (
                 <div className="tree-group" key={`flyout-${group.id}`}>
                   <div
@@ -1409,6 +1443,7 @@ export function Sidebar({
                     </div>
                   );
                 })}
+              </div>
               </div>
             </div>
           </div>

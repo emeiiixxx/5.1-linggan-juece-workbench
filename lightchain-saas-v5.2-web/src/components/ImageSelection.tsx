@@ -28,8 +28,9 @@ const actionIcons = {
   download: assetUrl("assets/figma-icons/download.svg"),
 };
 
-export function ImageActionBar({ favorited = false, onPreview, onFavorite, onDownload }: {
+export function ImageActionBar({ favorited = false, size = "small", onPreview, onFavorite, onDownload }: {
   favorited?: boolean;
+  size?: "xsmall" | "small";
   onPreview?: () => void;
   onFavorite: () => void;
   onDownload: () => void;
@@ -38,14 +39,14 @@ export function ImageActionBar({ favorited = false, onPreview, onFavorite, onDow
   return (
     <div className="image-action-bar" onClick={(event) => event.stopPropagation()}>
       {onPreview ? (
-        <IconControl label={t("查看大图")} size="small" tooltipPlacement="top" onClick={(event) => runAction(event, onPreview)}>
+        <IconControl label={t("查看大图")} size={size} tooltipPlacement="top" onClick={(event) => runAction(event, onPreview)}>
           <img className="image-action-bar__icon image-action-bar__icon--preview" src={actionIcons.preview} alt="" />
         </IconControl>
       ) : null}
-      <IconControl label={t(favorited ? "取消收藏" : "收藏到资源库")} size="small" tooltipPlacement="top" selected={favorited} onClick={(event) => runAction(event, onFavorite)}>
+      <IconControl label={t(favorited ? "取消收藏" : "收藏到资源库")} size={size} tooltipPlacement="top" selected={favorited} onClick={(event) => runAction(event, onFavorite)}>
         <img className="image-action-bar__icon image-action-bar__icon--favorite" src={actionIcons.favorite} alt="" />
       </IconControl>
-      <IconControl label={t("下载图片")} size="small" tooltipPlacement="top" onClick={(event) => runAction(event, onDownload)}>
+      <IconControl label={t("下载图片")} size={size} tooltipPlacement="top" onClick={(event) => runAction(event, onDownload)}>
         <img className="image-action-bar__icon image-action-bar__icon--download" src={actionIcons.download} alt="" />
       </IconControl>
     </div>
@@ -192,6 +193,7 @@ export type ImageGalleryItem = {
 };
 
 export function ImageGalleryLightbox({
+  title,
   categories,
   items,
   activeCategoryId,
@@ -208,6 +210,7 @@ export function ImageGalleryLightbox({
   onToggleSelection,
   onClose,
 }: {
+  title?: string;
   categories: readonly ImageGalleryCategory[];
   items: readonly ImageGalleryItem[];
   activeCategoryId: string;
@@ -216,7 +219,7 @@ export function ImageGalleryLightbox({
   selectionDisabled?: boolean;
   resultActions?: {
     onDownload: (item: ImageGalleryItem) => void;
-    onRegenerate: (item: ImageGalleryItem) => void;
+    onRegenerate?: (item: ImageGalleryItem) => void;
     regenerateDisabled?: boolean;
     regenerating?: boolean;
     regeneratingLabel?: string;
@@ -371,12 +374,18 @@ export function ImageGalleryLightbox({
   return createPortal(
     <div
       ref={backdropRef}
-      className={`candidate-lightbox-backdrop ${showCategories ? "" : "candidate-lightbox-backdrop--flat"} ${isReferencePresentation ? "candidate-lightbox-backdrop--reference" : ""}`.trim()}
+      className={`candidate-lightbox-backdrop ${showCategories ? "" : "candidate-lightbox-backdrop--flat"} ${isReferencePresentation ? "candidate-lightbox-backdrop--reference" : ""} ${title ? "candidate-lightbox-backdrop--titled" : ""}`.trim()}
       role="dialog"
       aria-modal="true"
       aria-label={`${t("查看大图")}：${activeItem.code} ${activeCategory?.label ?? activeItem.title}`}
       tabIndex={-1}
     >
+      {title ? (
+        <header className="candidate-lightbox__header">
+          <FigmaIcon name="apparel-design-menu" size={32} />
+          <strong>{title}</strong>
+        </header>
+      ) : null}
       <IconControl className="candidate-lightbox__close" label={t("关闭大图")} variant="ghost" size="medium" autoFocus onClick={onClose}>
         <FigmaIcon name="close" size={20} />
       </IconControl>
@@ -450,14 +459,16 @@ export function ImageGalleryLightbox({
                   <FigmaIcon name="download" size={20} />
                   {t("下载")}
                 </Button>
-                <Button
-                  variant="outline"
-                  disabled={resultActions.regenerateDisabled || resultActions.regenerating}
-                  onClick={() => resultActions.onRegenerate(activeItem)}
-                >
-                  <FigmaIcon name="regenerate-image" size={20} />
-                  {t("重新生成")}
-                </Button>
+                {resultActions.onRegenerate ? (
+                  <Button
+                    variant="outline"
+                    disabled={resultActions.regenerateDisabled || resultActions.regenerating}
+                    onClick={() => resultActions.onRegenerate?.(activeItem)}
+                  >
+                    <FigmaIcon name="regenerate-image" size={20} />
+                    {t("重新生成")}
+                  </Button>
+                ) : null}
               </>
             ) : referenceActions ? (
               <>
@@ -481,8 +492,7 @@ export function ImageGalleryLightbox({
                 aria-pressed={selected}
                 onClick={() => onToggleSelection(activeItem.id)}
               >
-                <FigmaIcon name={selected ? "heart-filled" : "heart-outline"} size={20} />
-                {t(selected ? "取消喜欢" : "喜欢")}
+                {t(selected ? "取消选择" : "选择")}
               </Button>
             ) : null}
           </div>
@@ -531,7 +541,7 @@ export function ImageGalleryLightbox({
                 key={item.id}
               >
                 <ProgressiveImage src={assetUrl(item.src)} alt="" />
-                {itemSelected ? <span className="candidate-lightbox__thumbnail-selected" aria-hidden="true"><FigmaIcon name="heart-filled" size={16} /></span> : null}
+                {itemSelected ? <span className="candidate-lightbox__thumbnail-selected" aria-hidden="true"><CircleCheckbox checked size="xsmall" /></span> : null}
               </button>
             );
           })}

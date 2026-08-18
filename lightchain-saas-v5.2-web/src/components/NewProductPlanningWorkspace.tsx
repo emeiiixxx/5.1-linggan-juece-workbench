@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type Dispatch, type ReactN
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
-import { Button, QuickReplyButton } from "./Button";
+import { BusinessButton, Button, QuickReplyButton } from "./Button";
 import { DownloadFormatMenu, type DownloadFormat } from "./DownloadFormatMenu";
 import {
   ImageGalleryLightbox,
@@ -216,6 +216,59 @@ const regeneratedResultSources = [
   "assets/new-product/regenerated-look-04.jpg",
 ] as const;
 
+type GeneratedResultBatch = {
+  id: string;
+  createdAt: string;
+  items: ImageGalleryItem[];
+};
+
+type AdditionalMessage = {
+  id: string;
+  request: string;
+  attachments: TaskConversationAttachment[];
+  response: string;
+  resultBatchId?: string;
+  resultGeneration?: boolean;
+  isGenerating?: boolean;
+};
+
+type PendingResultGeneration = {
+  messageId: string;
+  round: number;
+};
+
+const initialResultBatch: GeneratedResultBatch = {
+  id: "initial-results",
+  createdAt: "2026-08-18 16:33",
+  items: [...resultItems],
+};
+
+function formatGenerationTime(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "00";
+  return `${value("year")}-${value("month")}-${value("day")} ${value("hour")}:${value("minute")}`;
+}
+
+function createResultBatch(round: number): GeneratedResultBatch {
+  return {
+    id: `result-batch-${round}`,
+    createdAt: formatGenerationTime(),
+    items: resultItems.map((item, index) => ({
+      ...item,
+      id: `B${round}-${item.id}`,
+      code: `B${round}-${item.code}`,
+      src: regeneratedResultSources[(round + index - 1) % regeneratedResultSources.length] ?? item.src,
+    })),
+  };
+}
+
 const reportSourceCatalog: Record<string, FashionProposalSource> = {
   淘宝: { name: "淘宝", detail: "中国电商公开商品与价格样本", url: "https://www.taobao.com/" },
   京东: { name: "京东", detail: "中国综合零售公开商品样本", url: "https://www.jd.com/" },
@@ -428,6 +481,8 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const [analysisExpanded, setAnalysisExpanded] = useState(!startsComplete && !startsAtConfirmation);
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [followUp, setFollowUp] = useState("");
+  const [planEntryMessage, setPlanEntryMessage] = useState("");
+  const [planEntryAttachments, setPlanEntryAttachments] = useState<TaskConversationAttachment[]>([]);
   const [briefEntryMessage, setBriefEntryMessage] = useState("满意，请继续");
   const [briefEntryAttachments, setBriefEntryAttachments] = useState<TaskConversationAttachment[]>([]);
   const briefAcknowledgement = buildConditionAcknowledgement({
@@ -435,7 +490,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     attachments: briefEntryAttachments,
     ignoredMessages: ["满意，请继续"],
   });
-  const [additionalMessages, setAdditionalMessages] = useState<Array<{ request: string; attachments: TaskConversationAttachment[]; response: string }>>([]);
+  const [additionalMessages, setAdditionalMessages] = useState<AdditionalMessage[]>([]);
   const [markets, setMarkets] = useState<ResearchMarket[]>(scopeDefaults.markets);
   const [commerce, setCommerce] = useState<string[]>(scopeDefaults.commerce);
   const [social, setSocial] = useState<string[]>(scopeDefaults.social);
@@ -446,24 +501,32 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const [selectedResults, setSelectedResults] = useState<string[]>(
     startsComplete ? resultItems.slice(0, 5).map((item) => item.id) : [],
   );
+  const [resultBatches, setResultBatches] = useState<GeneratedResultBatch[]>([initialResultBatch]);
+  const [pendingResultGeneration, setPendingResultGeneration] = useState<PendingResultGeneration | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [referencePreviewId, setReferencePreviewId] = useState<string | null>(null);
   const [previewReadOnly, setPreviewReadOnly] = useState(false);
   const [activePreviewCategory, setActivePreviewCategory] = useState<string>(directions[0].id);
-  const [regenerationPhase, setRegenerationPhase] = useState<"idle" | "queued" | "generating">("idle");
-  const [regenerationTargetIds, setRegenerationTargetIds] = useState<string[]>([]);
-  const [regeneratedSources, setRegeneratedSources] = useState<Record<string, string>>({});
-  const [regenerationRound, setRegenerationRound] = useState(0);
   const [reportPreview, setReportPreview] = useState<{ name: string; html: string } | null>(null);
   const [composerFocusRequest, setComposerFocusRequest] = useState(0);
   const reportPreviewDialogRef = useRef<HTMLElement>(null);
   const reduceMotion = useReducedMotion();
   const feedEndRef = useRef<HTMLDivElement>(null);
   useModalFocus(reportPreviewDialogRef, Boolean(reportPreview), () => setReportPreview(null));
-  const regenerationBusy = regenerationPhase !== "idle";
   const displayedResultItems = useMemo(
-    () => resultItems.map((item) => ({ ...item, src: regeneratedSources[item.id] ?? item.src })),
-    [regeneratedSources],
+    () => resultBatches[resultBatches.length - 1]?.items ?? [...resultItems],
+    [resultBatches],
+  );
+  const allGeneratedResultItems = useMemo(
+    () => [...resultBatches].reverse().flatMap((batch) => batch.items.map((item) => ({ ...item, groupDate: batch.createdAt }))),
+    [resultBatches],
+  );
+  const selectedResultSummary = useMemo(
+    () => displayedResultItems
+      .filter((item) => selectedResults.includes(item.id))
+      .map((item) => `${item.code}·${item.title}`)
+      .join("、"),
+    [displayedResultItems, selectedResults],
   );
 
   useEffect(() => {
@@ -500,34 +563,29 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   }, [reduceMotion, stage]);
 
   useEffect(() => {
+    if (!pendingResultGeneration) return;
+    const timer = window.setTimeout(() => {
+      const nextBatch = createResultBatch(pendingResultGeneration.round);
+      setResultBatches((current) => [...current, nextBatch]);
+      setAdditionalMessages((current) => current.map((message) => message.id === pendingResultGeneration.messageId
+        ? {
+            ...message,
+            response: `已根据你的反馈生成 ${nextBatch.items.length} 张新的 AI 改款图。上一组和本组图片都已保留在右侧“生成款式”中，并按生成时间分组。请从下面的新表单继续选择，或输入新的修改要求。`,
+            resultBatchId: nextBatch.id,
+            isGenerating: false,
+          }
+        : message));
+      setSelectedResults([]);
+      setPendingResultGeneration(null);
+    }, reduceMotion ? 600 : 2200);
+    return () => window.clearTimeout(timer);
+  }, [pendingResultGeneration, reduceMotion]);
+
+  useEffect(() => {
     if (stage !== "complete" || completionReportedRef.current) return;
     completionReportedRef.current = true;
     onTaskComplete?.();
   }, [onTaskComplete, stage]);
-
-  useEffect(() => {
-    if (regenerationPhase !== "queued") return;
-    const timer = window.setTimeout(() => setRegenerationPhase("generating"), reduceMotion ? 0 : 320);
-    return () => window.clearTimeout(timer);
-  }, [reduceMotion, regenerationPhase]);
-
-  useEffect(() => {
-    if (regenerationPhase !== "generating") return;
-    const timer = window.setTimeout(() => {
-      setRegeneratedSources((current) => {
-        const next = { ...current };
-        regenerationTargetIds.forEach((id, index) => {
-          next[id] = regeneratedResultSources[(regenerationRound + index) % regeneratedResultSources.length] ?? regeneratedResultSources[0];
-        });
-        return next;
-      });
-      setRegenerationPhase("idle");
-      setRegenerationTargetIds([]);
-      setRegenerationRound((value) => value + 1);
-      setSelectedResults((current) => current.filter((id) => !regenerationTargetIds.includes(id)));
-    }, reduceMotion ? 0 : 1700);
-    return () => window.clearTimeout(timer);
-  }, [reduceMotion, regenerationPhase, regenerationRound, regenerationTargetIds]);
 
   useEffect(() => {
     if (!reportPreview) return;
@@ -538,7 +596,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
   useEffect(() => {
     feedEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
-  }, [additionalMessages.length, reduceMotion, regenerationPhase, regenerationRound, selectedResults.length, stage]);
+  }, [additionalMessages.length, reduceMotion, resultBatches.length, selectedResults.length, stage]);
 
   const toggle = (value: string, setter: Dispatch<SetStateAction<string[]>>) => {
     setter((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
@@ -554,24 +612,23 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     setSocial((current) => current.filter((platform) => nextOptions.social.includes(platform)));
   };
 
+  const updateResultSelection = (next: string[]) => {
+    setSelectedResults(next);
+    setFollowUp(displayedResultItems
+      .filter((item) => next.includes(item.id))
+      .map((item) => `${item.code}·${item.title}`)
+      .join("、"));
+  };
+
   const toggleResult = (id: string) => {
-    setSelectedResults((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+    const next = selectedResults.includes(id)
+      ? selectedResults.filter((item) => item !== id)
+      : [...selectedResults, id];
+    updateResultSelection(next);
   };
 
   const toggleAllResults = () => {
-    setSelectedResults((current) => current.length === displayedResultItems.length ? [] : displayedResultItems.map((item) => item.id));
-  };
-
-  const startRegeneration = () => {
-    if (!selectedResults.length || regenerationBusy) return;
-    setRegenerationTargetIds([...selectedResults]);
-    setRegenerationPhase("queued");
-  };
-
-  const regenerateResultItem = (item: ImageGalleryItem) => {
-    if (stage !== "results" || regenerationBusy) return;
-    setRegenerationTargetIds([item.id]);
-    setRegenerationPhase("queued");
+    updateResultSelection(selectedResults.length === displayedResultItems.length ? [] : displayedResultItems.map((item) => item.id));
   };
 
   const downloadGalleryItem = (item: ImageGalleryItem) => {
@@ -585,6 +642,19 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
   const continueToAiGeneration = () => {
     setStage("ai-generating");
+  };
+
+  const continueToPlanFromSelection = (
+    message = followUp.trim(),
+    submittedAttachments: TaskConversationAttachment[] = [],
+    reportProgress = true,
+  ) => {
+    if (!selectedResults.length) return;
+    if (reportProgress) onTaskProgress?.();
+    setPlanEntryMessage(message || selectedResultSummary);
+    setPlanEntryAttachments(submittedAttachments);
+    setFollowUp("");
+    setStage("plan-generating");
   };
 
   const submitFollowUp = (submittedAttachments: TaskConversationAttachment[]) => {
@@ -610,7 +680,27 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
       continueToAiGeneration();
       return;
     }
+    if (stage === "results") {
+      if (selectedResults.length) {
+        continueToPlanFromSelection(value, submittedAttachments, false);
+        return;
+      }
+      const messageId = `result-generation-${Date.now()}`;
+      setSelectedResults([]);
+      setPreviewId(null);
+      setAdditionalMessages((current) => [...current, {
+        id: messageId,
+        request: value,
+        attachments: submittedAttachments,
+        response: "正在调用 AI 改款工具，根据你的反馈生成一组新的款式图。",
+        resultGeneration: true,
+        isGenerating: true,
+      }]);
+      setPendingResultGeneration({ messageId, round: resultBatches.length });
+      return;
+    }
     setAdditionalMessages((current) => [...current, {
+      id: `follow-up-${Date.now()}`,
       request: value,
       attachments: submittedAttachments,
       response: value
@@ -623,6 +713,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     onTaskProgress?.();
     setFollowUp("");
     setAdditionalMessages((current) => [...current, {
+      id: `completion-follow-up-${Date.now()}`,
       request: suggestion,
       attachments: [],
       response: `已收到你的追加要求：“${suggestion}”。我会基于当前新品企划案继续处理，并保留已确认的调研依据、视觉方向和款式结果。`,
@@ -638,12 +729,12 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     "structure-planning": "Agent 正在调用工具完成商品结构规划...",
     structure: "确认商品结构，或继续补充经营约束...",
     "ai-generating": "Agent 正在生成专业改款提示词与 AI 款式图...",
-    results: "选择喜欢的图片，或输入局部修改要求...",
+    results: "选择用于企划的图片，或输入修改要求...",
     "plan-generating": "Agent 正在写入新品企划案，请稍候...",
     complete: "任务已完成，可提出修改意见或追加任务...",
   };
 
-  const composerRunning = regenerationBusy || ["analyzing", "research", "structure-planning", "ai-generating", "plan-generating"].includes(stage);
+  const composerRunning = Boolean(pendingResultGeneration) || ["analyzing", "research", "structure-planning", "ai-generating", "plan-generating"].includes(stage);
   const researchReferencesReady = ["directions", "structure-planning", "structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage);
   const productStructureReady = ["structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage);
   const aiResultsReady = ["results", "plan-generating", "complete"].includes(stage);
@@ -702,16 +793,16 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     kicker: "AI DESIGN VARIATIONS",
     topbarMeta: `${briefMarket} / ${briefCategory} / ${briefSeason}`,
     directions: confirmedDirectionReportItems,
-    references: displayedResultItems.map((item) => ({
+    references: allGeneratedResultItems.map((item) => ({
       code: item.code,
       title: item.subtitle ?? item.title,
       category: directions.find((direction) => direction.id === item.categoryId)?.title ?? item.title,
       imageUrl: assetUrl(item.src),
     })),
-    categoryCount: new Set(displayedResultItems.map((item) => item.categoryId)).size,
+    categoryCount: new Set(allGeneratedResultItems.map((item) => item.categoryId)).size,
     directionLabel: confirmedDirections.map((direction) => direction.title).join("、") || "方向待确认",
     sources: planSources,
-  }), [briefCategory, briefMarket, briefSeason, confirmedDirectionReportItems, confirmedDirections, displayedResultItems, planSources]);
+  }), [allGeneratedResultItems, briefCategory, briefMarket, briefSeason, confirmedDirectionReportItems, confirmedDirections, planSources]);
   const newProductPlanHtml = useMemo(() => {
     const confirmedResults = displayedResultItems.filter((item) => selectedResults.includes(item.id));
 
@@ -736,14 +827,59 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   }, [briefAudience, briefCategory, briefChannels, briefMarket, briefSeason, confirmedDirectionReportItems, confirmedDirections, displayedResultItems, merchandisingPlan, planSources, selectedResults]);
 
   const stopCurrentTask = () => {
-    if (regenerationBusy) {
-      setRegenerationPhase("idle");
-      setRegenerationTargetIds([]);
+    if (pendingResultGeneration) {
+      const messageId = pendingResultGeneration.messageId;
+      setPendingResultGeneration(null);
+      setAdditionalMessages((current) => current.map((message) => message.id === messageId
+        ? { ...message, response: "已停止本轮 AI 改款生成。你可以继续修改要求后重新发送。", isGenerating: false }
+        : message));
     } else if (stage === "research") setStage("scope");
     else if (stage === "structure-planning") setStage("directions");
     else if (stage === "ai-generating") setStage("structure");
     else if (stage === "plan-generating") setStage("results");
     else if (stage === "analyzing") setStage("brief");
+  };
+
+  const renderResultForm = (batch: GeneratedResultBatch) => {
+    const isLatestBatch = resultBatches[resultBatches.length - 1]?.id === batch.id;
+    const isActive = stage === "results" && isLatestBatch && !pendingResultGeneration;
+    const formSelectedResults = isLatestBatch ? selectedResults : [];
+
+    return (
+      <section className="new-product-results-form" key={batch.id}>
+        <ConversationFormTitle
+          title={t("选择新品企划案的 AI 改款图")}
+          helper={t("选择图片后，名称会回显到输入框。你可以发送确认，也可以直接生成企划；需要修改时请在输入框回复。")}
+          status={isActive ? "pending" : "confirmed"}
+          statusLabel={t(isActive ? "待确认" : isLatestBatch && (stage === "complete" || stage === "plan-generating") ? "已确认" : "已生成")}
+        />
+        <div className="new-product-results-grid">
+          {batch.items.map((item) => (
+            <MasonryImageSelection
+              key={item.id}
+              src={assetUrl(item.src)}
+              alt={`${item.code} ${item.title}`}
+              label={item.subtitle ?? item.title}
+              selected={formSelectedResults.includes(item.id)}
+              disabled={!isActive}
+              onSelect={() => toggleResult(item.id)}
+              onPreview={() => { setPreviewReadOnly(!isActive); setPreviewId(item.id); setActivePreviewCategory(item.categoryId); }}
+            />
+          ))}
+        </div>
+        <ImageSelectionActions
+          selectedCount={formSelectedResults.length}
+          totalCount={batch.items.length}
+          disabled={!isActive}
+          hint=""
+          onToggleAll={toggleAllResults}
+        >
+          {isActive ? (
+            <BusinessButton points={999} disabled={!formSelectedResults.length} onClick={() => continueToPlanFromSelection()}>{t("生成企划")}</BusinessButton>
+          ) : null}
+        </ImageSelectionActions>
+      </section>
+    );
   };
 
   return (
@@ -867,7 +1003,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                       );
                     })}
                   </div>
-                  {stage === "directions" ? <div className="new-product-form-actions"><SelectAllControl selected={selectedDirections.length === directions.length} className="selection-select-all--leading" onToggle={() => setSelectedDirections(selectedDirections.length === directions.length ? [] : directions.map((direction) => direction.id))} /><Button variant="secondary" size="small" onClick={() => setSelectedDirections([])}>重置选择</Button><Button variant="primary" size="small" disabled={!selectedDirections.length} onClick={() => setStage("structure-planning")}>确认并继续</Button></div> : null}
+                  {stage === "directions" ? <div className="new-product-form-actions"><SelectAllControl selected={selectedDirections.length === directions.length} className="selection-select-all--leading" onToggle={() => setSelectedDirections(selectedDirections.length === directions.length ? [] : directions.map((direction) => direction.id))} /><BusinessButton points={10} disabled={!selectedDirections.length} onClick={() => setStage("structure-planning")}>确认并继续</BusinessButton></div> : null}
                 </section>
               </AssistantMessage>
             ) : null}
@@ -924,64 +1060,36 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                   html={aiResultsHtml}
                   onPreview={() => setReportPreview({ name: "AI 改款结果.html", html: aiResultsHtml })}
                 />
-                <p>{t("请从改款结果中，选择你喜欢的图片")}</p>
-                <section className="new-product-results-form">
-                  <ConversationFormTitle
-                    title={t("选择新品企划案的 AI 改款图")}
-                    helper={t("选择你满意的图片。你可以基于所选图片重新生成更多方案，或直接将其用于生成新品企划。")}
-                    status={stage === "results" ? "pending" : "confirmed"}
-                    statusLabel={t(stage === "results" ? "待确认" : "已确认")}
-                  />
-                  <div className="new-product-results-grid">
-                    {displayedResultItems.map((item) => (
-                      <MasonryImageSelection
-                        key={item.id}
-                        src={assetUrl(item.src)}
-                        alt={`${item.code} ${item.title}`}
-                        label={item.subtitle ?? item.title}
-                        selected={selectedResults.includes(item.id)}
-                        disabled={regenerationBusy || stage !== "results"}
-                        loading={regenerationPhase === "generating" && regenerationTargetIds.includes(item.id)}
-                        loadingLabel={t("生成中...")}
-                        onSelect={() => toggleResult(item.id)}
-                        onPreview={() => { setPreviewReadOnly(stage !== "results"); setPreviewId(item.id); setActivePreviewCategory(item.categoryId); }}
-                      />
-                    ))}
-                  </div>
-                  <ImageSelectionActions
-                    selectedCount={selectedResults.length}
-                    totalCount={displayedResultItems.length}
-                    disabled={regenerationBusy || stage !== "results"}
-                    onToggleAll={toggleAllResults}
-                  >
-                    {stage === "results" ? (
-                      <>
-                        <Button variant="secondary" className="new-product-regenerate-button" disabled={!selectedResults.length || regenerationBusy} onClick={startRegeneration}>
-                          <FigmaIcon name="regenerate-image" size={16} />
-                          {t(regenerationBusy ? "重新生成中" : "重新生成")}
-                        </Button>
-                        <Button variant="primary" disabled={!selectedResults.length || regenerationBusy} onClick={() => setStage("plan-generating")}>{t("生成企划")}</Button>
-                      </>
-                    ) : null}
-                  </ImageSelectionActions>
-                </section>
+                <p>{t("请从改款结果中选择要用于新品企划的图片。如果不满意或希望调整，直接在输入框说明修改要求，我会追加生成一组新方案；已生成图片不会被覆盖。")}</p>
+                {renderResultForm(resultBatches[0] ?? initialResultBatch)}
               </AssistantMessage>
             ) : null}
 
-            {regenerationBusy ? (
-              <>
-                <ConversationUserMessage>重新生成{regenerationTargetIds.join("、")}</ConversationUserMessage>
-                <AssistantMessage actions={false}><p>立即为你重新生成所选图片，其他图片保持不变。</p></AssistantMessage>
-              </>
-            ) : null}
-
-            {regenerationRound > 0 && !regenerationBusy && stage === "results" ? (
-              <AssistantMessage actions={false}><p>已完成局部重新生成，继续在上方表单选择你满意的图片。</p></AssistantMessage>
-            ) : null}
+            {additionalMessages.filter((message) => message.resultGeneration).map((message, index) => {
+              const resultBatch = resultBatches.find((batch) => batch.id === message.resultBatchId);
+              return (
+                <ConversationFollowUpExchange
+                  request={message.request}
+                  attachments={message.attachments}
+                  response={message.response}
+                  key={message.id || `${message.resultBatchId}-${index}`}
+                >
+                  {message.isGenerating ? (
+                    <NewProductLoadingTask
+                      title="AI 改款工具调用中"
+                      lines={["解析本轮不满意点与修改要求", "保留已确认的视觉方向和商品结构", "生成一组新的 AI 改款图", "检查结果完整性并写入生成款式"]}
+                    />
+                  ) : resultBatch ? renderResultForm(resultBatch) : null}
+                </ConversationFollowUpExchange>
+              );
+            })}
 
             {["plan-generating", "complete"].includes(stage) ? (
               <>
-                <ConversationUserMessage>{selectedResults.join("、")}</ConversationUserMessage>
+                <ConversationUserMessage>
+                  <ConversationUserAttachments attachments={planEntryAttachments} />
+                  <span>{planEntryMessage || selectedResultSummary}</span>
+                </ConversationUserMessage>
                 <AssistantMessage actions={false}>
                   <p>正在将已确认图片、调研依据、视觉方向和商品结构写入新品企划案。</p>
                   <NewProductLoadingTask title="生成新品企划案" complete={stage === "complete"} lines={["锁定用户确认的 AI 款式图", "关联调研证据、视觉方向与商品结构", "生成统一只读 HTML 查看版本", "准备 HTML、PPT、PDF 下载文件"]} />
@@ -1013,15 +1121,20 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 </AssistantMessage>
               </>
             ) : null}
-            {additionalMessages.map((message, index) => (
-              <ConversationFollowUpExchange {...message} key={`${message.request}-${index}`} />
+            {additionalMessages.filter((message) => !message.resultGeneration).map((message, index) => (
+              <ConversationFollowUpExchange
+                request={message.request}
+                attachments={message.attachments}
+                response={message.response}
+                key={message.id || `${message.request}-${index}`}
+              />
             ))}
             <div ref={feedEndRef} />
           </ConversationFeed>
         </div>
 
         <div className="conversation-bottom-fade" aria-hidden="true" />
-        <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} focusRequest={composerFocusRequest} />
+        <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} hint={stage === "directions" ? "请先从上方表单完成视觉方向选择" : stage === "results" ? "生成企划将扣除 999 积分" : undefined} disabled={stage === "directions"} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} focusRequest={composerFocusRequest} />
       </section>
 
       <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>
@@ -1049,16 +1162,34 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
             </>
           )}
           referenceTitle="参考款式"
-          references={(researchReferencesReady ? newProductReferenceItems : []).map((item) => ({
+          references={(researchReferencesReady ? newProductReferenceItems : []).map((item, index) => ({
             id: item.id,
             label: item.title,
             href: item.sourceUrl ?? "#",
             thumbnail: item.src,
             meta: item.subtitle,
             date: "2026-08-06",
+            groupDate: index < 8 ? "2026-08-18 16:33" : "2026-08-18 13:33",
           }))}
           onReferenceSelect={(reference) => {
             if (reference.id) setReferencePreviewId(reference.id);
+          }}
+          generatedReferences={(["results", "plan-generating", "complete"].includes(stage) ? allGeneratedResultItems : []).map((item) => ({
+            id: item.id,
+            label: item.subtitle ?? item.title,
+            href: "#",
+            thumbnail: item.src,
+            meta: item.title,
+            date: item.groupDate.slice(0, 10),
+            groupDate: item.groupDate,
+          }))}
+          onGeneratedSelect={(reference) => {
+            const item = allGeneratedResultItems.find((result) => result.id === reference.id);
+            if (!item) return;
+            const belongsToCurrentBatch = displayedResultItems.some((result) => result.id === item.id);
+            setPreviewReadOnly(stage !== "results" || !belongsToCurrentBatch);
+            setPreviewId(item.id);
+            setActivePreviewCategory(item.categoryId);
           }}
         />
         <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
@@ -1110,25 +1241,26 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
       {previewId ? (
         <ImageGalleryLightbox
+          title={t("选择新品企划案的 AI 改款图")}
           categories={lightboxCategories}
-          items={displayedResultItems}
+          items={allGeneratedResultItems}
           activeCategoryId={activePreviewCategory}
           activeItemId={previewId}
           selectedIds={previewReadOnly ? [] : selectedResults}
-          selectionDisabled={previewReadOnly || stage !== "results" || regenerationBusy}
+          selectionDisabled={previewReadOnly || stage !== "results"}
           resultActions={{
             onDownload: downloadGalleryItem,
-            onRegenerate: regenerateResultItem,
-            regenerateDisabled: previewReadOnly || stage !== "results" || regenerationBusy,
-            regenerating: regenerationBusy && regenerationTargetIds.includes(previewId),
           }}
           showCategories={false}
           onCategoryChange={(categoryId) => {
             setActivePreviewCategory(categoryId);
-            const first = displayedResultItems.find((item) => item.categoryId === categoryId);
+            const first = allGeneratedResultItems.find((item) => item.categoryId === categoryId);
             if (first) setPreviewId(first.id);
           }}
-          onNavigate={setPreviewId}
+          onNavigate={(itemId) => {
+            setPreviewId(itemId);
+            setPreviewReadOnly(stage !== "results" || !displayedResultItems.some((item) => item.id === itemId));
+          }}
           onToggleSelection={toggleResult}
           onClose={() => { setPreviewId(null); setPreviewReadOnly(false); }}
         />

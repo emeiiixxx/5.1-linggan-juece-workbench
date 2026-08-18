@@ -14,6 +14,7 @@ import { CircleCheckbox } from "./CircleCheckbox";
 import { downloadImageZip } from "../utils/downloadZip";
 import { ProgressiveImage } from "./ProgressiveImage";
 import { ConversationUserAttachments, type ConversationUserAttachment } from "./ConversationUserAttachments";
+import { ImageActionBar } from "./ImageSelection";
 
 export type ConversationStepStatus = "complete" | "loading" | "pending";
 
@@ -681,9 +682,8 @@ export type TaskDetailReferenceLink = {
   thumbnail?: string;
   meta?: string;
   date?: string;
+  groupDate?: string;
 };
-
-const REFERENCE_VIEW_ALL_THRESHOLD = 10;
 
 export function TaskDetailPanel({
   ariaLabel,
@@ -692,6 +692,9 @@ export function TaskDetailPanel({
   references,
   referenceTitle = "参考信息",
   onReferenceSelect,
+  generatedReferences = [],
+  generatedTitle = "生成款式",
+  onGeneratedSelect,
 }: {
   ariaLabel: string;
   onCollapse: () => void;
@@ -699,46 +702,38 @@ export function TaskDetailPanel({
   references: readonly TaskDetailReferenceLink[];
   referenceTitle?: string;
   onReferenceSelect?: (reference: TaskDetailReferenceLink) => void;
+  generatedReferences?: readonly TaskDetailReferenceLink[];
+  generatedTitle?: string;
+  onGeneratedSelect?: (reference: TaskDetailReferenceLink) => void;
 }) {
   const { t } = useI18n();
-  const [referenceExpanded, setReferenceExpanded] = useState(false);
+  const [expandedGallery, setExpandedGallery] = useState<"reference" | "generated" | null>(null);
   const [referenceDownloading, setReferenceDownloading] = useState(false);
-  const [overviewReferenceLimit, setOverviewReferenceLimit] = useState(references.length);
-  const overviewReferenceListRef = useRef<HTMLDivElement | null>(null);
+  const [favoriteGalleryItems, setFavoriteGalleryItems] = useState<Set<string>>(() => new Set());
+  const [galleryToast, setGalleryToast] = useState("");
+  const visibleGeneratedReferences = [...generatedReferences]
+    .sort((left, right) => (right.groupDate ?? right.date ?? "").localeCompare(left.groupDate ?? left.date ?? ""))
+    .slice(0, 20);
   const isReferenceGallery = references.some((reference) => reference.thumbnail);
-  const canViewAllReferences = isReferenceGallery && references.length >= REFERENCE_VIEW_ALL_THRESHOLD;
-  const overviewReferences = canViewAllReferences ? references.slice(0, Math.max(1, overviewReferenceLimit)) : references;
+  const isGeneratedGallery = visibleGeneratedReferences.some((reference) => reference.thumbnail);
+  const expandedReferences = expandedGallery === "generated" ? visibleGeneratedReferences : references;
+  const expandedTitle = expandedGallery === "generated" ? generatedTitle : referenceTitle;
+  const expandedSelect = expandedGallery === "generated" ? onGeneratedSelect : onReferenceSelect;
+  const expandedReferenceGroups = Array.from(expandedReferences.reduce((groups, reference) => {
+    const groupDate = reference.groupDate ?? reference.date ?? "";
+    const group = groups.get(groupDate);
+    if (group) group.push(reference);
+    else groups.set(groupDate, [reference]);
+    return groups;
+  }, new Map<string, TaskDetailReferenceLink[]>()));
 
   useEffect(() => {
-    if (!canViewAllReferences) setReferenceExpanded(false);
-  }, [canViewAllReferences]);
+    if (!galleryToast) return;
+    const timer = window.setTimeout(() => setGalleryToast(""), 1800);
+    return () => window.clearTimeout(timer);
+  }, [galleryToast]);
 
-  useEffect(() => {
-    if (!canViewAllReferences) {
-      setOverviewReferenceLimit(references.length);
-      return;
-    }
-
-    const list = overviewReferenceListRef.current;
-    if (!list) return;
-    const updateVisibleReferenceCount = () => {
-      const firstRow = list.querySelector<HTMLElement>(".task-detail-row--reference");
-      if (!firstRow) return;
-      const gap = Number.parseFloat(window.getComputedStyle(list).rowGap) || 0;
-      const rowHeight = firstRow.getBoundingClientRect().height;
-      if (!rowHeight) return;
-      const visibleCount = Math.max(1, Math.floor(list.clientHeight / (rowHeight + gap)));
-      setOverviewReferenceLimit(Math.min(references.length, visibleCount));
-    };
-
-    updateVisibleReferenceCount();
-    if (typeof ResizeObserver === "undefined") return;
-    const resizeObserver = new ResizeObserver(updateVisibleReferenceCount);
-    resizeObserver.observe(list);
-    return () => resizeObserver.disconnect();
-  }, [canViewAllReferences, references.length]);
-
-  const renderReference = (reference: TaskDetailReferenceLink, expanded = false) => {
+  const renderReference = (reference: TaskDetailReferenceLink, expanded = false, onSelect = onReferenceSelect) => {
     const content = (
       <>
         {reference.thumbnail ? (
@@ -758,11 +753,11 @@ export function TaskDetailPanel({
     );
     const className = `task-detail-row task-detail-row--reference ${reference.thumbnail ? "task-detail-row--reference-media" : ""} ${expanded ? "task-detail-row--reference-expanded" : ""}`;
 
-    return reference.thumbnail && onReferenceSelect ? (
+    return reference.thumbnail && onSelect ? (
       <button
         type="button"
         className={className}
-        onClick={() => onReferenceSelect(reference)}
+        onClick={() => onSelect(reference)}
         key={reference.id ?? reference.href}
       >
         {content}
@@ -780,13 +775,90 @@ export function TaskDetailPanel({
     );
   };
 
-  const downloadAllReferenceImages = async () => {
+  const renderGalleryThumbnail = (reference: TaskDetailReferenceLink, onSelect?: (reference: TaskDetailReferenceLink) => void) => {
+    const itemKey = reference.id ?? reference.thumbnail ?? reference.href;
+    const favorited = favoriteGalleryItems.has(itemKey);
+    const image = <ProgressiveImage className="task-detail-gallery-thumbnail" src={assetUrl(reference.thumbnail!)} alt="" aria-hidden="true" />;
+    const toggleFavorite = () => {
+      setFavoriteGalleryItems((current) => {
+        const next = new Set(current);
+        if (next.has(itemKey)) next.delete(itemKey);
+        else next.add(itemKey);
+        return next;
+      });
+      setGalleryToast(favorited ? "已从资源库移除" : "已收藏到资源库");
+    };
+    const downloadImage = () => {
+      const source = assetUrl(reference.thumbnail!);
+      const extension = source.split("?")[0].match(/\.([a-z0-9]+)$/i)?.[1] ?? "jpg";
+      const safeLabel = reference.label.replace(/[\\/:*?"<>|]/g, "-");
+      const link = document.createElement("a");
+      link.href = source;
+      link.download = `${safeLabel}.${extension}`;
+      link.click();
+      setGalleryToast("图片下载已开始");
+    };
+    return (
+      <div className="task-detail-gallery-item" key={itemKey}>
+        {onSelect ? (
+          <button type="button" className="task-detail-gallery-toggle" title={reference.label} aria-label={reference.label} onClick={() => onSelect(reference)}>{image}</button>
+        ) : (
+          <a className="task-detail-gallery-toggle" href={reference.href} title={reference.label} aria-label={reference.label} target="_blank" rel="noreferrer">{image}</a>
+        )}
+        <ImageActionBar favorited={favorited} size="xsmall" onFavorite={toggleFavorite} onDownload={downloadImage} />
+      </div>
+    );
+  };
+
+  const renderGallerySection = (
+    title: string,
+    items: readonly TaskDetailReferenceLink[],
+    gallery: "reference" | "generated",
+    onSelect?: (reference: TaskDetailReferenceLink) => void,
+  ) => {
+    const groups = Array.from(items.reduce((result, reference) => {
+      const groupDate = reference.groupDate ?? reference.date ?? "";
+      const group = result.get(groupDate);
+      if (group) group.push(reference);
+      else result.set(groupDate, [reference]);
+      return result;
+    }, new Map<string, TaskDetailReferenceLink[]>()));
+
+    return (
+      <section className="task-detail-gallery-section">
+        <div className="task-detail-reference-heading">
+          <h2>{title}</h2>
+          <button className="task-detail-reference-view-all" type="button" onClick={() => setExpandedGallery(gallery)}>
+            <span>{t("查看全部")}</span>
+            <FigmaIcon name="chevron-right" size={16} />
+          </button>
+        </div>
+        {gallery === "generated" ? (
+          <div className="task-detail-gallery-groups">
+            {groups.map(([groupDate, groupReferences]) => (
+              <div className="task-detail-gallery-group" key={groupDate || "undated"}>
+                {groupDate ? <time className="task-detail-gallery-date">{groupDate}</time> : null}
+                <div className="task-detail-gallery-grid">{groupReferences.map((reference) => renderGalleryThumbnail(reference, onSelect))}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            {(items[0]?.groupDate ?? items[0]?.date) ? <time className="task-detail-gallery-date">{items[0].groupDate ?? items[0].date}</time> : null}
+            <div className="task-detail-gallery-grid">{items.map((reference) => renderGalleryThumbnail(reference, onSelect))}</div>
+          </>
+        )}
+      </section>
+    );
+  };
+
+  const downloadAllReferenceImages = async (items = expandedReferences, title = expandedTitle) => {
     if (referenceDownloading) return;
-    const imageReferences = references.filter((reference) => reference.thumbnail);
+    const imageReferences = items.filter((reference) => reference.thumbnail);
     if (!imageReferences.length) return;
     setReferenceDownloading(true);
     try {
-      await downloadImageZip(`${referenceTitle}-全部参考图.zip`, imageReferences.map((reference, index) => {
+      await downloadImageZip(`${title}-全部参考图.zip`, imageReferences.map((reference, index) => {
         const thumbnail = reference.thumbnail!;
         const extension = thumbnail.split("?")[0].match(/\.([a-z0-9]+)$/i)?.[1] ?? "jpg";
         const safeLabel = reference.label.replace(/[\\/:*?"<>|]/g, "-");
@@ -803,7 +875,7 @@ export function TaskDetailPanel({
   };
 
   return (
-    <div className={`task-detail-panel ${referenceTitle === "参考信息" ? "is-reference-information" : ""} ${canViewAllReferences ? "has-reference-overflow" : ""} ${referenceExpanded ? "is-reference-expanded" : ""}`} aria-label={ariaLabel}>
+    <div className={`task-detail-panel ${referenceTitle === "参考信息" ? "is-reference-information" : ""} ${expandedGallery ? "is-reference-expanded" : ""}`} aria-label={ariaLabel}>
       <div className="task-detail-panel__view task-detail-panel__overview-view">
         <header>
           <strong>概览</strong>
@@ -815,66 +887,46 @@ export function TaskDetailPanel({
             {artifacts}
           </section>
         ) : null}
-        {references.length ? (
-          <section>
-            {isReferenceGallery ? (
-              <div className="task-detail-reference-heading">
-                <span className="task-detail-reference-heading-title">
-                  <h2>{referenceTitle}</h2>
-                  <IconControl
-                    label={t("下载全部参考图")}
-                    size="xsmall"
-                    variant="bare"
-                    disabled={referenceDownloading}
-                    onClick={downloadAllReferenceImages}
-                  >
-                    <FigmaIcon name="download" size={16} />
-                  </IconControl>
-                </span>
-                {canViewAllReferences ? (
-                  <button
-                    className="task-detail-reference-view-all"
-                    type="button"
-                    onClick={() => setReferenceExpanded(true)}
-                  >
-                    <span>{t("查看全部 {count} 条", { count: references.length })}</span>
-                    <FigmaIcon name="chevron-right" size={16} />
-                  </button>
-                ) : null}
-              </div>
-            ) : <h2>{referenceTitle}</h2>}
-            <div ref={overviewReferenceListRef} className="task-detail-reference-list">
-              {overviewReferences.map((reference) => renderReference(reference))}
-            </div>
-          </section>
+        {references.length ? (isReferenceGallery
+          ? renderGallerySection(referenceTitle, references, "reference", onReferenceSelect)
+          : <section><h2>{referenceTitle}</h2><div className="task-detail-reference-list">{references.map((reference) => renderReference(reference))}</div></section>
         ) : null}
+        {visibleGeneratedReferences.length && isGeneratedGallery
+          ? renderGallerySection(generatedTitle, visibleGeneratedReferences, "generated", onGeneratedSelect)
+          : null}
       </div>
-      {canViewAllReferences ? (
+      {expandedGallery ? (
         <div className="task-detail-panel__view task-detail-panel__reference-view">
           <header className="task-detail-reference-view-header">
             <span>
-              <strong>{referenceTitle}</strong>
-              <small>{t("共 {count} 条 · 按最近获取时间排序", { count: references.length })}</small>
+              <strong>{expandedTitle}</strong>
+              <small>{t("共 {count} 条 · 按最近获取时间排序", { count: expandedReferences.length })}</small>
             </span>
             <span className="task-detail-reference-view-actions">
               <IconControl
                 label={t("下载全部参考图")}
                 tooltipPlacement="bottom"
                 disabled={referenceDownloading}
-                onClick={downloadAllReferenceImages}
+                onClick={() => downloadAllReferenceImages()}
               >
                 <FigmaIcon name="download" size={20} />
               </IconControl>
-              <IconControl label={t("关闭参考款式列表")} tooltipPlacement="bottom" onClick={() => setReferenceExpanded(false)}>
+              <IconControl label={t("关闭参考款式列表")} tooltipPlacement="bottom" onClick={() => setExpandedGallery(null)}>
                 <FigmaIcon name="close" size={20} />
               </IconControl>
             </span>
           </header>
           <div className="task-detail-reference-list task-detail-reference-list--expanded">
-            {references.map((reference) => renderReference(reference, true))}
+            {expandedReferenceGroups.map(([groupDate, groupReferences]) => (
+              <section className="task-detail-reference-date-group" key={groupDate || "undated"}>
+                {groupDate ? <time>{groupDate}</time> : null}
+                <div>{groupReferences.map((reference) => renderReference(reference, true, expandedSelect))}</div>
+              </section>
+            ))}
           </div>
         </div>
       ) : null}
+      <Toast message={galleryToast} />
     </div>
   );
 }
@@ -911,10 +963,12 @@ export function ConversationFollowUpExchange({
   request,
   attachments = [],
   response,
+  children,
 }: {
   request: string;
   attachments?: readonly ConversationUserAttachment[];
   response: string;
+  children?: ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
 
@@ -932,6 +986,7 @@ export function ConversationFollowUpExchange({
         transition={{ duration: reduceMotion ? 0 : 0.32, ease: revealEase }}
       >
         <p>{response}</p>
+        {children}
       </motion.article>
     </div>
   );

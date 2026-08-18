@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateActio
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
-import { Button, QuickReplyButton } from "./Button";
+import { BusinessButton, Button, QuickReplyButton } from "./Button";
 import { DownloadFormatMenu } from "./DownloadFormatMenu";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
@@ -251,7 +251,7 @@ function TrendDirectionSelectionForm({
         <div className="new-product-form-actions">
           <SelectAllControl selected={selectedIds.length === trendDirections.length} className="selection-select-all--leading" onToggle={onToggleAll} />
           <Button variant="secondary" size="small" onClick={onReset}>重置选择</Button>
-          <Button variant="primary" size="small" disabled={!selectedIds.length} onClick={onConfirm}>确认并继续</Button>
+          <BusinessButton points={10} disabled={!selectedIds.length} onClick={onConfirm}>确认并继续</BusinessButton>
         </div>
       ) : null}
     </section>
@@ -1381,10 +1381,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                   {!generationDecision ? (
                                     <div className="candidate-generation-assumptions__actions">
                                       <Button variant="secondary" size="small" onClick={requestCustomerGenerationFeedback}>补充反馈</Button>
-                                      <Button variant="primary" size="small" onClick={confirmCustomerAiGeneration}>
-                                        <span>确认并生成</span>
-                                        <FigmaIcon name="arrow-right" size={20} />
-                                      </Button>
+                                      <BusinessButton points={10} onClick={confirmCustomerAiGeneration}>确认并生成</BusinessButton>
                                     </div>
                                   ) : null}
                                 </motion.article>

@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
-import { Button, QuickReplyButton } from "./Button";
+import { BusinessButton, Button, QuickReplyButton } from "./Button";
 import { AnalysisStepIcon, ConversationFeed, ConversationFollowUpExchange, ConversationFormTitle, ConversationStatusIcon as ApparelStatusIcon, ConversationTaskCompletion, ConversationUserMessage as UserMessage, SelectAllControl, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
 import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
 import { useGsapEntrance } from "../motion/gsap";
@@ -475,7 +475,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
                         </div>
                       </fieldset>
                     </div>
-                    {!briefReply && <div className="research-scope-actions"><Button variant="primary" size="small" disabled={!briefCanSubmit} onClick={confirmBrief}>确认并继续</Button></div>}
+                    {!briefReply && <div className="research-scope-actions"><BusinessButton points={10} disabled={!briefCanSubmit} onClick={confirmBrief}>确认并继续</BusinessButton></div>}
                   </div>
               </AssistantMessage>
             )}
@@ -538,7 +538,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
                       </button>
                     </div>
                   </div>
-                  {stage === "directions" && <div className="research-scope-actions"><SelectAllControl selected={activeDesignDirections.every((direction) => selectedDirectionIds.includes(direction.id))} className="selection-select-all--leading" onToggle={() => setSelectedDirectionIds(activeDesignDirections.every((direction) => selectedDirectionIds.includes(direction.id)) ? [] : activeDesignDirections.map((direction) => direction.id))} /><Button variant="primary" size="small" disabled={!selectedDirectionIds.length || (selectedDirectionIds.includes("OTHER") && !customDirection.trim())} onClick={confirmDirections}>确认并继续</Button></div>}
+                  {stage === "directions" && <div className="research-scope-actions"><SelectAllControl selected={activeDesignDirections.every((direction) => selectedDirectionIds.includes(direction.id))} className="selection-select-all--leading" onToggle={() => setSelectedDirectionIds(activeDesignDirections.every((direction) => selectedDirectionIds.includes(direction.id)) ? [] : activeDesignDirections.map((direction) => direction.id))} /><BusinessButton points={10} disabled={!selectedDirectionIds.length || (selectedDirectionIds.includes("OTHER") && !customDirection.trim())} onClick={confirmDirections}>确认并继续</BusinessButton></div>}
                 </div>
               </AssistantMessage>
             )}

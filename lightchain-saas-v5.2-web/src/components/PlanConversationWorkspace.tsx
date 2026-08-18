@@ -438,7 +438,7 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
                   ariaLabel="选择设计主题"
                   onChange={setTheme}
                 />
-                {stage === "theme" ? <div className="plan-form-actions"><Button variant="secondary" size="small" onClick={refreshThemes}>都不喜欢，重新推荐</Button><Button variant="primary" disabled={!theme} onClick={() => setStage("references")}>提交需求</Button></div> : null}
+                {stage === "theme" ? <div className="plan-form-actions"><Button variant="secondary" size="small" onClick={refreshThemes}>都不喜欢，重新推荐</Button><BusinessButton points={10} disabled={!theme} onClick={() => setStage("references")}>提交需求</BusinessButton></div> : null}
               </section>
             </AssistantMessage> : null}
 
@@ -536,7 +536,7 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
                       return <button type="button" role="radio" className={selected ? "is-selected" : ""} aria-checked={selected} disabled={stage !== "export"} onClick={() => setExportFormat(format)} key={format}><span className="plan-file-icons">{format.includes("PPT") ? <span className="plan-file-icon"><img src={planFileIcons.PPT} alt="" /></span> : null}{format.includes("HTML") ? <span className="plan-file-icon"><img src={planFileIcons.HTML} alt="" /></span> : null}</span><strong>{format}</strong><Radio checked={selected} /></button>;
                     })}
                   </div>
-                  {stage === "export" ? <div className="plan-form-actions"><Button variant="primary" onClick={() => setStage("exporting")}>确认格式</Button></div> : null}
+                  {stage === "export" ? <div className="plan-form-actions"><BusinessButton points={10} onClick={() => setStage("exporting")}>确认格式</BusinessButton></div> : null}
                 </section>
               </AssistantMessage>
             ) : null}

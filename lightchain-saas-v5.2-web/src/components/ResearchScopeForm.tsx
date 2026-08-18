@@ -1,5 +1,5 @@
 import { assetUrl } from "../utils/assets";
-import { Button } from "./Button";
+import { BusinessButton, Button } from "./Button";
 import { SelectAllControl } from "./ConversationPrimitives";
 
 type ResearchScopeFormProps = {
@@ -156,7 +156,7 @@ export function ResearchScopeForm({
         <div className="research-scope-actions">
           <SelectAllControl selected={allSelected} className="selection-select-all--leading" onToggle={onToggleAll} />
           <Button type="button" variant="secondary" size="small" onClick={onReset}>重置选择</Button>
-          <Button type="submit" variant="primary" size="small" disabled={!canSubmit}>确认并开始调研</Button>
+          <BusinessButton type="submit" points={10} disabled={!canSubmit}>确认并开始调研</BusinessButton>
         </div>
       ) : null}
     </form>
