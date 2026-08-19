@@ -4131,7 +4131,7 @@ a:focus-visible {
   box-sizing: border-box;
   align-items: center;
   gap: 8px;
-  padding: 16px;
+  padding: 16px 32px;
   border-bottom: 1px solid var(--border-weak);
   color: var(--text-on-brand-white);
   pointer-events: none;
