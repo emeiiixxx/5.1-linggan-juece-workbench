@@ -926,10 +926,10 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
                     role="menu"
                     aria-label={t("添加附件")}
                     data-node-id="453:94648"
-                    initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }}
-                    transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+                    initial={reduceMotion ? false : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }}
                   >
                     <button type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); fileInputRef.current?.click(); }}>
                       <FigmaIcon name="add-file" size={16} />

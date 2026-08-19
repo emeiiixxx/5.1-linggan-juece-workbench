@@ -2877,7 +2877,6 @@ a:focus-visible {
   color: var(--text-secondary);
   background: var(--surface-default);
   box-shadow: var(--shadow-m);
-  transform-origin: bottom left;
 }
 
 .composer-attachment-menu button {
@@ -9515,7 +9514,7 @@ img.trend-direction-media__slide {
 
 .task-detail-gallery-item:hover .task-detail-gallery-thumbnail,
 .task-detail-gallery-item:focus-within .task-detail-gallery-thumbnail {
-  transform: scale(1.025);
+  transform: scale(1.05);
 }
 
 .task-detail-reference-heading h2 {
