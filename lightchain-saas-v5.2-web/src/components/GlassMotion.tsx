@@ -1,5 +1,5 @@
-import { useRef, type PointerEvent as ReactPointerEvent } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useReducedMotion } from "motion/react";
 import { useI18n } from "../i18n";
 import { gsap, useGSAP } from "../motion/gsap";
 import { assetUrl } from "../utils/assets";
@@ -50,6 +50,14 @@ export function ArchiveHeaderMotion({ theme, activeTab }: { theme: "dark" | "lig
   const labelCentersRef = useRef<LabelCenters | null>(null);
   const labels = archiveHeaderLabels[activeTab] ?? archiveHeaderLabels[0];
   const themeImages = archiveHeaderImages[theme];
+  const activeImage = themeImages[activeTab] ?? themeImages[0];
+
+  useEffect(() => {
+    themeImages.forEach((image) => {
+      const preloadImage = new Image();
+      preloadImage.src = assetUrl(image);
+    });
+  }, [themeImages]);
 
   useGSAP(() => {
     const topRepel = topRepelRef.current;
@@ -154,24 +162,11 @@ export function ArchiveHeaderMotion({ theme, activeTab }: { theme: "dark" | "lig
       className={`archive-header-motion archive-header-motion--${theme}`}
       aria-hidden="true"
     >
-      {themeImages.map((image, index) => {
-        const isActive = index === activeTab;
-        return (
-          <motion.img
-            className="archive-header-motion__image"
-            src={assetUrl(image)}
-            alt=""
-            key={image}
-            initial={false}
-            animate={{ opacity: isActive ? 1 : 0 }}
-            transition={{
-              duration: reduceMotion ? 0 : 0.32,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            style={{ zIndex: isActive ? 2 : 1 }}
-          />
-        );
-      })}
+      <img
+        className="archive-header-motion__image"
+        src={assetUrl(activeImage)}
+        alt=""
+      />
       <div
         className="archive-header-motion__sensor"
         onPointerEnter={captureLabelCenters}
