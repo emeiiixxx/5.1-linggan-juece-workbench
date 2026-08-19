@@ -632,12 +632,13 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
     <Activity mode={!activeTask && selectedFeaturedCase ? "visible" : "hidden"} name="featured-case-preview">
       {selectedFeaturedCase ? (
         <section className="featured-case-preview" aria-label={`${t("只读案例")}：${t(selectedFeaturedCase.title)}`}>
-          <header className="featured-case-preview__header">
+          <header className="featured-case-preview__header" data-node-id="801:33795">
             <button type="button" className="featured-case-preview__back" onClick={() => setSelectedFeaturedCase(null)}>
               <FigmaIcon name="arrow-left" size={16} />
-              <span>{t("返回优质案例")}</span>
+              <span>{t("返回")}</span>
             </button>
             <strong>{t(selectedFeaturedCase.title)}</strong>
+            <span className="task-list-item-content__type">{t(taskWorkflowLabels[selectedFeaturedCase.workflow])}</span>
             <span className="featured-case-preview__badge">{t("只读案例")}</span>
           </header>
           <div className="featured-case-preview__content">

@@ -3444,18 +3444,20 @@ a:focus-visible {
 
 .featured-case-preview__header {
   display: flex;
-  min-height: 48px;
-  flex: 0 0 48px;
+  min-height: 43px;
+  flex: 0 0 43px;
   align-items: center;
   gap: 12px;
   padding: 0 16px;
-  border-bottom: 1px solid var(--border-weak);
   color: var(--text-secondary);
-  background: var(--surface-default);
+  background: rgb(0 0 0 / 75%);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
 }
 
 .featured-case-preview__header > strong {
   min-width: 0;
+  flex: 0 1 auto;
   overflow: hidden;
   color: var(--text-primary);
   font-size: 14px;
