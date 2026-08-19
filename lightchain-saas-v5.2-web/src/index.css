@@ -3226,6 +3226,7 @@ a:focus-visible {
 
 .quick-start__title {
   gap: 4px;
+  color: var(--text-tertiary);
   white-space: nowrap;
 }
 
@@ -3245,8 +3246,18 @@ a:focus-visible {
 
 .quick-start__hint {
   gap: 4px;
-  color: var(--text-tertiary);
+  color: var(--text-placeholder);
   white-space: nowrap;
+}
+
+.quick-start__hint-icon {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-m);
 }
 
 .quick-start__grid {
@@ -3271,8 +3282,14 @@ a:focus-visible {
   text-align: left;
   font-size: 12px;
   font-weight: 400;
-  line-height: 16px;
+  line-height: 20px;
   transition: color var(--motion-standard), background-color var(--motion-standard);
+}
+
+.quick-card__type {
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 700;
 }
 
 .quick-card:hover,
@@ -3300,7 +3317,7 @@ a:focus-visible {
   flex: 1 1 auto;
   align-items: center;
   gap: 4px;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
@@ -3568,14 +3585,10 @@ a:focus-visible {
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-align: justify;
+  text-align: left;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   line-clamp: 3;
-}
-
-html:lang(en) .quick-card__text {
-  text-align: left;
 }
 
 @media (max-height: 820px) {
@@ -5679,7 +5692,6 @@ button.selection-card:not(:disabled):active { transform: scale(0.995); }
 .profile-detail-menu button.is-danger { color: var(--status-danger); }
 .profile-task-type-menu { width: 176px; }
 .profile-task-type-menu__label { padding: 4px 8px; color: var(--text-tertiary); font-size: 12px; font-weight: 500; line-height: 16px; white-space: nowrap; }
-.profile-task-type-menu button > .figma-icon { flex: 0 0 16px; }
 .profile-action-modal { box-sizing: border-box; width: min(400px, 100%); padding: 24px; border: 1px solid var(--border-weak); border-radius: var(--radius-xl); color: var(--text-primary); background: var(--surface-default); box-shadow: var(--shadow-xl); animation: profile-modal-enter var(--motion-standard) both; }
 .profile-action-modal h2 { margin: 0; font-size: 20px; font-weight: 500; line-height: 28px; }
 .profile-action-modal p { margin: 8px 0 16px; color: var(--text-secondary); font-size: 14px; line-height: 20px; }

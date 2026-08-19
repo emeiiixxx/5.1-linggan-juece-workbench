@@ -588,8 +588,16 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
     }
   };
 
-  const fillComposerFromQuickStart = (text: string) => {
-    if (!isPlanMode) {
+  const fillComposerFromQuickStart = (text: string, targetPlanningType?: ProductPlanningType) => {
+    const shouldFillPlan = activeTab === 0
+      && (targetPlanningType ?? productPlanningType) === "plan";
+
+    if (activeTab === 0 && targetPlanningType) {
+      setProductPlanningType(targetPlanningType);
+      setProductPlanningMenuOpen(false);
+    }
+
+    if (!shouldFillPlan) {
       setMessage(text);
       window.requestAnimationFrame(() => {
         const textarea = composerTextareaRef.current;
@@ -603,18 +611,20 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
     planPromptRef.current = text;
     planHasUserDraftRef.current = true;
     savedPlanEditorHtmlRef.current = text;
-    const editor = planEditorRef.current;
-    if (!editor) return;
-    editor.textContent = text;
-    editor.dataset.empty = "false";
-    syncPlanEditorValue(editor);
-    editor.focus();
-    const selection = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(editor);
-    range.collapse(false);
-    selection?.removeAllRanges();
-    selection?.addRange(range);
+    window.requestAnimationFrame(() => {
+      const editor = planEditorRef.current;
+      if (!editor) return;
+      editor.textContent = text;
+      editor.dataset.empty = "false";
+      syncPlanEditorValue(editor);
+      editor.focus();
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
   };
 
   const selectPlanEditorContext = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -700,6 +710,7 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
                 aria-selected={activeTab === index}
                 className={activeTab === index ? "is-active" : ""}
                 onClick={() => {
+                  if (index !== activeTab) onSelectedProfileChange?.(null);
                   setActiveTab(index);
                   setProductPlanningMenuOpen(false);
                   setProfileMenuOpen(false);
@@ -1095,11 +1106,13 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
               transition={quickStartLayoutTransition}
             >
               <span title={t("不知道从何开始？试试这些模板")}>{t("不知道从何开始？试试这些模板")}</span>
-              <FigmaIcon
-                name="chevron-down"
-                size={16}
-                className={quickStartOpen ? "" : "is-closed"}
-              />
+              <span className="quick-start__hint-icon">
+                <FigmaIcon
+                  name="chevron-down"
+                  size={16}
+                  className={quickStartOpen ? "" : "is-closed"}
+                />
+              </span>
             </motion.span>
           </motion.button>
 
@@ -1120,7 +1133,13 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
                 {quickStartCards.map((card, index) => (
                   <QuickStartCard
                     text={t(card)}
-                    onSelect={fillComposerFromQuickStart}
+                    typeLabel={activeTab === 0
+                      ? t(index === 0 ? "新品企划" : "企划案")
+                      : undefined}
+                    onSelect={(text) => fillComposerFromQuickStart(
+                      text,
+                      activeTab === 0 && index > 0 ? "plan" : activeTab === 0 ? "new-product" : undefined,
+                    )}
                     key={`${card}-${index}`}
                   />
                 ))}

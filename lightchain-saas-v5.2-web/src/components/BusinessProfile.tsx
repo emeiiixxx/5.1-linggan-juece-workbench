@@ -589,9 +589,9 @@ function ProfileTaskCreateMenu({ profile, onCreateTask }: { profile: Profile; on
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLSpanElement>(null);
   useDismissableLayer(open, menuRef, () => setOpen(false));
-  const options: { value: ProfileTaskType; label: string; icon: string }[] = [
-    { value: "new-product", label: "新品企划", icon: "apparel-design-menu" },
-    { value: "customer-proposal", label: "客户提案", icon: "new-task" },
+  const options: { value: ProfileTaskType; label: string }[] = [
+    { value: "new-product", label: "新品企划" },
+    { value: "customer-proposal", label: "客户提案" },
   ];
 
   return (
@@ -618,7 +618,6 @@ function ProfileTaskCreateMenu({ profile, onCreateTask }: { profile: Profile; on
                 onCreateTask?.(profile, option.value);
               }}
             >
-              <FigmaIcon name={option.icon} size={16} />
               <span>{t(option.label)}</span>
             </button>
           ))}
