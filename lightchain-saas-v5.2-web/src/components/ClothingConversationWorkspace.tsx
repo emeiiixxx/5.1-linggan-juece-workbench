@@ -155,31 +155,39 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
   const phaseTitles = isKnitCardigan
     ? ["轻盈基础款", "肌理升级款", "场景延展款"]
     : ["经典传承款", "门襟革新款", "解构实验款"];
+  const startsComplete = initialState === "complete";
   const startsAtConfirmation = initialState === "confirmation";
-  const completionReportedRef = useRef(initialState === "complete");
-  const [stage, setStage] = useState<ApparelStage>(startsAtConfirmation ? "brief" : "analyzing");
-  const [analysisExpanded, setAnalysisExpanded] = useState(!startsAtConfirmation);
+  const completedDirectionIds = isKnitCardigan ? ["A", "B"] : ["A", "D"];
+  const completedDirectionReply = completedDirectionIds
+    .map((id) => {
+      const direction = activeDesignDirections.find((item) => item.id === id);
+      return direction ? `${direction.id} · ${direction.title}` : id;
+    })
+    .join(" + ");
+  const completionReportedRef = useRef(startsComplete);
+  const [stage, setStage] = useState<ApparelStage>(startsComplete ? "results" : startsAtConfirmation ? "brief" : "analyzing");
+  const [analysisExpanded, setAnalysisExpanded] = useState(!startsAtConfirmation && !startsComplete);
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [followUp, setFollowUp] = useState("");
-  const [briefReply, setBriefReply] = useState("");
+  const [briefReply, setBriefReply] = useState(startsComplete ? "已确认完整系列开发、风格方向、商业定位与改款幅度" : "");
   const [quantityChoice, setQuantityChoice] = useState(quantityOptions[0]);
-  const [styleChoices, setStyleChoices] = useState<string[]>(startsAtConfirmation ? ["延续经典", "轻奢商务"] : []);
+  const [styleChoices, setStyleChoices] = useState<string[]>(startsAtConfirmation || startsComplete ? ["延续经典", "轻奢商务"] : []);
   const [otherStyleDirection, setOtherStyleDirection] = useState("");
-  const [commercialChoice, setCommercialChoice] = useState(startsAtConfirmation ? "轻奢品质" : "");
-  const [changeChoice, setChangeChoice] = useState(startsAtConfirmation ? "中等改动" : "");
-  const [directionReply, setDirectionReply] = useState("");
-  const [selectedDirectionIds, setSelectedDirectionIds] = useState<string[]>([]);
+  const [commercialChoice, setCommercialChoice] = useState(startsAtConfirmation || startsComplete ? "轻奢品质" : "");
+  const [changeChoice, setChangeChoice] = useState(startsAtConfirmation || startsComplete ? "中等改动" : "");
+  const [directionReply, setDirectionReply] = useState(startsComplete ? completedDirectionReply : "");
+  const [selectedDirectionIds, setSelectedDirectionIds] = useState<string[]>(startsComplete ? completedDirectionIds : []);
   const [customDirection, setCustomDirection] = useState("");
-  const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+  const [selectedCandidates, setSelectedCandidates] = useState<string[]>(startsComplete ? candidateIds.slice(0, 6) : []);
   const [candidatesSkipped, setCandidatesSkipped] = useState(false);
   const [favoriteCandidates, setFavoriteCandidates] = useState<string[]>([]);
   const [previewCandidate, setPreviewCandidate] = useState<string | null>(null);
   const [previewResult, setPreviewResult] = useState<string | null>(null);
   const [favoriteResults, setFavoriteResults] = useState<string[]>([]);
-  const [candidateReply, setCandidateReply] = useState("");
-  const [candidateAnalysisExpanded, setCandidateAnalysisExpanded] = useState(true);
-  const [strategyReply, setStrategyReply] = useState("");
-  const [matrixReply, setMatrixReply] = useState("");
+  const [candidateReply, setCandidateReply] = useState(startsComplete ? "满意，请继续" : "");
+  const [candidateAnalysisExpanded, setCandidateAnalysisExpanded] = useState(!startsComplete);
+  const [strategyReply, setStrategyReply] = useState(startsComplete ? "认可，请继续" : "");
+  const [matrixReply, setMatrixReply] = useState(startsComplete ? "开始生图" : "");
   const [replyAttachments, setReplyAttachments] = useState<Partial<Record<ApparelStage, TaskConversationAttachment[]>>>({});
   const briefAcknowledgement = buildConditionAcknowledgement({ message: briefReply, attachments: replyAttachments.brief });
   const directionAcknowledgement = buildConditionAcknowledgement({ message: directionReply, attachments: replyAttachments.directions });
@@ -198,7 +206,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
     attachments: replyAttachments.matrix,
     ignoredMessages: ["开始生图"],
   });
-  const [batchProgress, setBatchProgress] = useState(0);
+  const [batchProgress, setBatchProgress] = useState(startsComplete ? 2 : 0);
   const [resultFollowUps, setResultFollowUps] = useState<Array<{ request: string; attachments: TaskConversationAttachment[]; response: string }>>([]);
   const feedEndRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();

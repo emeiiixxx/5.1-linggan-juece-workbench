@@ -153,10 +153,32 @@ export const allDemoTaskExamples = [
   ...standaloneDemoTaskExamples,
 ];
 
-export const quickStartCards = [
-  "以ZIMMERMANN的RESORT2026系列做为设计灵感，需要包含短款外套、衬衫连衣裙、印花连衣裙、半裙、生成一份女装主题设计企划。",
-  "以PDF的2025秋冬系列做为设计灵感，需要包含印花外套、棒球外套、卫衣、毛衣、长裤生成一份男童主题设计企划。",
-  "以PDF的2025秋冬系列做为设计灵感，需要包含印花外套、棒球外套、卫衣、毛衣、长裤生成一份男童主题设计企划。",
+export type QuickStartTemplate = {
+  text: string;
+  workflow: TaskWorkflow;
+};
+
+export const quickStartCardsByTab: readonly (readonly QuickStartTemplate[])[] = [
+  [
+    { text: "以ZIMMERMANN的RESORT2026系列做为设计灵感，需要包含短款外套、衬衫连衣裙、印花连衣裙、半裙、生成一份女装主题设计企划。", workflow: "new-product" },
+    { text: "以PDF的2025秋冬系列做为设计灵感，需要包含印花外套、棒球外套、卫衣、毛衣、长裤生成一份男童主题设计企划。", workflow: "plan" },
+    { text: "以DIOR 2026早春女装为设计灵感，规划轻礼服、薄纱叠搭、柔性剪裁与过渡季外套，生成一份女装主题设计企划。", workflow: "plan" },
+  ],
+  [
+    { text: "为北美轻户外品牌制作2027春夏客户提案，结合市场趋势、竞品表现、目标客群和视觉方向，输出完整系列建议。", workflow: "default" },
+    { text: "根据日本通勤女装客户brief，围绕轻薄针织、柔和配色与易搭配场景，生成一份春季系列客户提案。", workflow: "default" },
+    { text: "为欧洲度假女装客户整理花卉印花、轻盈廓形和旅行场景灵感，输出视觉方向、重点款式与提案报告。", workflow: "default" },
+  ],
+  [
+    { text: "以经典飞行员夹克为基础，设计8款兼顾传承、门襟革新与解构实验的系列款式，并保留商业实穿性。", workflow: "apparel" },
+    { text: "设计一组2027春季米白轻薄针织开衫，强调细腻组织、简洁门襟和城市通勤比例，避免夸张装饰。", workflow: "apparel" },
+    { text: "设计一组轻奢度假连衣裙，结合柔和花卉、轻盈垂感与克制装饰，输出从基础款到形象款的系列方案。", workflow: "apparel" },
+  ],
+  [
+    { text: "为2027春夏女装设计轻盈植物花园图案，使用手绘花叶、疏密层次与四方连续，应用于连衣裙和半裙。", workflow: "pattern" },
+    { text: "设计一组精致几何花窗图案，通过对称骨架、小比例单元和秩序排列形成连续纹样，应用于衬衫与配饰。", workflow: "pattern" },
+    { text: "设计一组复古野趣花卉图案，融合不规则手绘轮廓、颗粒肌理与自然色彩，输出连续花型和定位印花方案。", workflow: "pattern" },
+  ],
 ];
 
 export const recentItems = [

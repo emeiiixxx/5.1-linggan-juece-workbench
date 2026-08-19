@@ -189,6 +189,46 @@ const copy: Record<string, Translation> = {
     ja: "PDFの2025年秋冬を着想源に、プリントジャケット、スタジャン、スウェット、ニット、パンツを含む男児服企画を作成。",
     en: "Create a boyswear plan inspired by the PDF Fall/Winter 2025 collection, featuring printed jackets, varsity jackets, sweatshirts, sweaters, and trousers.",
   },
+  "以DIOR 2026早春女装为设计灵感，规划轻礼服、薄纱叠搭、柔性剪裁与过渡季外套，生成一份女装主题设计企划。": {
+    ja: "DIOR 2026年プレスプリングに着想を得て、ライトフォーマル、シアーレイヤー、ソフトテーラリング、季節の変わり目のアウターを含むウィメンズ企画を作成。",
+    en: "Create a womenswear plan inspired by DIOR Pre-Spring 2026, covering light occasionwear, sheer layering, soft tailoring, and transitional outerwear.",
+  },
+  "为北美轻户外品牌制作2027春夏客户提案，结合市场趋势、竞品表现、目标客群和视觉方向，输出完整系列建议。": {
+    ja: "北米ライトアウトドアブランド向けに、2027年春夏の市場トレンド、競合、ターゲット、ビジュアル方向を含む提案を作成。",
+    en: "Create a Spring/Summer 2027 proposal for a North American light-outdoor brand, covering market trends, competitors, target customers, and visual direction.",
+  },
+  "根据日本通勤女装客户brief，围绕轻薄针织、柔和配色与易搭配场景，生成一份春季系列客户提案。": {
+    ja: "日本の通勤女性向けブリーフをもとに、薄手ニット、柔らかな配色、着回しやすいシーンを中心とした春の提案を作成。",
+    en: "Turn a Japanese commuter-womenswear brief into a spring proposal focused on lightweight knits, soft colors, and versatile styling.",
+  },
+  "为欧洲度假女装客户整理花卉印花、轻盈廓形和旅行场景灵感，输出视觉方向、重点款式与提案报告。": {
+    ja: "欧州リゾートウィメンズ向けに、フラワープリント、軽やかなシルエット、旅行シーンを整理し、ビジュアル方向と主力スタイルを提案。",
+    en: "Build a European resort-womenswear proposal around floral prints, airy silhouettes, and travel occasions, with visual directions and key styles.",
+  },
+  "以经典飞行员夹克为基础，设计8款兼顾传承、门襟革新与解构实验的系列款式，并保留商业实穿性。": {
+    ja: "クラシックなボンバージャケットを基に、伝統、前開きの革新、解構実験を実用性と両立させた8スタイルをデザイン。",
+    en: "Design eight commercially wearable bomber-jacket styles spanning heritage details, closure innovation, and deconstruction.",
+  },
+  "设计一组2027春季米白轻薄针织开衫，强调细腻组织、简洁门襟和城市通勤比例，避免夸张装饰。": {
+    ja: "2027年春向けのアイボリーの軽量ニットカーディガンを、繊細な編み地、シンプルな前開き、都市通勤の比例でデザイン。",
+    en: "Design a Spring 2027 series of lightweight ivory knit cardigans with refined textures, clean closures, and commuter-friendly proportions.",
+  },
+  "设计一组轻奢度假连衣裙，结合柔和花卉、轻盈垂感与克制装饰，输出从基础款到形象款的系列方案。": {
+    ja: "柔らかな花柄、軽やかなドレープ、控えめな装飾を用い、ベーシックからイメージピースまでのリゾートドレスをデザイン。",
+    en: "Design a quiet-luxury resort-dress series using soft florals, fluid drape, and restrained details, from core styles to image pieces.",
+  },
+  "为2027春夏女装设计轻盈植物花园图案，使用手绘花叶、疏密层次与四方连续，应用于连衣裙和半裙。": {
+    ja: "2027年春夏ウィメンズ向けに、手描きの花葉、疏密のリズム、四方連続を用いた軽やかなボタニカルガーデン柄をデザイン。",
+    en: "Design an airy botanical-garden pattern for Spring/Summer 2027 womenswear using hand-drawn foliage, varied density, and a seamless repeat.",
+  },
+  "设计一组精致几何花窗图案，通过对称骨架、小比例单元和秩序排列形成连续纹样，应用于衬衫与配饰。": {
+    ja: "対称フレーム、小さなモチーフ、整然とした配列で連続する幾何学ウィンドウ柄を作り、シャツとアクセサリーに展開。",
+    en: "Create a refined geometric-window repeat from symmetrical frameworks, small-scale motifs, and ordered layouts for shirts and accessories.",
+  },
+  "设计一组复古野趣花卉图案，融合不规则手绘轮廓、颗粒肌理与自然色彩，输出连续花型和定位印花方案。": {
+    ja: "不規則な手描き輪郭、粒状テクスチャー、自然な色を組み合わせ、ヴィンテージなワイルドフラワーの総柄とプレースメント柄を作成。",
+    en: "Create vintage wildflower repeats and placement prints using irregular hand-drawn outlines, grainy texture, and natural colors.",
+  },
   "面料套版": { ja: "生地差し替え", en: "Fabric Layout" },
   "面料·指定版式快速设计": { ja: "生地・レイアウトをすぐ変更", en: "Swap fabric & layout" },
   "单款裂变": { ja: "単品バリエーション", en: "Style Variations" },

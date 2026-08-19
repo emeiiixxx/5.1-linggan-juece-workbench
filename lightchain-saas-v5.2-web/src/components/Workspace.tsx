@@ -1,6 +1,6 @@
 import { Activity, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from "motion/react";
-import { quickStartCards, taskWorkflowLabels, type TaskSourceLabel, type TaskWorkflow } from "../data/workspace";
+import { quickStartCardsByTab, taskWorkflowLabels, type TaskSourceLabel, type TaskWorkflow } from "../data/workspace";
 import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { FeaturedCases, type FeaturedCase } from "./FeaturedCases";
@@ -63,23 +63,24 @@ function TaskConversation({ task, onTaskStatusChange, readOnly = false }: {
 }) {
   const onTaskProgress = () => onTaskStatusChange?.(task.id, "running");
   const onTaskComplete = () => onTaskStatusChange?.(task.id, "completed");
+  const initialState = readOnly ? "complete" : task.initialState;
   if (task.workflow === "new-product") {
-    return <NewProductPlanningWorkspace prompt={task.prompt} profileName={task.profileName} attachments={task.attachments} initialState={task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} readOnly={readOnly} />;
+    return <NewProductPlanningWorkspace prompt={task.prompt} profileName={task.profileName} attachments={task.attachments} initialState={initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} readOnly={readOnly} />;
   }
   if (task.workflow === "apparel") {
-    return <ClothingConversationWorkspace prompt={task.prompt} attachments={task.attachments} initialState={task.initialState === "exception" ? "default" : task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} readOnly={readOnly} />;
+    return <ClothingConversationWorkspace prompt={task.prompt} attachments={task.attachments} initialState={initialState === "exception" ? "default" : initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} readOnly={readOnly} />;
   }
   if (task.workflow === "pattern") {
-    return <PatternConversationWorkspace prompt={task.prompt} attachments={task.attachments} initialState={task.initialState === "exception" ? "default" : task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} readOnly={readOnly} />;
+    return <PatternConversationWorkspace prompt={task.prompt} attachments={task.attachments} initialState={initialState === "exception" ? "default" : initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} readOnly={readOnly} />;
   }
   if (task.workflow === "plan") {
-    return <PlanConversationWorkspace prompt={task.prompt} initialState={task.initialState === "exception" ? "default" : task.initialState} onTaskComplete={onTaskComplete} readOnly={readOnly} />;
+    return <PlanConversationWorkspace prompt={task.prompt} initialState={initialState === "exception" ? "default" : initialState} onTaskComplete={onTaskComplete} readOnly={readOnly} />;
   }
   return <ConversationWorkspace
     prompt={task.prompt}
     profileName={task.profileName}
     attachments={task.attachments}
-    initialState={task.initialState === "complete" ? "complete" : "default"}
+    initialState={initialState === "complete" ? "complete" : "default"}
     onTaskProgress={onTaskProgress}
     onTaskComplete={onTaskComplete}
     readOnly={readOnly}
@@ -310,6 +311,7 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
   activeTabRef.current = activeTab;
   const activeTaskId = activeTask?.id ?? null;
   const isPlanMode = activeTab === 0 && productPlanningType === "plan";
+  const activeQuickStartCards = quickStartCardsByTab[activeTab] ?? quickStartCardsByTab[0];
   const reduceMotion = useReducedMotion();
   const homeEntranceControls = useAnimationControls();
   const homeVisible = !activeTask && !selectedFeaturedCase;
@@ -1130,17 +1132,17 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
                 }}
                 transition={quickStartExpandTransition}
               >
-                {quickStartCards.map((card, index) => (
+                {activeQuickStartCards.map((card, index) => (
                   <QuickStartCard
-                    text={t(card)}
+                    text={t(card.text)}
                     typeLabel={activeTab === 0
-                      ? t(index === 0 ? "新品企划" : "企划案")
+                      ? t(taskWorkflowLabels[card.workflow])
                       : undefined}
                     onSelect={(text) => fillComposerFromQuickStart(
                       text,
-                      activeTab === 0 && index > 0 ? "plan" : activeTab === 0 ? "new-product" : undefined,
+                      card.workflow === "new-product" || card.workflow === "plan" ? card.workflow : undefined,
                     )}
-                    key={`${card}-${index}`}
+                    key={`${card.workflow}-${card.text}-${index}`}
                   />
                 ))}
               </motion.div>
