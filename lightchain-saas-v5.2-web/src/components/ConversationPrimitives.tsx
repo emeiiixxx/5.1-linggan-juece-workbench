@@ -409,6 +409,7 @@ export function TaskDisclosure({
   title,
   expanded,
   complete,
+  status,
   controlsId,
   onToggle,
   children,
@@ -416,6 +417,7 @@ export function TaskDisclosure({
   title: string;
   expanded: boolean;
   complete: boolean;
+  status?: "loading" | "complete" | "error";
   controlsId: string;
   onToggle: () => void;
   children: ReactNode;
@@ -425,6 +427,7 @@ export function TaskDisclosure({
   const detailsRef = useRef<HTMLDivElement>(null);
   const disclosureRef = useRef<HTMLSpanElement>(null);
   const initializedRef = useRef(false);
+  const resolvedStatus = status ?? (complete ? "complete" : "loading");
 
   useGSAP(() => {
     const details = detailsRef.current;
@@ -478,9 +481,13 @@ export function TaskDisclosure({
     <div className="conversation-analysis-task" ref={rootRef} data-message-meta="disabled">
       <button type="button" className="conversation-analysis-trigger" aria-expanded={expanded} aria-controls={controlsId} onClick={onToggle}>
         <AnimatePresence initial={false} mode="wait">
-          {complete ? (
+          {resolvedStatus === "complete" ? (
             <motion.span className="conversation-analysis-complete-icon" key="complete" initial={reduceMotion ? false : { opacity: 0, scale: 0.62, rotate: -18 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} transition={{ duration: reduceMotion ? 0 : 0.24, ease: revealEase }}>
               <FigmaIcon name="check" size={20} />
+            </motion.span>
+          ) : resolvedStatus === "error" ? (
+            <motion.span className="conversation-analysis-error-icon" key="error" initial={reduceMotion ? false : { opacity: 0, scale: 0.72 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}>
+              <FigmaIcon name="exclamation" size={20} />
             </motion.span>
           ) : (
             <motion.span className="conversation-analysis-loading" key="loading" initial={reduceMotion ? false : { opacity: 1, scale: 1 }} animate={{ opacity: 1, scale: 1 }} exit={reduceMotion ? undefined : { opacity: 0, scale: 0.68 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: revealEase }}>
@@ -488,7 +495,7 @@ export function TaskDisclosure({
             </motion.span>
           )}
         </AnimatePresence>
-        <span className={`conversation-analysis-title ${complete ? "" : "is-loading"}`}>{title}</span>
+        <span className={`conversation-analysis-title ${resolvedStatus === "loading" ? "is-loading" : ""} ${resolvedStatus === "error" ? "is-error" : ""}`}>{title}</span>
         <span className="conversation-analysis-disclosure" ref={disclosureRef}>
           <FigmaIcon name="chevron-right" size={16} />
         </span>

@@ -14,6 +14,7 @@ export type TaskConversationExceptionNotice = {
   message: string;
   actionLabel: string;
   onAction: () => void;
+  processing?: boolean;
 };
 
 type ComposerAttachment = TaskConversationAttachment & {
@@ -196,7 +197,7 @@ export function TaskConversationComposer({
           >
             <div className="conversation-composer-exception__content">
               <FigmaIcon name="exclamation" size={20} />
-              <span>{exceptionNotice.message}</span>
+              <span className={exceptionNotice.processing ? "conversation-analysis-title is-loading" : undefined}>{exceptionNotice.message}</span>
               <button type="button" onClick={exceptionNotice.onAction}>{exceptionNotice.actionLabel}</button>
             </div>
           </motion.div>

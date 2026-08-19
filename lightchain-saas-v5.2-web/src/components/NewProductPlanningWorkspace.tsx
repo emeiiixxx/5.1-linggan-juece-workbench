@@ -12,7 +12,6 @@ import {
 } from "./ImageSelection";
 import {
   AnalysisStepIcon,
-  ConversationErrorMessage,
   ConversationFeed,
   ConversationFileCard,
   ConversationFollowUpExchange,
@@ -54,7 +53,7 @@ type PlanningStage =
   | "plan-generating"
   | "complete";
 
-type ExceptionDemoStage = "ready" | "network" | "parse-failed" | "credits";
+type ExceptionDemoStage = "ready" | "network" | "reconnecting" | "parse-failed" | "retrying" | "credits";
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
 const directions = [
@@ -396,7 +395,7 @@ function NewProductLoadingTask({ title, lines, complete = false }: { title: stri
   );
 }
 
-function NewProductExceptionAnalysisTask() {
+function NewProductExceptionAnalysisTask({ failed, onRetry }: { failed: boolean; onRetry: () => void }) {
   const [expanded, setExpanded] = useState(true);
   const controlsId = useId();
 
@@ -406,6 +405,7 @@ function NewProductExceptionAnalysisTask() {
         title="解析新品企划需求"
         expanded={expanded}
         complete={false}
+        status={failed ? "error" : "loading"}
         controlsId={controlsId}
         onToggle={() => setExpanded((value) => !value)}
       >
@@ -419,9 +419,14 @@ function NewProductExceptionAnalysisTask() {
           <span>解析客户资料与首轮描述 — 完成</span>
         </div>
         <p>已保留本次文字、图片、文档与新品企划约束。</p>
-        <div className="new-product-exception-step is-error">
-          <span className="new-product-exception-step__icon"><FigmaIcon name="info-circle" size={16} /></span>
-          <span>解析失败 — 连接超时</span>
+        <div className={`new-product-exception-step ${failed ? "is-error" : "is-loading"}`}>
+          <span className="new-product-exception-step__icon">
+            {failed
+              ? <FigmaIcon name="info-circle" size={16} />
+              : <img className="conversation-analysis-spinner" src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" />}
+          </span>
+          <span>{failed ? "解析失败 — 连接超时" : "正在继续解析新品企划约束..."}</span>
+          {failed ? <Button className="new-product-exception-retry" variant="ghost" size="small" onClick={onRetry}>重试</Button> : null}
         </div>
       </TaskDisclosure>
     </div>
@@ -533,6 +538,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const detailAutoOpenedRef = useRef(startsComplete);
   const [stage, setStage] = useState<PlanningStage>(startsComplete ? "complete" : startsAtConfirmation ? "brief" : "analyzing");
   const [exceptionDemoStage, setExceptionDemoStage] = useState<ExceptionDemoStage>("ready");
+  const [exceptionCreditsResolved, setExceptionCreditsResolved] = useState(false);
   const [analysisExpanded, setAnalysisExpanded] = useState(!startsComplete && !startsAtConfirmation);
   const [detailPanelOpen, setDetailPanelOpen] = useState(startsComplete);
   const [followUp, setFollowUp] = useState("");
@@ -593,6 +599,21 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     }, reduceMotion ? 0 : 1800);
     return () => window.clearTimeout(timer);
   }, [reduceMotion, stage]);
+
+  useEffect(() => {
+    if (!exceptionDemo || exceptionDemoStage !== "reconnecting") return;
+    const timer = window.setTimeout(() => setExceptionDemoStage("parse-failed"), reduceMotion ? 600 : 2200);
+    return () => window.clearTimeout(timer);
+  }, [exceptionDemo, exceptionDemoStage, reduceMotion]);
+
+  useEffect(() => {
+    if (!exceptionDemo || exceptionDemoStage !== "retrying") return;
+    const timer = window.setTimeout(() => {
+      setExceptionDemoStage("ready");
+      setStage("scope");
+    }, reduceMotion ? 600 : 2200);
+    return () => window.clearTimeout(timer);
+  }, [exceptionDemo, exceptionDemoStage, reduceMotion]);
 
   useEffect(() => {
     if (stage !== "research") return;
@@ -664,7 +685,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
   useEffect(() => {
     scrollWithinConversation(feedEndRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "end" });
-  }, [additionalMessages.length, reduceMotion, resultBatches.length, selectedResults.length, stage]);
+  }, [additionalMessages.length, exceptionDemoStage, reduceMotion, resultBatches.length, selectedResults.length, stage]);
 
   const toggle = (value: string, setter: Dispatch<SetStateAction<string[]>>) => {
     setter((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
@@ -861,15 +882,10 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     ? {
         message: "网络异常，重连中...",
         actionLabel: "立即重试",
-        onAction: () => setExceptionDemoStage("parse-failed"),
+        onAction: () => setExceptionDemoStage("reconnecting"),
+        processing: true,
       }
-    : exceptionDemoStage === "parse-failed"
-      ? {
-          message: "解析遇到问题，连接超时",
-          actionLabel: "重试",
-          onAction: () => setExceptionDemoStage("credits"),
-        }
-      : exceptionDemoStage === "credits"
+    : exceptionDemoStage === "credits"
         ? {
             message: "您的积分余额不足",
             actionLabel: "购买积分",
@@ -880,8 +896,9 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   useEffect(() => {
     if (!exceptionDemo || exceptionDemoStage !== "credits") return;
     const resumeAfterPurchase = () => {
+      setExceptionCreditsResolved(true);
       setExceptionDemoStage("ready");
-      setStage("scope");
+      setStage("research");
     };
     window.addEventListener("lightchain:credits-purchased", resumeAfterPurchase);
     return () => window.removeEventListener("lightchain:credits-purchased", resumeAfterPurchase);
@@ -1073,23 +1090,21 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
               </AssistantMessage>
             ) : null}
 
-            {exceptionDemo && exceptionDemoStage !== "ready" ? (
+            {exceptionDemo && ["network", "reconnecting", "parse-failed", "retrying"].includes(exceptionDemoStage) ? (
               <ConversationUserMessage>
                 <ConversationUserAttachments attachments={briefEntryAttachments} />
                 {briefEntryMessage ? <span>{briefEntryMessage}</span> : null}
               </ConversationUserMessage>
             ) : null}
 
-            {exceptionDemo && ["parse-failed", "credits"].includes(exceptionDemoStage) ? (
-              <>
-                <AssistantMessage actions={false}>
-                  <p>网络已恢复，正在从中断位置继续解析，已提交的需求与附件不会丢失。</p>
-                  <NewProductExceptionAnalysisTask />
-                </AssistantMessage>
-                <ConversationErrorMessage>
-                  解析遇到问题，连接超时。当前需求与已上传资料已保留，请重试；若问题持续，请联系客服。
-                </ConversationErrorMessage>
-              </>
+            {exceptionDemo && ["reconnecting", "parse-failed", "retrying"].includes(exceptionDemoStage) ? (
+              <AssistantMessage actions={false}>
+                <p>{exceptionDemoStage === "retrying" ? "正在重新解析新品企划需求，已提交的需求与附件不会丢失。" : "网络已恢复，正在从中断位置继续解析，已提交的需求与附件不会丢失。"}</p>
+                <NewProductExceptionAnalysisTask
+                  failed={exceptionDemoStage === "parse-failed"}
+                  onRetry={() => setExceptionDemoStage("retrying")}
+                />
+              </AssistantMessage>
             ) : null}
 
             {["scope", "research", "directions", "structure-planning", "structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage) ? (
@@ -1103,7 +1118,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                   <p>需求摘要已确认。请确认地区，以及本次实际需要研究的平台和网站。趋势资料库固定启用；不同平台的数据会分别保留，不合并成单一销量、销售额或热度。</p>
                   <p>请选择主要市场、电商平台和社交媒体。</p>
                   <ResearchScopeForm
-                    confirmed={stage !== "scope"}
+                    confirmed={stage !== "scope" || exceptionDemoStage === "credits"}
                     profileLinked={Boolean(profileName)}
                     markets={researchMarkets}
                     selectedMarkets={markets}
@@ -1128,7 +1143,13 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                       setSocial(scopeDefaults.social);
                       setOtherCommerce("");
                     }}
-                    onConfirm={() => setStage("research")}
+                    onConfirm={() => {
+                      if (exceptionDemo && !exceptionCreditsResolved) {
+                        setExceptionDemoStage("credits");
+                        return;
+                      }
+                      setStage("research");
+                    }}
                   />
                 </AssistantMessage>
               </>
@@ -1312,7 +1333,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
         </div>
 
         <div className="conversation-bottom-fade" aria-hidden="true" />
-        <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} hint={stage === "scope" ? "请先完成调研范围确认" : stage === "directions" ? "请先从上方表单完成视觉方向选择" : stage === "results" ? "生成企划将扣除 999 积分" : undefined} disabled={stage === "scope" || stage === "directions" || Boolean(exceptionNotice)} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} focusRequest={composerFocusRequest} exceptionNotice={exceptionNotice} />
+        <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} hint={["reconnecting", "retrying"].includes(exceptionDemoStage) ? "Agent 正在重新解析，请稍候..." : exceptionDemoStage === "parse-failed" ? "请先重试解析任务" : stage === "scope" ? "请先完成调研范围确认" : stage === "directions" ? "请先从上方表单完成视觉方向选择" : stage === "results" ? "生成企划将扣除 999 积分" : undefined} disabled={stage === "scope" || stage === "directions" || ["reconnecting", "parse-failed", "retrying"].includes(exceptionDemoStage) || Boolean(exceptionNotice)} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} focusRequest={composerFocusRequest} exceptionNotice={exceptionNotice} />
       </section>
 
       <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>
