@@ -248,10 +248,11 @@ function LegacyThemeAnalysis({ subject, brand }: { subject: string; brand: strin
   );
 }
 
-export function PlanConversationWorkspace({ prompt, initialState = "default", onTaskComplete }: {
+export function PlanConversationWorkspace({ prompt, initialState = "default", onTaskComplete, readOnly = false }: {
   prompt: string;
   initialState?: "default" | "confirmation" | "complete";
   onTaskComplete?: () => void;
+  readOnly?: boolean;
 }) {
   const promptContext = useMemo(() => extractPromptContext(prompt), [prompt]);
   const planBrand = promptContext.brand ?? "目标品牌";
@@ -412,7 +413,7 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
   };
 
   return (
-    <motion.main className={`workspace-region workspace-region--conversation plan-workspace ${detailPanelOpen ? "has-detail-panel" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.main className={`workspace-region workspace-region--conversation plan-workspace ${detailPanelOpen ? "has-detail-panel" : ""} ${readOnly ? "is-read-only" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
       <section className="conversation-stage" aria-label="企划案任务对话">
         <div className="conversation-scroll">
           <ConversationFeed className="plan-conversation-feed">

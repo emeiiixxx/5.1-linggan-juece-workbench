@@ -514,13 +514,14 @@ function DownloadableFile({ name, description, html, onPreview }: { name: string
   );
 }
 
-export function NewProductPlanningWorkspace({ prompt, profileName, attachments = [], initialState = "default", onTaskProgress, onTaskComplete }: {
+export function NewProductPlanningWorkspace({ prompt, profileName, attachments = [], initialState = "default", onTaskProgress, onTaskComplete, readOnly = false }: {
   prompt: string;
   profileName?: string;
   attachments?: { name: string; previewUrl?: string }[];
   initialState?: "default" | "confirmation" | "complete" | "exception";
   onTaskProgress?: () => void;
   onTaskComplete?: () => void;
+  readOnly?: boolean;
 }) {
   const { locale, t } = useI18n();
   const scopeDefaults = getResearchScopeDefaults(profileName, locale, prompt);
@@ -1057,7 +1058,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   };
 
   return (
-    <motion.main className={`workspace-region workspace-region--conversation new-product-workspace ${detailPanelOpen ? "has-detail-panel" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.main className={`workspace-region workspace-region--conversation new-product-workspace ${detailPanelOpen ? "has-detail-panel" : ""} ${readOnly ? "is-read-only" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
       <section className="conversation-stage" aria-label="新品企划任务对话">
         <div className="conversation-scroll">
           <ConversationFeed className="new-product-feed">
@@ -1332,8 +1333,10 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
           </ConversationFeed>
         </div>
 
+        {!readOnly ? <>
         <div className="conversation-bottom-fade" aria-hidden="true" />
         <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} hint={["reconnecting", "retrying"].includes(exceptionDemoStage) ? "Agent 正在重新解析，请稍候..." : exceptionDemoStage === "parse-failed" ? "请先重试解析任务" : stage === "scope" ? "请先完成调研范围确认" : stage === "directions" ? "请先从上方表单完成视觉方向选择" : stage === "results" ? "生成企划将扣除 999 积分" : undefined} disabled={stage === "scope" || stage === "directions" || ["reconnecting", "parse-failed", "retrying"].includes(exceptionDemoStage) || Boolean(exceptionNotice)} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} focusRequest={composerFocusRequest} exceptionNotice={exceptionNotice} />
+        </> : null}
       </section>
 
       <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>

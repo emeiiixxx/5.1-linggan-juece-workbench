@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { quickStartCards, taskWorkflowLabels, type TaskSourceLabel, type TaskWorkflow } from "../data/workspace";
 import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
+import { FeaturedCases, type FeaturedCase } from "./FeaturedCases";
 import { ArchiveHeaderMotion } from "./GlassMotion";
 import { IconControl } from "./IconControl";
 import { QuickStartCard } from "./QuickStartCard";
@@ -55,23 +56,24 @@ type WorkspaceTask = {
 const defaultPlanPrompt = "以 Loro Piana 的 2027春夏 系列做为设计灵感，需要包含 短款外套、衬衫、卫衣、短袖、长裤、短裤 这些品类，生成一份 男装 主题设计企划";
 const defaultPlanEditorHtml = '以 <span class="composer-semantic-slot">Loro Piana</span> 的 <span class="composer-semantic-slot">2027春夏</span> 系列做为设计灵感，需要包含 <span class="composer-semantic-slot">短款外套、衬衫、卫衣、短袖、长裤、短裤</span> 这些品类，生成一份 <span class="composer-semantic-slot">男装</span> 主题设计企划';
 
-function TaskConversation({ task, onTaskStatusChange }: {
+function TaskConversation({ task, onTaskStatusChange, readOnly = false }: {
   task: WorkspaceTask;
   onTaskStatusChange?: (taskId: number, status: "running" | "completed") => void;
+  readOnly?: boolean;
 }) {
   const onTaskProgress = () => onTaskStatusChange?.(task.id, "running");
   const onTaskComplete = () => onTaskStatusChange?.(task.id, "completed");
   if (task.workflow === "new-product") {
-    return <NewProductPlanningWorkspace prompt={task.prompt} profileName={task.profileName} attachments={task.attachments} initialState={task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} />;
+    return <NewProductPlanningWorkspace prompt={task.prompt} profileName={task.profileName} attachments={task.attachments} initialState={task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} readOnly={readOnly} />;
   }
   if (task.workflow === "apparel") {
-    return <ClothingConversationWorkspace prompt={task.prompt} attachments={task.attachments} initialState={task.initialState === "exception" ? "default" : task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} />;
+    return <ClothingConversationWorkspace prompt={task.prompt} attachments={task.attachments} initialState={task.initialState === "exception" ? "default" : task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} readOnly={readOnly} />;
   }
   if (task.workflow === "pattern") {
-    return <PatternConversationWorkspace prompt={task.prompt} attachments={task.attachments} initialState={task.initialState === "exception" ? "default" : task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} />;
+    return <PatternConversationWorkspace prompt={task.prompt} attachments={task.attachments} initialState={task.initialState === "exception" ? "default" : task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} readOnly={readOnly} />;
   }
   if (task.workflow === "plan") {
-    return <PlanConversationWorkspace prompt={task.prompt} initialState={task.initialState === "exception" ? "default" : task.initialState} onTaskComplete={onTaskComplete} />;
+    return <PlanConversationWorkspace prompt={task.prompt} initialState={task.initialState === "exception" ? "default" : task.initialState} onTaskComplete={onTaskComplete} readOnly={readOnly} />;
   }
   return <ConversationWorkspace
     prompt={task.prompt}
@@ -80,6 +82,7 @@ function TaskConversation({ task, onTaskStatusChange }: {
     initialState={task.initialState === "complete" ? "complete" : "default"}
     onTaskProgress={onTaskProgress}
     onTaskComplete={onTaskComplete}
+    readOnly={readOnly}
   />;
 }
 
@@ -257,12 +260,13 @@ function ComposerEntityMenu<T extends ComposerMenuOption>({
   );
 }
 
-export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKey = 0, selectedProfile, onSelectedProfileChange, onCreateProfile, selectedProject, createdProjects = [], onSelectedProjectChange, onCreateProject, onTaskStatusChange, onCreateTask }: {
+export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKey = 0, newTaskWorkflow = null, selectedProfile, onSelectedProfileChange, onCreateProfile, selectedProject, createdProjects = [], onSelectedProjectChange, onCreateProject, onTaskStatusChange, onCreateTask }: {
   theme: "dark" | "light";
   active?: boolean;
   activeTask?: WorkspaceTask | null;
   taskIds?: readonly number[];
   newTaskKey?: number;
+  newTaskWorkflow?: "new-product" | "default" | null;
   selectedProfile?: ProfileOption | null;
   onSelectedProfileChange?: (profile: ProfileOption | null) => void;
   onCreateProfile?: () => void;
@@ -278,6 +282,7 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
   const [productPlanningType, setProductPlanningType] = useState<ProductPlanningType>("new-product");
   const [productPlanningMenuOpen, setProductPlanningMenuOpen] = useState(false);
   const [quickStartOpen, setQuickStartOpen] = useState(true);
+  const [selectedFeaturedCase, setSelectedFeaturedCase] = useState<FeaturedCase | null>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
@@ -411,7 +416,9 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
   }, []);
 
   useEffect(() => {
+    setSelectedFeaturedCase(null);
     setMessage("");
+    setActiveTab(newTaskWorkflow === "default" ? 1 : 0);
     setProductPlanningType("new-product");
     setProductPlanningMenuOpen(false);
     planPromptRef.current = defaultPlanPrompt;
@@ -433,7 +440,11 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
     setAttachmentMenuOpen(false);
     setProfileMenuOpen(false);
     setProjectMenuOpen(false);
-  }, [newTaskKey]);
+  }, [newTaskKey, newTaskWorkflow]);
+
+  useEffect(() => {
+    if (activeTask) setSelectedFeaturedCase(null);
+  }, [activeTask]);
 
   useEffect(() => {
     if (active) return;
@@ -618,7 +629,32 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
         <TaskConversation task={task} onTaskStatusChange={onTaskStatusChange} />
       </Activity>
     ))}
-    <Activity mode={activeTask ? "hidden" : "visible"} name="workspace-home">
+    <Activity mode={!activeTask && selectedFeaturedCase ? "visible" : "hidden"} name="featured-case-preview">
+      {selectedFeaturedCase ? (
+        <section className="featured-case-preview" aria-label={`${t("只读案例")}：${t(selectedFeaturedCase.title)}`}>
+          <header className="featured-case-preview__header">
+            <button type="button" className="featured-case-preview__back" onClick={() => setSelectedFeaturedCase(null)}>
+              <FigmaIcon name="arrow-left" size={16} />
+              <span>{t("返回优质案例")}</span>
+            </button>
+            <strong>{t(selectedFeaturedCase.title)}</strong>
+            <span className="featured-case-preview__badge">{t("只读案例")}</span>
+          </header>
+          <div className="featured-case-preview__content">
+            <TaskConversation
+              task={{
+                id: -9000 - activeTab,
+                prompt: selectedFeaturedCase.prompt,
+                workflow: selectedFeaturedCase.workflow,
+                initialState: "complete",
+              }}
+              readOnly
+            />
+          </div>
+        </section>
+      ) : null}
+    </Activity>
+    <Activity mode={activeTask || selectedFeaturedCase ? "hidden" : "visible"} name="workspace-home">
     <motion.main
       className="workspace-region"
       key="workspace-home"
@@ -1079,6 +1115,9 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
             )}
           </AnimatePresence>
         </motion.section>
+        <motion.div variants={primaryPageEntranceItem}>
+          <FeaturedCases activeTab={activeTab} onSelect={setSelectedFeaturedCase} />
+        </motion.div>
       </motion.div>
     </motion.main>
     </Activity>

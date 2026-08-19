@@ -11,6 +11,7 @@ import { Toast } from "./Toast";
 type ArchiveView = "list" | "create" | "edit" | "parsing" | "confirm" | "detail";
 type UploadState = "idle" | "ready";
 type LocalUpload = { id: string; name: string; preview?: string };
+type ProfileTaskType = "new-product" | "customer-proposal";
 
 type Profile = {
   id: number;
@@ -352,7 +353,7 @@ function CurrencySelect({ value, onChange }: { value: string; onChange: (value: 
   return <div className={`profile-currency-select ${open ? "is-open" : ""}`} ref={selectRef}><button type="button" onClick={() => setOpen((current) => !current)}><span className={value ? "" : "profile-currency-select__placeholder"}>{value || t("货币")}</span><FigmaIcon name="chevron-down" size={16} /></button>{open && <span className="profile-select-menu">{["JPY", "CNY", "USD"].map((currency) => <button type="button" key={currency} onClick={() => { onChange(currency); setOpen(false); }}><span>{currency}</span></button>)}</span>}</div>;
 }
 
-export function BusinessProfile({ onCreateTask, createRequestKey = 0 }: { onCreateTask?: (profile: Profile) => void; createRequestKey?: number }) {
+export function BusinessProfile({ onCreateTask, createRequestKey = 0 }: { onCreateTask?: (profile: Profile, taskType: ProfileTaskType) => void; createRequestKey?: number }) {
   const { t } = useI18n();
   const reduceMotion = useReducedMotion();
   const [view, setView] = useState<ArchiveView>("list");
@@ -583,7 +584,51 @@ function ProfileActionDialog({ mode, profile, name, titleId, onNameChange, onClo
   );
 }
 
-function ProfileCard({ profile, onDetail, onCreateTask, onRename, onDuplicate, onDelete }: { profile: Profile; onDetail: () => void; onCreateTask?: (profile: Profile) => void; onRename: (name: string) => void; onDuplicate: () => void; onDelete: () => void }) {
+function ProfileTaskCreateMenu({ profile, onCreateTask }: { profile: Profile; onCreateTask?: (profile: Profile, taskType: ProfileTaskType) => void }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLSpanElement>(null);
+  useDismissableLayer(open, menuRef, () => setOpen(false));
+  const options: { value: ProfileTaskType; label: string; icon: string }[] = [
+    { value: "new-product", label: "新品企划", icon: "apparel-design-menu" },
+    { value: "customer-proposal", label: "客户提案", icon: "new-task" },
+  ];
+
+  return (
+    <span className={`profile-task-create ${open ? "is-open" : ""}`} ref={menuRef}>
+      <button
+        className="profile-button profile-button--primary profile-button--small"
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        {t("使用此档案新建任务")}
+      </button>
+      {open ? (
+        <span className="profile-detail-menu profile-task-type-menu" role="menu" aria-label={t("选择任务类型")}>
+          <span className="profile-task-type-menu__label">{t("选择任务类型")}</span>
+          {options.map((option) => (
+            <button
+              type="button"
+              role="menuitem"
+              key={option.value}
+              onClick={() => {
+                setOpen(false);
+                onCreateTask?.(profile, option.value);
+              }}
+            >
+              <FigmaIcon name={option.icon} size={16} />
+              <span>{t(option.label)}</span>
+            </button>
+          ))}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function ProfileCard({ profile, onDetail, onCreateTask, onRename, onDuplicate, onDelete }: { profile: Profile; onDetail: () => void; onCreateTask?: (profile: Profile, taskType: ProfileTaskType) => void; onRename: (name: string) => void; onDuplicate: () => void; onDelete: () => void }) {
   const { locale, t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const [dialog, setDialog] = useState<"rename" | "delete" | null>(null);
@@ -609,7 +654,7 @@ function ProfileCard({ profile, onDetail, onCreateTask, onRename, onDuplicate, o
           <p title={localizedList(profile.channels)}>{localizedList(profile.channels)}</p>
         </div>
         <div className="profile-card__actions">
-          <button className="profile-button profile-button--primary profile-button--small" type="button" onClick={() => onCreateTask?.(profile)}>{t("使用此档案新建任务")}</button>
+          <ProfileTaskCreateMenu profile={profile} onCreateTask={onCreateTask} />
           <button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onDetail}>{t("查看详情")}</button>
           <span className="profile-detail-more" ref={menuRef}>
             <button className="profile-icon-button" type="button" aria-label={t("更多")} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><FigmaIcon name="more-horizontal" size={20} /></button>
@@ -626,7 +671,7 @@ function ProfileCard({ profile, onDetail, onCreateTask, onRename, onDuplicate, o
   );
 }
 
-function ProfileDetail({ profile, onBack, onCreateTask, onEdit, onReparse, onRename, onDuplicate, onDelete }: { profile: Profile; onBack: () => void; onCreateTask?: (profile: Profile) => void; onEdit: () => void; onReparse: () => void; onRename: (name: string) => void; onDuplicate: () => void; onDelete: () => void }) {
+function ProfileDetail({ profile, onBack, onCreateTask, onEdit, onReparse, onRename, onDuplicate, onDelete }: { profile: Profile; onBack: () => void; onCreateTask?: (profile: Profile, taskType: ProfileTaskType) => void; onEdit: () => void; onReparse: () => void; onRename: (name: string) => void; onDuplicate: () => void; onDelete: () => void }) {
   const { locale, t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const [dialog, setDialog] = useState<"rename" | "delete" | null>(null);
@@ -636,5 +681,5 @@ function ProfileDetail({ profile, onBack, onCreateTask, onEdit, onReparse, onRen
   const separator = locale === "en-US" ? ", " : "、";
   const localizedList = (values: string[]) => values.map((value) => t(value)).join(separator);
   const cells = [["品类", localizedList(profile.category)], ["价格段", profile.price], ["国家", localizedList(profile.countries)], ["年龄段", localizedList(profile.ages)], ["渠道", localizedList(profile.channels)], ["参考品牌", profile.brands.length ? localizedList(profile.brands) : t("未填写")]];
-  return <main className="profile-region profile-editor-region profile-scene"><div className="profile-editor-shell profile-detail-shell" data-node-id="333:13015"><button className="profile-back" type="button" onClick={onBack}><FigmaIcon name="arrow-left" size={20} />{t("返回")}</button><div className="profile-detail-stage" style={sharedTransitionStyle(`profile-card-${profile.id}`)}><header className="profile-detail-header"><div><h1 title={profile.name} style={sharedTransitionStyle(`profile-title-${profile.id}`)}>{profile.name}</h1><p>{t("用于任务中的默认业务范围与生成边界")}</p></div><div><button className="profile-button profile-button--primary profile-button--small" type="button" onClick={() => onCreateTask?.(profile)}>{t("使用此档案新建任务")}</button><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onEdit}>{t("编辑")}</button><span className="profile-detail-more" ref={menuRef}><button className="profile-icon-button" type="button" aria-label={t("更多")} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><FigmaIcon name="more-horizontal" size={20} /></button>{menuOpen && <span className="profile-detail-menu" role="menu"><button type="button" role="menuitem" onClick={() => { setName(profile.name); setDialog("rename"); setMenuOpen(false); }}><FigmaIcon name="modify" size={16} /><span>{t("重命名")}</span></button><button type="button" role="menuitem" onClick={() => { onDuplicate(); setMenuOpen(false); }}><FigmaIcon name="copy" size={16} /><span>{t("复制档案")}</span></button><button className="is-danger" type="button" role="menuitem" onClick={() => { setDialog("delete"); setMenuOpen(false); }}><FigmaIcon name="trash" size={16} /><span>{t("删除")}</span></button></span>}</span></div></header><section className="profile-detail-grid">{cells.map(([label, value]) => <div key={label}><span>{t(label)}</span><strong title={value}>{value}</strong></div>)}</section><section className="profile-source-card"><div><span>{t("资料包")}</span><strong>{t("已上传 {count} 份资料", { count: profile.fileCount })}</strong></div><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onReparse}>{t("重新上传并解析")}</button></section></div></div>{dialog && <ProfileActionDialog mode={dialog} profile={profile} name={name} titleId="profile-action-title" onNameChange={setName} onClose={() => setDialog(null)} onRename={onRename} onDelete={onDelete} />}</main>;
+  return <main className="profile-region profile-editor-region profile-scene"><div className="profile-editor-shell profile-detail-shell" data-node-id="333:13015"><button className="profile-back" type="button" onClick={onBack}><FigmaIcon name="arrow-left" size={20} />{t("返回")}</button><div className="profile-detail-stage" style={sharedTransitionStyle(`profile-card-${profile.id}`)}><header className="profile-detail-header"><div><h1 title={profile.name} style={sharedTransitionStyle(`profile-title-${profile.id}`)}>{profile.name}</h1><p>{t("用于任务中的默认业务范围与生成边界")}</p></div><div><ProfileTaskCreateMenu profile={profile} onCreateTask={onCreateTask} /><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onEdit}>{t("编辑")}</button><span className="profile-detail-more" ref={menuRef}><button className="profile-icon-button" type="button" aria-label={t("更多")} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><FigmaIcon name="more-horizontal" size={20} /></button>{menuOpen && <span className="profile-detail-menu" role="menu"><button type="button" role="menuitem" onClick={() => { setName(profile.name); setDialog("rename"); setMenuOpen(false); }}><FigmaIcon name="modify" size={16} /><span>{t("重命名")}</span></button><button type="button" role="menuitem" onClick={() => { onDuplicate(); setMenuOpen(false); }}><FigmaIcon name="copy" size={16} /><span>{t("复制档案")}</span></button><button className="is-danger" type="button" role="menuitem" onClick={() => { setDialog("delete"); setMenuOpen(false); }}><FigmaIcon name="trash" size={16} /><span>{t("删除")}</span></button></span>}</span></div></header><section className="profile-detail-grid">{cells.map(([label, value]) => <div key={label}><span>{t(label)}</span><strong title={value}>{value}</strong></div>)}</section><section className="profile-source-card"><div><span>{t("资料包")}</span><strong>{t("已上传 {count} 份资料", { count: profile.fileCount })}</strong></div><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onReparse}>{t("重新上传并解析")}</button></section></div></div>{dialog && <ProfileActionDialog mode={dialog} profile={profile} name={name} titleId="profile-action-title" onNameChange={setName} onClose={() => setDialog(null)} onRename={onRename} onDelete={onDelete} />}</main>;
 }

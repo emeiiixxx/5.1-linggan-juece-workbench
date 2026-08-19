@@ -9,6 +9,7 @@ import { useI18n } from "../i18n";
 import { useModalFocus } from "../hooks/useModalFocus";
 import { CircleCheckbox } from "./CircleCheckbox";
 import { ProgressiveImage } from "./ProgressiveImage";
+import { TipEmoji } from "./TipEmoji";
 
 type ImageSelectionProps = {
   src: string;
@@ -430,7 +431,7 @@ export function ImageGalleryLightbox({
       ) : null}
 
       <span ref={tipRef} className="candidate-lightbox__tip" aria-live="polite">
-        <FigmaIcon name="idea" size={16} />
+        <TipEmoji size={16} />
         {isDetailPresentation
           ? "Tips：支持按 Esc 退出查看大图"
           : "Tips：支持按键盘 ← → 键切换图片，按 Esc 退出查看大图"}

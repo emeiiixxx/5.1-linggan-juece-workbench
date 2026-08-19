@@ -17,6 +17,7 @@ const BusinessProfile = lazy(() =>
 );
 
 type Theme = "dark" | "light";
+type ProfileTaskType = "new-product" | "customer-proposal";
 type SelectedProfile = { id: number; name: string };
 type SelectedProject = { id: number; name: string };
 type TaskRecord = {
@@ -68,6 +69,7 @@ export default function App() {
   const [taskRecords, setTaskRecords] = useState<TaskRecord[]>(allDemoTaskExamples);
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
   const [newTaskKey, setNewTaskKey] = useState(0);
+  const [newTaskWorkflow, setNewTaskWorkflow] = useState<"new-product" | "default" | null>(null);
   const [createProfileRequestKey, setCreateProfileRequestKey] = useState(0);
   const [createProjectRequestKey, setCreateProjectRequestKey] = useState(0);
   const resolvedTaskRecords = taskRecords.map((task) => ({
@@ -117,6 +119,7 @@ export default function App() {
           activeTaskId={activeTaskId}
           onOpenWorkspace={() => {
             transitionTaskFocus(null);
+            setNewTaskWorkflow(null);
             setActiveView("workspace");
             setActiveTaskId(null);
             setNewTaskKey((value) => value + 1);
@@ -136,6 +139,7 @@ export default function App() {
           }}
           onCreateTaskInProject={(project) => {
             transitionTaskFocus(null);
+            setNewTaskWorkflow(null);
             setSelectedProject(project);
             setActiveTaskId(null);
             setNewTaskKey((value) => value + 1);
@@ -158,6 +162,7 @@ export default function App() {
             if (activeTaskId === taskId) {
               setActiveTaskId(null);
               setActiveView("workspace");
+              setNewTaskWorkflow(null);
               setNewTaskKey((value) => value + 1);
             }
           }}
@@ -175,9 +180,10 @@ export default function App() {
           <Suspense fallback={<main className="workspace-region" aria-busy="true" />}>
             <BusinessProfile
               createRequestKey={createProfileRequestKey}
-              onCreateTask={(profile) => {
+              onCreateTask={(profile, taskType: ProfileTaskType) => {
                 transitionTaskFocus(null);
                 setSelectedProfile({ id: profile.id, name: profile.name });
+                setNewTaskWorkflow(taskType === "new-product" ? "new-product" : "default");
                 setActiveTaskId(null);
                 setNewTaskKey((value) => value + 1);
                 setActiveView("workspace");
@@ -192,6 +198,7 @@ export default function App() {
             activeTask={activeTask}
             taskIds={taskRecords.map((task) => task.id)}
             newTaskKey={newTaskKey}
+            newTaskWorkflow={newTaskWorkflow}
             selectedProfile={selectedProfile}
             onSelectedProfileChange={setSelectedProfile}
             onCreateProfile={() => {
@@ -217,7 +224,7 @@ export default function App() {
                 title,
                 projectId,
                 prompt,
-                profileName: selectedProfile?.name,
+                profileName: workflow === "new-product" || workflow === "default" ? selectedProfile?.name : undefined,
                 attachments,
                 workflow,
                 sourceLabel,

@@ -345,13 +345,14 @@ function TrendDirectionSelectionForm({
   );
 }
 
-export function ConversationWorkspace({ prompt, profileName, attachments = [], initialState = "default", onTaskProgress, onTaskComplete }: {
+export function ConversationWorkspace({ prompt, profileName, attachments = [], initialState = "default", onTaskProgress, onTaskComplete, readOnly = false }: {
   prompt: string;
   profileName?: string;
   attachments?: ConversationUserAttachment[];
   initialState?: "default" | "complete";
   onTaskProgress?: () => void;
   onTaskComplete?: () => void;
+  readOnly?: boolean;
 }) {
   const { locale, t } = useI18n();
   const startsComplete = initialState === "complete";
@@ -1001,7 +1002,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
 
   return (
     <motion.main
-      className={`workspace-region workspace-region--conversation ${detailPanelOpen ? "has-detail-panel" : ""}`}
+      className={`workspace-region workspace-region--conversation ${detailPanelOpen ? "has-detail-panel" : ""} ${readOnly ? "is-read-only" : ""}`}
       initial={reduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
@@ -1743,6 +1744,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
           </ConversationFeed>
         </div>
 
+        {!readOnly ? <>
         <div className="conversation-bottom-fade" aria-hidden="true" />
         <TaskConversationComposer
           ariaLabel="继续对话"
@@ -1761,6 +1763,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
           motionDelay={0.16}
           focusRequest={composerFocusRequest}
         />
+        </> : null}
       </section>
 
       <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>

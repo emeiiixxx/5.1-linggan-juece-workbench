@@ -134,12 +134,13 @@ function ApparelQuickReply({ children, onClick }: { children: ReactNode; onClick
   );
 }
 
-export function ClothingConversationWorkspace({ prompt, attachments = [], initialState = "default", onTaskProgress, onTaskComplete }: {
+export function ClothingConversationWorkspace({ prompt, attachments = [], initialState = "default", onTaskProgress, onTaskComplete, readOnly = false }: {
   prompt: string;
   attachments?: Attachment[];
   initialState?: "default" | "confirmation" | "complete";
   onTaskProgress?: () => void;
   onTaskComplete?: () => void;
+  readOnly?: boolean;
 }) {
   const promptContext = useMemo(() => extractPromptContext(prompt), [prompt]);
   const promptExclusions = useMemo(() => getPromptExclusions(prompt), [prompt]);
@@ -394,7 +395,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
   };
 
   return (
-    <motion.main className={`workspace-region workspace-region--conversation apparel-workspace ${detailPanelOpen ? "has-detail-panel" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.main className={`workspace-region workspace-region--conversation apparel-workspace ${detailPanelOpen ? "has-detail-panel" : ""} ${readOnly ? "is-read-only" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
       <section className="conversation-stage" aria-label="款式设计任务对话">
         <div className="conversation-scroll">
           <ConversationFeed className="apparel-conversation-feed">
@@ -812,6 +813,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
           </ConversationFeed>
         </div>
 
+        {!readOnly ? <>
         <div className="conversation-bottom-fade" aria-hidden="true" />
         <TaskConversationComposer
           className="apparel-composer"
@@ -823,6 +825,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
           hint={stage === "directions" ? "请先从上方表单完成设计方向选择" : stage === "candidates" ? "请先从上方选择参考素材，或选择跳过" : undefined}
           disabled={!composerEnabled || stage === "directions" || stage === "candidates"}
         />
+        </> : null}
       </section>
 
       <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>

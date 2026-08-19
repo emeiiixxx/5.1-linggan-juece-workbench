@@ -1,7 +1,7 @@
 import { assetUrl } from "../utils/assets";
 import { BusinessButton, Button } from "./Button";
 import { SelectAllControl } from "./ConversationPrimitives";
-import { FigmaIcon } from "./FigmaIcon";
+import { TipEmoji } from "./TipEmoji";
 
 type ResearchScopeFormProps = {
   confirmed: boolean;
@@ -114,7 +114,7 @@ export function ResearchScopeForm({
       </header>
 
       <div className="research-scope-note" id="research-scope-guidance">
-        <FigmaIcon name="idea" size={16} />
+        <TipEmoji size={16} />
         <p>{guidance}</p>
       </div>
 

@@ -145,12 +145,13 @@ function PatternQuickReply({ children, onClick }: { children: ReactNode; onClick
   return <div className="conversation-quick-actions"><QuickReplyButton onClick={onClick}>{children}</QuickReplyButton></div>;
 }
 
-export function PatternConversationWorkspace({ prompt, attachments = [], initialState = "default", onTaskProgress, onTaskComplete }: {
+export function PatternConversationWorkspace({ prompt, attachments = [], initialState = "default", onTaskProgress, onTaskComplete, readOnly = false }: {
   prompt: string;
   attachments?: Attachment[];
   initialState?: "default" | "confirmation" | "complete";
   onTaskProgress?: () => void;
   onTaskComplete?: () => void;
+  readOnly?: boolean;
 }) {
   const initialComplete = initialState === "complete";
   const initialConfirmation = initialState === "confirmation";
@@ -343,7 +344,7 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
   });
 
   return (
-    <motion.main className={`workspace-region workspace-region--conversation apparel-workspace pattern-workspace ${detailPanelOpen ? "has-detail-panel" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.main className={`workspace-region workspace-region--conversation apparel-workspace pattern-workspace ${detailPanelOpen ? "has-detail-panel" : ""} ${readOnly ? "is-read-only" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
       <section className="conversation-stage" aria-label="图案设计任务对话">
         <div className="conversation-scroll">
           <ConversationFeed className="apparel-conversation-feed">
@@ -574,6 +575,7 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
           </ConversationFeed>
         </div>
 
+        {!readOnly ? <>
         <div className="conversation-bottom-fade" aria-hidden="true" />
         <TaskConversationComposer
           className="apparel-composer"
@@ -585,6 +587,7 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
           hint={stage === "directions" ? "请先从上方表单完成设计方向选择" : stage === "candidates" ? "请先从上方选择参考图片，或选择跳过" : undefined}
           disabled={!composerEnabled || stage === "directions" || stage === "candidates"}
         />
+        </> : null}
       </section>
 
       <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>
