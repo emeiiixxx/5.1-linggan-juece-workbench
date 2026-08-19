@@ -110,7 +110,11 @@ function getMessageMetaPosition(message: HTMLElement, metaSize?: { width: number
   };
 }
 
-export function ConversationFeed({ className = "", children, ...props }: HTMLAttributes<HTMLDivElement>) {
+type ConversationFeedProps = HTMLAttributes<HTMLDivElement> & {
+  metaDisabled?: boolean;
+};
+
+export function ConversationFeed({ className = "", children, metaDisabled = false, ...props }: ConversationFeedProps) {
   const { t } = useI18n();
   const reduceMotion = useReducedMotion();
   const metaOwnerRef = useRef(Symbol("conversation-feed-meta"));
@@ -248,6 +252,13 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
   };
 
   useEffect(() => {
+    if (!metaDisabled) return;
+    dismissMessageMeta();
+    setFeedbackMessage(null);
+    setToast("");
+  }, [dismissMessageMeta, metaDisabled]);
+
+  useEffect(() => {
     const dismissOtherFeedMeta = (event: Event) => {
       if ((event as CustomEvent<symbol>).detail === metaOwnerRef.current) return;
       dismissMessageMeta();
@@ -304,10 +315,15 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
 
   return (
     <>
-      <div className={`conversation-feed ${className}`.trim()} onPointerOver={showMessageMeta} onPointerLeave={scheduleMetaHide} {...props}>
+      <div
+        className={`conversation-feed ${metaDisabled ? "is-meta-disabled" : ""} ${className}`.trim()}
+        onPointerOver={metaDisabled ? undefined : showMessageMeta}
+        onPointerLeave={metaDisabled ? undefined : scheduleMetaHide}
+        {...props}
+      >
         {children}
       </div>
-      {metaPosition && typeof document !== "undefined" && createPortal(
+      {!metaDisabled && metaPosition && typeof document !== "undefined" && createPortal(
         <div
           ref={metaElementRef}
           className={`conversation-message-meta conversation-message-meta--floating is-${metaPosition.side}`}

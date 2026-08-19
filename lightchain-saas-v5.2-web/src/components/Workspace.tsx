@@ -283,6 +283,7 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
   const [productPlanningMenuOpen, setProductPlanningMenuOpen] = useState(false);
   const [quickStartOpen, setQuickStartOpen] = useState(true);
   const [selectedFeaturedCase, setSelectedFeaturedCase] = useState<FeaturedCase | null>(null);
+  const [homeEntranceCycle, setHomeEntranceCycle] = useState(0);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
@@ -445,6 +446,11 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
   useEffect(() => {
     if (activeTask) setSelectedFeaturedCase(null);
   }, [activeTask]);
+
+  const returnFromFeaturedCase = () => {
+    setSelectedFeaturedCase(null);
+    setHomeEntranceCycle((cycle) => cycle + 1);
+  };
 
   useEffect(() => {
     if (active) return;
@@ -632,15 +638,17 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
     <Activity mode={!activeTask && selectedFeaturedCase ? "visible" : "hidden"} name="featured-case-preview">
       {selectedFeaturedCase ? (
         <section className="featured-case-preview" aria-label={`${t("只读案例")}：${t(selectedFeaturedCase.title)}`}>
-          <header className="featured-case-preview__header" data-node-id="801:33795">
-            <button type="button" className="featured-case-preview__back" onClick={() => setSelectedFeaturedCase(null)}>
-              <FigmaIcon name="arrow-left" size={16} />
-              <span>{t("返回")}</span>
-            </button>
-            <strong>{t(selectedFeaturedCase.title)}</strong>
-            <span className="task-list-item-content__type">{t(taskWorkflowLabels[selectedFeaturedCase.workflow])}</span>
-            <span className="featured-case-preview__badge">{t("只读案例")}</span>
-          </header>
+          <div className="featured-case-preview__nav-region" data-node-id="804:49808">
+            <header className="featured-case-preview__header" data-node-id="804:49809">
+              <button type="button" className="featured-case-preview__back" onClick={returnFromFeaturedCase}>
+                <FigmaIcon name="arrow-left" size={16} />
+                <span>{t("返回")}</span>
+              </button>
+              <strong>{t(selectedFeaturedCase.title)}</strong>
+              <span className="task-list-item-content__type">{t(taskWorkflowLabels[selectedFeaturedCase.workflow])}</span>
+              <span className="featured-case-preview__badge">{t("只读案例")}</span>
+            </header>
+          </div>
           <div className="featured-case-preview__content">
             <TaskConversation
               task={{
@@ -664,6 +672,7 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
     >
       <motion.div
         className="workspace-shell"
+        key={`workspace-home-${homeEntranceCycle}`}
         data-node-id="140:6876"
         variants={primaryPageEntrance}
         initial={reduceMotion ? false : "hidden"}

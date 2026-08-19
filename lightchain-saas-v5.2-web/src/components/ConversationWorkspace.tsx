@@ -1010,7 +1010,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     >
       <section className="conversation-stage" aria-label="任务对话">
         <div className="conversation-scroll">
-          <ConversationFeed data-node-id="476:103924">
+          <ConversationFeed data-node-id="476:103924" metaDisabled={readOnly}>
             <ConversationUserMessage
               initial={reduceMotion ? false : { opacity: 0, y: 10, scale: 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}

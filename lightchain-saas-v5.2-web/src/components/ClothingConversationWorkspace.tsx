@@ -398,7 +398,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
     <motion.main className={`workspace-region workspace-region--conversation apparel-workspace ${detailPanelOpen ? "has-detail-panel" : ""} ${readOnly ? "is-read-only" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
       <section className="conversation-stage" aria-label="款式设计任务对话">
         <div className="conversation-scroll">
-          <ConversationFeed className="apparel-conversation-feed">
+          <ConversationFeed className="apparel-conversation-feed" metaDisabled={readOnly}>
             {!attachments.length && prompt.includes("上传") && (
               <div className="apparel-user-reference-grid">
                 {userReferences.map(assetUrl).slice(0, 2).map((src, index) => (

@@ -1061,7 +1061,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     <motion.main className={`workspace-region workspace-region--conversation new-product-workspace ${detailPanelOpen ? "has-detail-panel" : ""} ${readOnly ? "is-read-only" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
       <section className="conversation-stage" aria-label="新品企划任务对话">
         <div className="conversation-scroll">
-          <ConversationFeed className="new-product-feed">
+          <ConversationFeed className="new-product-feed" metaDisabled={readOnly}>
             <ConversationUserMessage entrance>
               <ConversationUserAttachments attachments={attachments} />
               <span>{prompt}</span>

@@ -21,6 +21,9 @@
   --background-default: #171b1c;
   --background-secondary: #262a2b;
   --background-canvas: #0a0b0b;
+  --background-alpha: rgb(23 27 28 / 0%);
+
+  --fill-on-brand: rgb(0 0 0 / 75%);
 
   --surface-default: #262a2b;
   --surface-secondary: #303536;
@@ -105,6 +108,9 @@
   --background-default: #f4f5f5;
   --background-secondary: #ffffff;
   --background-canvas: #f4f5f5;
+  --background-alpha: rgb(244 245 245 / 0%);
+
+  --fill-on-brand: #fafafa;
 
   --surface-default: #ffffff;
   --surface-secondary: #f9fafa;

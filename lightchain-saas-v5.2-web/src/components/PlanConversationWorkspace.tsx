@@ -416,7 +416,7 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
     <motion.main className={`workspace-region workspace-region--conversation plan-workspace ${detailPanelOpen ? "has-detail-panel" : ""} ${readOnly ? "is-read-only" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
       <section className="conversation-stage" aria-label="企划案任务对话">
         <div className="conversation-scroll">
-          <ConversationFeed className="plan-conversation-feed">
+          <ConversationFeed className="plan-conversation-feed" metaDisabled={readOnly}>
             <ConversationUserMessage entrance>{prompt}</ConversationUserMessage>
             <AssistantMessage actions={false}>
               <p>我正在搜索 {planSubject} 的相关趋势与公开资料，以便为你拓展设计主题。</p>
