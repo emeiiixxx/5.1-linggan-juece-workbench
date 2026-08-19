@@ -68,6 +68,7 @@ export default function App() {
   const [createdProjects, setCreatedProjects] = useState<SelectedProject[]>([]);
   const [taskRecords, setTaskRecords] = useState<TaskRecord[]>(allDemoTaskExamples);
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
+  const [homeEntryKey, setHomeEntryKey] = useState(0);
   const [newTaskKey, setNewTaskKey] = useState(0);
   const [newTaskWorkflow, setNewTaskWorkflow] = useState<"new-product" | "default" | null>(null);
   const [createProfileRequestKey, setCreateProfileRequestKey] = useState(0);
@@ -85,6 +86,9 @@ export default function App() {
       : "灵感决策工作台";
 
   const transitionTaskFocus = (nextTaskId: number | null) => {
+    if (activeTaskId !== null && nextTaskId === null) {
+      setHomeEntryKey((value) => value + 1);
+    }
     const updatedAt = new Date().toISOString();
     setTaskRecords((current) => current.map((task) => {
       if (task.id === activeTaskId && task.id !== nextTaskId && task.status === "running") {
@@ -196,7 +200,8 @@ export default function App() {
             theme={theme}
             active={activeView === "workspace"}
             activeTask={activeTask}
-            taskIds={taskRecords.map((task) => task.id)}
+            homeEntryKey={homeEntryKey}
+            onHomeReentry={() => setHomeEntryKey((value) => value + 1)}
             newTaskKey={newTaskKey}
             newTaskWorkflow={newTaskWorkflow}
             selectedProfile={selectedProfile}
@@ -214,7 +219,14 @@ export default function App() {
             onTaskStatusChange={(taskId, status) => {
               const updatedAt = new Date().toISOString();
               setTaskRecords((current) => current.map((task) =>
-                task.id === taskId ? { ...task, status, updatedAt } : task,
+                task.id === taskId
+                  ? {
+                      ...task,
+                      status,
+                      updatedAt,
+                      initialState: status === "completed" ? "complete" : task.initialState,
+                    }
+                  : task,
               ));
             }}
             onCreateTask={({ title, projectId, prompt, workflow, sourceLabel, attachments }) => {

@@ -70,9 +70,9 @@ export function InspirationDesignSelect({
             role="menu"
             aria-label={t("选择设计类型")}
             data-node-id="630:75840"
-            initial={reduceMotion ? false : { opacity: 0, y: menuPlacement === "above" ? 6 : -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: menuPlacement === "above" ? 4 : -4, scale: 0.98 }}
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
           >
             <div className="composer-profile-menu__options">

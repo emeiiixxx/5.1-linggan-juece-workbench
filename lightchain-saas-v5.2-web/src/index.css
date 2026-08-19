@@ -906,7 +906,7 @@ a:focus-visible {
 
 .recent-task-list {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .recent-content-divider {
@@ -3069,6 +3069,7 @@ a:focus-visible {
   background: var(--surface-default);
   box-shadow: var(--shadow-m);
   transform-origin: top left;
+  backface-visibility: hidden;
 }
 
 .composer-profile-menu__label {
@@ -3789,7 +3790,7 @@ html:lang(en) .quick-card__text {
 .image-selection__checkbox {
   position: absolute;
   top: 6px;
-  left: 6px;
+  right: 6px;
   display: block;
   width: 24px;
   height: 24px;
@@ -4629,8 +4630,8 @@ html:lang(en) .quick-card__text {
 .candidate-lightbox__thumbnail-selected {
   position: absolute;
   z-index: 3;
-  top: 2px;
-  right: 2px;
+  top: 4px;
+  right: 4px;
   display: block;
   width: 16px;
   height: 16px;
@@ -6235,23 +6236,9 @@ button.selection-card:not(:disabled):active { transform: scale(0.995); }
   color: var(--status-success);
 }
 
-.new-product-exception-step.is-error,
-.new-product-exception-step.is-error .new-product-exception-step__icon {
-  color: var(--status-danger);
-}
-
 .new-product-exception-step.is-loading .new-product-exception-step__icon img {
   width: 16px;
   height: 16px;
-}
-
-.new-product-exception-retry.profile-button {
-  min-width: auto;
-  height: 24px;
-  min-height: 24px;
-  margin-left: 4px;
-  padding: 0 4px;
-  color: var(--text-link);
 }
 
 .conversation-analysis-complete > p {
@@ -7902,8 +7889,12 @@ img.trend-direction-media__slide {
   box-shadow: none;
   opacity: 0;
   transform: translateY(-1px);
-  pointer-events: auto;
+  pointer-events: none;
   animation: conversation-message-meta-enter var(--motion-standard) forwards;
+}
+
+.conversation-message-meta--floating > div {
+  pointer-events: auto;
 }
 
 .conversation-message-meta--floating.is-user {
@@ -9505,7 +9496,7 @@ img.trend-direction-media__slide {
   transform: scale(1);
   transform-origin: center;
   transition:
-    transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 200ms ease-out,
     opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
     filter 620ms cubic-bezier(0.22, 1, 0.36, 1);
 }

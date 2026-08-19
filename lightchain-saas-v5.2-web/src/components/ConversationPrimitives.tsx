@@ -87,7 +87,7 @@ async function writeClipboardText(text: string) {
   return copied;
 }
 
-function getMessageMetaPosition(message: HTMLElement, metaSize?: { width: number; height: number }): MessageMetaPosition {
+function getMessageMetaPosition(message: HTMLElement, metaSize?: { width: number; height: number }): MessageMetaPosition | null {
   const isUserMessage = message.classList.contains("conversation-message--user");
   const copyEnabled = isUserMessage;
   const anchor = isUserMessage
@@ -97,11 +97,28 @@ function getMessageMetaPosition(message: HTMLElement, metaSize?: { width: number
   const viewportPadding = 8;
   const metaWidth = metaSize?.width ?? (isUserMessage ? 64 : copyEnabled ? 112 : 88);
   const metaHeight = metaSize?.height ?? 28;
+  const scrollViewport = message.closest<HTMLElement>(".conversation-scroll");
+  const conversationStage = message.closest<HTMLElement>(".conversation-stage");
+  const composer = conversationStage?.querySelector<HTMLElement>(".conversation-composer-shell");
+  const scrollRect = scrollViewport?.getBoundingClientRect();
+  const composerRect = composer?.getBoundingClientRect();
+  const visibleTop = Math.max(viewportPadding, scrollRect?.top ?? viewportPadding);
+  const visibleBottom = Math.min(
+    window.innerHeight - viewportPadding,
+    scrollRect?.bottom ?? window.innerHeight - viewportPadding,
+    composerRect ? composerRect.top - 4 : window.innerHeight - viewportPadding,
+  );
+  const top = rect.bottom + 4;
+
+  // Never pin a detached action bar to the viewport edge. Long messages and
+  // forms can extend under the composer; clamping their toolbar to the bottom
+  // made that stale overlay intercept the form below it.
+  if (rect.bottom < visibleTop || top + metaHeight > visibleBottom) return null;
+
   const desiredLeft = isUserMessage ? rect.right : rect.left;
   const left = isUserMessage
     ? Math.min(Math.max(desiredLeft, viewportPadding + metaWidth), window.innerWidth - viewportPadding)
     : Math.min(Math.max(desiredLeft, viewportPadding), window.innerWidth - metaWidth - viewportPadding);
-  const top = Math.min(Math.max(rect.bottom + 4, viewportPadding), window.innerHeight - metaHeight - viewportPadding);
   return {
     left,
     top,
@@ -176,19 +193,30 @@ export function ConversationFeed({ className = "", children, metaDisabled = fals
     window.dispatchEvent(new CustomEvent(conversationMetaClaimEvent, { detail: metaOwnerRef.current }));
     keepMetaOpen();
     if (hoveredMessageRef.current === message && metaPosition) {
-      setMetaPosition(measureMessageMetaPosition(message));
+      const nextPosition = measureMessageMetaPosition(message);
+      if (!nextPosition) dismissMessageMeta();
+      else setMetaPosition(nextPosition);
       return;
     }
     metaResizeObserverRef.current?.disconnect();
+    const nextPosition = measureMessageMetaPosition(message);
+    if (!nextPosition) {
+      dismissMessageMeta();
+      return;
+    }
     hoveredMessageRef.current = message;
-    setMetaPosition(measureMessageMetaPosition(message));
+    setMetaPosition(nextPosition);
     if (typeof ResizeObserver !== "undefined") {
       const observer = new ResizeObserver(() => {
         if (!message.isConnected) {
           dismissMessageMeta();
           return;
         }
-        if (hoveredMessageRef.current === message) setMetaPosition(measureMessageMetaPosition(message));
+        if (hoveredMessageRef.current === message) {
+          const resizedPosition = measureMessageMetaPosition(message);
+          if (!resizedPosition) dismissMessageMeta();
+          else setMetaPosition(resizedPosition);
+        }
       });
       observer.observe(message);
       const feed = message.closest<HTMLElement>(".conversation-feed");
@@ -269,7 +297,9 @@ export function ConversationFeed({ className = "", children, metaDisabled = fals
         dismissMessageMeta();
         return;
       }
-      setMetaPosition(measureMessageMetaPosition(message));
+      const nextPosition = measureMessageMetaPosition(message);
+      if (!nextPosition) dismissMessageMeta();
+      else setMetaPosition(nextPosition);
     };
     const dismissOnOutsideInteraction = (event: Event) => {
       const target = event.target;
@@ -300,6 +330,10 @@ export function ConversationFeed({ className = "", children, metaDisabled = fals
     const meta = metaElementRef.current;
     if (!message || !meta) return;
     const next = getMessageMetaPosition(message, { width: meta.offsetWidth, height: meta.offsetHeight });
+    if (!next) {
+      dismissMessageMeta();
+      return;
+    }
     setMetaPosition((current) => current
       && current.left === next.left
       && current.top === next.top
@@ -307,7 +341,7 @@ export function ConversationFeed({ className = "", children, metaDisabled = fals
       && current.copyEnabled === next.copyEnabled
       ? current
       : next);
-  }, [measureMessageMetaPosition, metaPosition?.side, metaPosition?.copyEnabled]);
+  }, [dismissMessageMeta, measureMessageMetaPosition, metaPosition?.side, metaPosition?.copyEnabled]);
 
   const currentFeedback = hoveredMessageRef.current
     ? feedbackByMessageRef.current.get(hoveredMessageRef.current)

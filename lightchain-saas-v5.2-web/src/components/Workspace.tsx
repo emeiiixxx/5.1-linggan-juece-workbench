@@ -1,5 +1,5 @@
 import { Activity, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from "motion/react";
 import { quickStartCards, taskWorkflowLabels, type TaskSourceLabel, type TaskWorkflow } from "../data/workspace";
 import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
@@ -213,9 +213,9 @@ function ComposerEntityMenu<T extends ComposerMenuOption>({
       role="listbox"
       aria-label={label}
       data-node-id={dataNodeId}
-      initial={reduceMotion ? false : { opacity: 0, y: -6, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.98 }}
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
       onKeyDown={moveOptionFocus}
     >
@@ -260,11 +260,12 @@ function ComposerEntityMenu<T extends ComposerMenuOption>({
   );
 }
 
-export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKey = 0, newTaskWorkflow = null, selectedProfile, onSelectedProfileChange, onCreateProfile, selectedProject, createdProjects = [], onSelectedProjectChange, onCreateProject, onTaskStatusChange, onCreateTask }: {
+export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, onHomeReentry, newTaskKey = 0, newTaskWorkflow = null, selectedProfile, onSelectedProfileChange, onCreateProfile, selectedProject, createdProjects = [], onSelectedProjectChange, onCreateProject, onTaskStatusChange, onCreateTask }: {
   theme: "dark" | "light";
   active?: boolean;
   activeTask?: WorkspaceTask | null;
-  taskIds?: readonly number[];
+  homeEntryKey?: number;
+  onHomeReentry?: () => void;
   newTaskKey?: number;
   newTaskWorkflow?: "new-product" | "default" | null;
   selectedProfile?: ProfileOption | null;
@@ -283,7 +284,6 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
   const [productPlanningMenuOpen, setProductPlanningMenuOpen] = useState(false);
   const [quickStartOpen, setQuickStartOpen] = useState(true);
   const [selectedFeaturedCase, setSelectedFeaturedCase] = useState<FeaturedCase | null>(null);
-  const [homeEntranceCycle, setHomeEntranceCycle] = useState(0);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
@@ -310,16 +310,9 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
   activeTabRef.current = activeTab;
   const activeTaskId = activeTask?.id ?? null;
   const isPlanMode = activeTab === 0 && productPlanningType === "plan";
-  const taskCacheRef = useRef(new Map<number, WorkspaceTask>());
-  if (activeTask) taskCacheRef.current.set(activeTask.id, activeTask);
-  if (taskIds) {
-    const validTaskIds = new Set(taskIds);
-    taskCacheRef.current.forEach((_, taskId) => {
-      if (!validTaskIds.has(taskId)) taskCacheRef.current.delete(taskId);
-    });
-  }
-  const cachedTasks = Array.from(taskCacheRef.current.values());
   const reduceMotion = useReducedMotion();
+  const homeEntranceControls = useAnimationControls();
+  const homeVisible = !activeTask && !selectedFeaturedCase;
   const quickStartExpandTransition = reduceMotion
     ? { duration: 0 }
     : { type: "spring" as const, duration: 0.5, bounce: 0.24 };
@@ -447,9 +440,22 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
     if (activeTask) setSelectedFeaturedCase(null);
   }, [activeTask]);
 
+  useEffect(() => {
+    if (!homeVisible) return;
+    if (reduceMotion) {
+      homeEntranceControls.set("visible");
+      return;
+    }
+    homeEntranceControls.set("hidden");
+    const animationFrame = window.requestAnimationFrame(() => {
+      void homeEntranceControls.start("visible");
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [homeEntryKey, homeEntranceControls, homeVisible, reduceMotion]);
+
   const returnFromFeaturedCase = () => {
     setSelectedFeaturedCase(null);
-    setHomeEntranceCycle((cycle) => cycle + 1);
+    onHomeReentry?.();
   };
 
   useEffect(() => {
@@ -630,11 +636,9 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
 
   return (
     <Suspense fallback={<main className="workspace-region" aria-busy="true" />}>
-    {cachedTasks.map((task) => (
-      <Activity mode={activeTaskId === task.id ? "visible" : "hidden"} name={`task-${task.id}`} key={task.id}>
-        <TaskConversation task={task} onTaskStatusChange={onTaskStatusChange} />
-      </Activity>
-    ))}
+    {activeTask ? (
+      <TaskConversation key={activeTaskId} task={activeTask} onTaskStatusChange={onTaskStatusChange} />
+    ) : null}
     <Activity mode={!activeTask && selectedFeaturedCase ? "visible" : "hidden"} name="featured-case-preview">
       {selectedFeaturedCase ? (
         <section className="featured-case-preview" aria-label={`${t("只读案例")}：${t(selectedFeaturedCase.title)}`}>
@@ -672,11 +676,10 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
     >
       <motion.div
         className="workspace-shell"
-        key={`workspace-home-${homeEntranceCycle}`}
         data-node-id="140:6876"
         variants={primaryPageEntrance}
         initial={reduceMotion ? false : "hidden"}
-        animate="visible"
+        animate={homeEntranceControls}
       >
         <motion.section className="workspace-header" data-node-id="163:984" variants={primaryPageEntranceMediaItem}>
           <div className="workspace-copy">
@@ -966,9 +969,9 @@ export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKe
                     className="composer-profile-menu composer-profile-menu--design composer-product-planning-menu"
                     role="listbox"
                     aria-label={t("选择商品企划类型")}
-                    initial={reduceMotion ? false : { opacity: 0, y: -6, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.98 }}
+                    initial={reduceMotion ? false : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
                   >
                     <div className="composer-profile-menu__options">

@@ -53,7 +53,7 @@ type PlanningStage =
   | "plan-generating"
   | "complete";
 
-type ExceptionDemoStage = "ready" | "network" | "reconnecting" | "parse-failed" | "retrying" | "credits";
+type ExceptionDemoStage = "ready" | "network" | "reconnecting" | "credits";
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
 const directions = [
@@ -395,7 +395,7 @@ function NewProductLoadingTask({ title, lines, complete = false }: { title: stri
   );
 }
 
-function NewProductExceptionAnalysisTask({ failed, onRetry }: { failed: boolean; onRetry: () => void }) {
+function NewProductExceptionAnalysisTask() {
   const [expanded, setExpanded] = useState(true);
   const controlsId = useId();
 
@@ -405,7 +405,7 @@ function NewProductExceptionAnalysisTask({ failed, onRetry }: { failed: boolean;
         title="解析新品企划需求"
         expanded={expanded}
         complete={false}
-        status={failed ? "error" : "loading"}
+        status="loading"
         controlsId={controlsId}
         onToggle={() => setExpanded((value) => !value)}
       >
@@ -419,14 +419,11 @@ function NewProductExceptionAnalysisTask({ failed, onRetry }: { failed: boolean;
           <span>解析客户资料与首轮描述 — 完成</span>
         </div>
         <p>已保留本次文字、图片、文档与新品企划约束。</p>
-        <div className={`new-product-exception-step ${failed ? "is-error" : "is-loading"}`}>
+        <div className="new-product-exception-step is-loading">
           <span className="new-product-exception-step__icon">
-            {failed
-              ? <FigmaIcon name="info-circle" size={16} />
-              : <img className="conversation-analysis-spinner" src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" />}
+            <img className="conversation-analysis-spinner" src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" />
           </span>
-          <span>{failed ? "解析失败 — 连接超时" : "正在继续解析新品企划约束..."}</span>
-          {failed ? <Button className="new-product-exception-retry" variant="ghost" size="small" onClick={onRetry}>重试</Button> : null}
+          <span>正在继续解析新品企划约束...</span>
         </div>
       </TaskDisclosure>
     </div>
@@ -603,12 +600,6 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
   useEffect(() => {
     if (!exceptionDemo || exceptionDemoStage !== "reconnecting") return;
-    const timer = window.setTimeout(() => setExceptionDemoStage("parse-failed"), reduceMotion ? 600 : 2200);
-    return () => window.clearTimeout(timer);
-  }, [exceptionDemo, exceptionDemoStage, reduceMotion]);
-
-  useEffect(() => {
-    if (!exceptionDemo || exceptionDemoStage !== "retrying") return;
     const timer = window.setTimeout(() => {
       setExceptionDemoStage("ready");
       setStage("scope");
@@ -1091,20 +1082,17 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
               </AssistantMessage>
             ) : null}
 
-            {exceptionDemo && ["network", "reconnecting", "parse-failed", "retrying"].includes(exceptionDemoStage) ? (
+            {exceptionDemo && ["network", "reconnecting"].includes(exceptionDemoStage) ? (
               <ConversationUserMessage>
                 <ConversationUserAttachments attachments={briefEntryAttachments} />
                 {briefEntryMessage ? <span>{briefEntryMessage}</span> : null}
               </ConversationUserMessage>
             ) : null}
 
-            {exceptionDemo && ["reconnecting", "parse-failed", "retrying"].includes(exceptionDemoStage) ? (
+            {exceptionDemo && exceptionDemoStage === "reconnecting" ? (
               <AssistantMessage actions={false}>
-                <p>{exceptionDemoStage === "retrying" ? "正在重新解析新品企划需求，已提交的需求与附件不会丢失。" : "网络已恢复，正在从中断位置继续解析，已提交的需求与附件不会丢失。"}</p>
-                <NewProductExceptionAnalysisTask
-                  failed={exceptionDemoStage === "parse-failed"}
-                  onRetry={() => setExceptionDemoStage("retrying")}
-                />
+                <p>网络已恢复，正在从中断位置继续解析，已提交的需求与附件不会丢失。</p>
+                <NewProductExceptionAnalysisTask />
               </AssistantMessage>
             ) : null}
 
@@ -1335,7 +1323,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
         {!readOnly ? <>
         <div className="conversation-bottom-fade" aria-hidden="true" />
-        <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} hint={["reconnecting", "retrying"].includes(exceptionDemoStage) ? "Agent 正在重新解析，请稍候..." : exceptionDemoStage === "parse-failed" ? "请先重试解析任务" : stage === "scope" ? "请先完成调研范围确认" : stage === "directions" ? "请先从上方表单完成视觉方向选择" : stage === "results" ? "生成企划将扣除 999 积分" : undefined} disabled={stage === "scope" || stage === "directions" || ["reconnecting", "parse-failed", "retrying"].includes(exceptionDemoStage) || Boolean(exceptionNotice)} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} focusRequest={composerFocusRequest} exceptionNotice={exceptionNotice} />
+        <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} hint={exceptionDemoStage === "reconnecting" ? "Agent 正在重新解析，请稍候..." : stage === "scope" ? "请先完成调研范围确认" : stage === "directions" ? "请先从上方表单完成视觉方向选择" : stage === "results" ? "生成企划将扣除 999 积分" : undefined} disabled={stage === "scope" || stage === "directions" || exceptionDemoStage === "reconnecting" || Boolean(exceptionNotice)} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} focusRequest={composerFocusRequest} exceptionNotice={exceptionNotice} />
         </> : null}
       </section>
 
