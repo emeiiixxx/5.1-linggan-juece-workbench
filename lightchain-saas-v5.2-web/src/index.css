@@ -3491,6 +3491,7 @@ a:focus-visible {
   border-radius: var(--radius-l);
   color: var(--text-secondary);
   background: var(--fill-on-brand);
+  box-shadow: var(--shadow-l);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   pointer-events: auto;
