@@ -26,7 +26,7 @@ export function TaskListItemContent({
   updatedAt,
 }: TaskListItemContentProps) {
   const { t } = useI18n();
-  const modifiedDate = status === "completed" ? formatMonthDay(updatedAt) : null;
+  const modifiedDate = formatMonthDay(updatedAt);
   const statusLabel = status === "completed"
     ? "已完成"
     : status === "pending"

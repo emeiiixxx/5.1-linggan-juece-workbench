@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useEffect,
   useRef,
   useState,
@@ -796,6 +797,285 @@ export function Sidebar({
     setDropFocusedGroupIndex(null);
   };
 
+  const getTaskUpdatedAtTime = (title: string) => {
+    const updatedAt = getTaskSidebarMeta(title).updatedAt;
+    if (!updatedAt) return 0;
+    const timestamp = Date.parse(updatedAt);
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+  };
+
+  const recentEntries = [
+    ...groups.map((group, groupIndex) => ({
+      kind: "group" as const,
+      group,
+      groupIndex,
+      updatedAt: Math.max(0, ...group.items.map(getTaskUpdatedAtTime)),
+      stableIndex: groupIndex,
+    })),
+    ...tasks.map((item, taskIndex) => ({
+      kind: "task" as const,
+      item,
+      taskIndex,
+      updatedAt: getTaskUpdatedAtTime(item),
+      stableIndex: groups.length + taskIndex,
+    })),
+  ].sort((left, right) => {
+    if (left.kind !== right.kind) return left.kind === "group" ? -1 : 1;
+    return right.updatedAt - left.updatedAt || left.stableIndex - right.stableIndex;
+  });
+
+  const renderRecentGroup = (
+    group: (typeof groups)[number],
+    groupIndex: number,
+    isFlyout: boolean,
+  ) => {
+    const sortedItems = group.items
+      .map((item, itemIndex) => ({
+        item,
+        itemIndex,
+        updatedAt: getTaskUpdatedAtTime(item),
+      }))
+      .sort((left, right) =>
+        right.updatedAt - left.updatedAt || left.itemIndex - right.itemIndex,
+      );
+    const visibleItems = group.showAll
+      ? sortedItems
+      : sortedItems.slice(0, PROJECT_TASK_PREVIEW_LIMIT);
+
+    return (
+      <div className="tree-group" key={`${isFlyout ? "flyout-" : ""}${group.id}`}>
+        <div
+          className={`tree-row-shell tree-row-shell--group ${
+            draggedRow?.kind === "group" && draggedRow.groupIndex === groupIndex
+              ? "is-dragging"
+              : ""
+          } ${
+            dropFocusedGroupIndex === groupIndex && draggedRow?.kind !== "group"
+              ? "is-drop-focused"
+              : ""
+          } ${
+            actionMenu?.target.kind === "group" &&
+            actionMenu.target.groupIndex === groupIndex
+              ? "is-menu-open"
+              : ""
+          }`}
+          draggable={isFlyout || recentExpanded}
+          onDragStart={(event) => handleGroupDragStart(event, groupIndex, group.title)}
+          onDragOver={(event) => handleGroupDragOver(event, groupIndex)}
+          onDragLeave={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              setDropFocusedGroupIndex((current) =>
+                current === groupIndex ? null : current,
+              );
+            }
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            finishDrag();
+          }}
+          onDragEnd={cancelDrag}
+        >
+          <button
+            className="tree-row tree-row--group"
+            type="button"
+            role={isFlyout ? "menuitem" : undefined}
+            aria-expanded={group.items.length > 0 ? group.expanded : undefined}
+            onClick={() => {
+              if (!group.items.length) return;
+              setGroups((current) =>
+                current.map((currentGroup, currentIndex) =>
+                  currentIndex === groupIndex
+                    ? {
+                        ...currentGroup,
+                        expanded: !currentGroup.expanded,
+                        showAll: currentGroup.expanded ? false : currentGroup.showAll,
+                      }
+                    : currentGroup,
+                ),
+              );
+            }}
+          >
+            <ProjectDisclosureIcon expanded={group.expanded} />
+            <span>{group.title}</span>
+          </button>
+          <div className="tree-row__actions tree-row__actions--group">
+            <IconControl
+              size="small"
+              label={t("更多")}
+              tooltipPlacement="top"
+              aria-haspopup="menu"
+              aria-expanded={
+                actionMenu?.target.kind === "group" &&
+                actionMenu.target.groupIndex === groupIndex
+              }
+              onClick={(event) => openActionMenu(event, { kind: "group", groupIndex })}
+            >
+              <FigmaIcon name="more-horizontal" size={16} />
+            </IconControl>
+            <IconControl
+              size="small"
+              label={t("在{name}中新建对话", { name: group.title })}
+              tooltipPlacement="top"
+              onClick={() => createTaskInProject(group)}
+            >
+              <FigmaIcon name="new-chat" size={16} />
+            </IconControl>
+          </div>
+        </div>
+        <div
+          className={`tree-group__children ${group.expanded ? "is-open" : ""}`}
+          aria-hidden={!group.expanded}
+        >
+          <div className="tree-group__children-inner">
+            {visibleItems.map(({ item, itemIndex }) => {
+              const mappedTaskId = createdTaskIdsRef.current.get(`${group.id}:${item}`);
+              const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
+                ? activeTaskId === mappedTaskId
+                : activeTaskId === null && selectedRow?.kind === "item" &&
+                  selectedRow.groupId === group.id &&
+                  selectedRow.itemIndex === itemIndex);
+              const isMenuOpen =
+                actionMenu?.target.kind === "item" &&
+                actionMenu.target.groupIndex === groupIndex &&
+                actionMenu.target.itemIndex === itemIndex;
+
+              return (
+                <div
+                  className={`tree-row-shell tree-row-shell--child ${
+                    draggedRow?.kind === "item" &&
+                    draggedRow.groupIndex === groupIndex &&
+                    draggedRow.itemIndex === itemIndex
+                      ? "is-dragging"
+                      : ""
+                  } ${isMenuOpen ? "is-menu-open" : ""} ${isSelected ? "is-selected" : ""}`}
+                  draggable={group.expanded}
+                  onDragStart={(event) =>
+                    handleItemDragStart(event, groupIndex, itemIndex, item)
+                  }
+                  onDragOver={(event) => handleTaskDragOver(event, groupIndex, itemIndex)}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    finishDrag();
+                  }}
+                  onDragEnd={cancelDrag}
+                  key={`${item}-${isFlyout ? "flyout-" : ""}${itemIndex}`}
+                >
+                  <button
+                    className="tree-row tree-row--child"
+                    type="button"
+                    role={isFlyout ? "menuitem" : undefined}
+                    tabIndex={!isFlyout && !group.expanded ? -1 : undefined}
+                    aria-current={isSelected ? "page" : undefined}
+                    onClick={() => {
+                      setSelectedRow({ kind: "item", groupId: group.id, itemIndex });
+                      openSavedTask(group.id, item);
+                    }}
+                  >
+                    <span
+                      className={`tree-row__selection-indicator ${isSelected ? "is-selected" : ""}`}
+                      aria-hidden="true"
+                    >
+                      {isSelected && <span className="system-dot" />}
+                    </span>
+                    <TaskListItemContent title={item} {...getTaskSidebarMeta(item)} />
+                  </button>
+                  <div className="tree-row__actions tree-row__actions--child">
+                    <IconControl
+                      size="small"
+                      label={t("更多")}
+                      tooltipPlacement="top"
+                      aria-haspopup="menu"
+                      aria-expanded={isMenuOpen}
+                      tabIndex={!isFlyout && !group.expanded ? -1 : undefined}
+                      onClick={(event) =>
+                        openActionMenu(event, { kind: "item", groupIndex, itemIndex })
+                      }
+                    >
+                      <FigmaIcon name="more-horizontal" size={16} />
+                    </IconControl>
+                  </div>
+                </div>
+              );
+            })}
+            {!group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT ? (
+              <button
+                type="button"
+                className="tree-group__show-more"
+                onClick={() => setGroups((current) => current.map((currentGroup, currentIndex) =>
+                  currentIndex === groupIndex ? { ...currentGroup, showAll: true } : currentGroup,
+                ))}
+              >
+                <FigmaIcon name="more-horizontal" size={16} />
+                <span>{t("展示更多该项目任务")} ({group.items.length})</span>
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderRecentTask = (item: string, index: number, isFlyout: boolean) => {
+    const mappedTaskId = createdTaskIdsRef.current.get(`task:${item}`);
+    const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
+      ? activeTaskId === mappedTaskId
+      : activeTaskId === null && selectedRow?.kind === "task" &&
+        selectedRow.taskIndex === index);
+    const isMenuOpen =
+      actionMenu?.target.kind === "task" && actionMenu.target.taskIndex === index;
+
+    return (
+      <div
+        className={`task-row-shell ${
+          draggedRow?.kind === "task" && draggedRow.taskIndex === index
+            ? "is-dragging"
+            : ""
+        } ${isSelected ? "is-selected" : ""} ${isMenuOpen ? "is-menu-open" : ""}`}
+        draggable={isFlyout || recentExpanded}
+        onDragStart={(event) => handleLooseTaskDragStart(event, index, item)}
+        onDragOver={(event) => handleTaskDragOver(event, null, index)}
+        onDrop={(event) => {
+          event.preventDefault();
+          finishDrag();
+        }}
+        onDragEnd={cancelDrag}
+        key={`${item}-${isFlyout ? "recent-flyout-" : ""}${index}`}
+      >
+        <span className="task-row__selection-surface" aria-hidden="true" />
+        <button
+          className="task-row"
+          type="button"
+          role={isFlyout ? "menuitem" : undefined}
+          aria-current={isSelected ? "page" : undefined}
+          onClick={() => {
+            setSelectedRow({ kind: "task", taskIndex: index });
+            openSavedTask(null, item);
+          }}
+        >
+          <span
+            className={`tree-row__selection-indicator ${isSelected ? "is-selected" : ""}`}
+            aria-hidden="true"
+          >
+            <span className={`system-dot task-row__selection-dot ${isSelected ? "is-visible" : ""}`} />
+          </span>
+          <TaskListItemContent title={item} {...getTaskSidebarMeta(item)} />
+        </button>
+        <div className="tree-row__actions tree-row__actions--task">
+          <IconControl
+            size="small"
+            label={t("更多")}
+            tooltipPlacement="top"
+            aria-haspopup="menu"
+            aria-expanded={isMenuOpen}
+            onClick={(event) => openActionMenu(event, { kind: "task", taskIndex: index })}
+          >
+            <FigmaIcon name="more-horizontal" size={16} />
+          </IconControl>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
     <aside className={`sidebar ${expanded ? "is-expanded" : "is-collapsed"}`}>
@@ -877,267 +1157,39 @@ export function Sidebar({
             </div>
             <div className={`sidebar-section__content ${recentExpanded ? "is-open" : ""}`}>
               <div className="sidebar-section__content-inner">
-              {groups.map((group, groupIndex) => (
-                <div className="tree-group" key={group.id}>
-                  <div
-                    className={`tree-row-shell tree-row-shell--group ${
-                      draggedRow?.kind === "group" && draggedRow.groupIndex === groupIndex
-                        ? "is-dragging"
-                        : ""
-                    } ${
-                      dropFocusedGroupIndex === groupIndex && draggedRow?.kind !== "group"
-                        ? "is-drop-focused"
-                        : ""
-                    } ${
-                      actionMenu?.target.kind === "group" &&
-                      actionMenu.target.groupIndex === groupIndex
-                        ? "is-menu-open"
-                        : ""
-                    }`}
-                    draggable={recentExpanded}
-                    onDragStart={(event) => handleGroupDragStart(event, groupIndex, group.title)}
-                    onDragOver={(event) => handleGroupDragOver(event, groupIndex)}
-                    onDragLeave={(event) => {
-                      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                        setDropFocusedGroupIndex((current) =>
-                          current === groupIndex ? null : current,
-                        );
-                      }
-                    }}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      finishDrag();
-                    }}
-                    onDragEnd={cancelDrag}
-                  >
-                    <button
-                      className="tree-row tree-row--group"
-                      type="button"
-                      aria-expanded={group.items.length > 0 ? group.expanded : undefined}
-                      onClick={() => {
-                        if (!group.items.length) return;
-                        setGroups((current) =>
-                          current.map((currentGroup, currentIndex) =>
-                            currentIndex === groupIndex
-                              ? {
-                                  ...currentGroup,
-                                  expanded: !currentGroup.expanded,
-                                  showAll: currentGroup.expanded ? false : currentGroup.showAll,
-                                }
-                              : currentGroup,
-                          ),
-                        );
-                      }}
+                <div
+                  className="recent-task-list"
+                  onDragOver={(event) => {
+                    if (!draggedRow || draggedRow.kind === "group") return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "move";
+                    setDropFocusedGroupIndex(null);
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setDropTarget({ kind: "task", groupIndex: null, index: tasks.length });
+                    setIndicatorAt(rect, "bottom");
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    finishDrag();
+                  }}
+                >
+                  {recentEntries.map((entry, entryIndex) => (
+                    <Fragment
+                      key={entry.kind === "group"
+                        ? `recent-group-${entry.group.id}`
+                        : `recent-task-${entry.taskIndex}`}
                     >
-                      <ProjectDisclosureIcon expanded={group.expanded} />
-                      <span>{group.title}</span>
-                    </button>
-                    <div className="tree-row__actions tree-row__actions--group">
-                      <IconControl
-                        size="small"
-                        label={t("更多")}
-                        tooltipPlacement="top"
-                        aria-haspopup="menu"
-                        aria-expanded={
-                          actionMenu?.target.kind === "group" &&
-                          actionMenu.target.groupIndex === groupIndex
-                        }
-                        onClick={(event) =>
-                          openActionMenu(event, { kind: "group", groupIndex })
-                        }
-                      >
-                        <FigmaIcon name="more-horizontal" size={16} />
-                      </IconControl>
-                      <IconControl
-                        size="small"
-                        label={t("在{name}中新建对话", { name: group.title })}
-                        tooltipPlacement="top"
-                        onClick={() => createTaskInProject(group)}
-                      >
-                        <FigmaIcon name="new-chat" size={16} />
-                      </IconControl>
-                    </div>
-                  </div>
-                  <div
-                    className={`tree-group__children ${group.expanded ? "is-open" : ""}`}
-                    aria-hidden={!group.expanded}
-                  >
-                    <div className="tree-group__children-inner">
-                  {(group.showAll
-                    ? group.items
-                    : group.items.slice(0, PROJECT_TASK_PREVIEW_LIMIT)
-                  ).map((item, itemIndex) => {
-                    const mappedTaskId = createdTaskIdsRef.current.get(`${group.id}:${item}`);
-                    const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
-                      ? activeTaskId === mappedTaskId
-                      : activeTaskId === null && selectedRow?.kind === "item" &&
-                        selectedRow.groupId === group.id &&
-                        selectedRow.itemIndex === itemIndex);
-
-                    return (
-                      <div
-                        className={`tree-row-shell tree-row-shell--child ${
-                          draggedRow?.kind === "item" &&
-                          draggedRow.groupIndex === groupIndex &&
-                          draggedRow.itemIndex === itemIndex
-                            ? "is-dragging"
-                            : ""
-                        } ${
-                          actionMenu?.target.kind === "item" &&
-                          actionMenu.target.groupIndex === groupIndex &&
-                          actionMenu.target.itemIndex === itemIndex
-                            ? "is-menu-open"
-                            : ""
-                        } ${isSelected ? "is-selected" : ""}`}
-                        draggable={group.expanded}
-                        onDragStart={(event) =>
-                          handleItemDragStart(event, groupIndex, itemIndex, item)
-                        }
-                        onDragOver={(event) => handleTaskDragOver(event, groupIndex, itemIndex)}
-                        onDrop={(event) => {
-                          event.preventDefault();
-                          finishDrag();
-                        }}
-                        onDragEnd={cancelDrag}
-                        key={`${item}-${itemIndex}`}
-                      >
-                      <button
-                        className="tree-row tree-row--child"
-                        type="button"
-                        tabIndex={group.expanded ? 0 : -1}
-                        aria-current={isSelected ? "page" : undefined}
-                        onClick={() => {
-                          setSelectedRow({ kind: "item", groupId: group.id, itemIndex });
-                          openSavedTask(group.id, item);
-                        }}
-                      >
-                        <span className={`tree-row__selection-indicator ${isSelected ? "is-selected" : ""}`} aria-hidden="true">
-                          {isSelected && <span className="system-dot" />}
-                        </span>
-                        <TaskListItemContent title={item} {...getTaskSidebarMeta(item)} />
-                      </button>
-                      <div className="tree-row__actions tree-row__actions--child">
-                        <IconControl
-                          size="small"
-                        label={t("更多")}
-                          tooltipPlacement="top"
-                          aria-haspopup="menu"
-                          aria-expanded={
-                            actionMenu?.target.kind === "item" &&
-                            actionMenu.target.groupIndex === groupIndex &&
-                            actionMenu.target.itemIndex === itemIndex
-                          }
-                          tabIndex={group.expanded ? 0 : -1}
-                          onClick={(event) =>
-                            openActionMenu(event, { kind: "item", groupIndex, itemIndex })
-                          }
-                        >
-                          <FigmaIcon name="more-horizontal" size={16} />
-                        </IconControl>
-                      </div>
-                      </div>
-                    );
-                  })}
-                  {!group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT ? (
-                    <button
-                      type="button"
-                      className="tree-group__show-more"
-                      onClick={() => setGroups((current) => current.map((currentGroup, currentIndex) =>
-                        currentIndex === groupIndex ? { ...currentGroup, showAll: true } : currentGroup,
-                      ))}
-                    >
-                      <FigmaIcon name="more-horizontal" size={16} />
-                      <span>{t("展示更多该项目任务")} ({group.items.length})</span>
-                    </button>
-                  ) : null}
-                  {group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT && groupIndex < groups.length - 1 ? (
-                    <div className="tree-group__divider" aria-hidden="true" />
-                  ) : null}
-                    </div>
-                  </div>
+                      {entry.kind === "task" &&
+                      recentEntries[entryIndex - 1]?.kind === "group" ? (
+                        <div className="recent-content-divider" aria-hidden="true" />
+                      ) : null}
+                      {entry.kind === "group"
+                        ? renderRecentGroup(entry.group, entry.groupIndex, false)
+                        : renderRecentTask(entry.item, entry.taskIndex, false)}
+                    </Fragment>
+                  ))}
                 </div>
-              ))}
-              {groups.length > 0 && tasks.length > 0 ? (
-                <div className="recent-content-divider" aria-hidden="true" />
-              ) : null}
-              <div
-                className="recent-task-list"
-                onDragOver={(event) => {
-                if (!draggedRow || draggedRow.kind === "group") return;
-                event.preventDefault();
-                event.dataTransfer.dropEffect = "move";
-                setDropFocusedGroupIndex(null);
-                const rect = event.currentTarget.getBoundingClientRect();
-                setDropTarget({ kind: "task", groupIndex: null, index: tasks.length });
-                setIndicatorAt(rect, "bottom");
-                }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  finishDrag();
-                }}
-              >
-              {tasks.map((item, index) => {
-                const mappedTaskId = createdTaskIdsRef.current.get(`task:${item}`);
-                const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
-                  ? activeTaskId === mappedTaskId
-                  : activeTaskId === null && selectedRow?.kind === "task" && selectedRow.taskIndex === index);
-                const isMenuOpen =
-                  actionMenu?.target.kind === "task" &&
-                  actionMenu.target.taskIndex === index;
-
-                return (
-                  <div
-                    className={`task-row-shell ${
-                      draggedRow?.kind === "task" && draggedRow.taskIndex === index
-                        ? "is-dragging"
-                        : ""
-                    } ${isSelected ? "is-selected" : ""} ${
-                      isMenuOpen ? "is-menu-open" : ""
-                    }`}
-                    draggable={recentExpanded}
-                    onDragStart={(event) => handleLooseTaskDragStart(event, index, item)}
-                    onDragOver={(event) => handleTaskDragOver(event, null, index)}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      finishDrag();
-                    }}
-                    onDragEnd={cancelDrag}
-                    key={`${item}-${index}`}
-                  >
-                    <span className="task-row__selection-surface" aria-hidden="true" />
-                    <button
-                      className="task-row"
-                      type="button"
-                      aria-current={isSelected ? "page" : undefined}
-                      onClick={() => {
-                        setSelectedRow({ kind: "task", taskIndex: index });
-                        openSavedTask(null, item);
-                      }}
-                    >
-                      <span className={`tree-row__selection-indicator ${isSelected ? "is-selected" : ""}`} aria-hidden="true">
-                        <span className={`system-dot task-row__selection-dot ${isSelected ? "is-visible" : ""}`} />
-                      </span>
-                      <TaskListItemContent title={item} {...getTaskSidebarMeta(item)} />
-                    </button>
-                    <div className="tree-row__actions tree-row__actions--task">
-                      <IconControl
-                        size="small"
-                        label={t("更多")}
-                        tooltipPlacement="top"
-                        aria-haspopup="menu"
-                        aria-expanded={isMenuOpen}
-                        onClick={(event) =>
-                          openActionMenu(event, { kind: "task", taskIndex: index })
-                        }
-                      >
-                        <FigmaIcon name="more-horizontal" size={16} />
-                      </IconControl>
-                    </div>
-                  </div>
-                );
-              })}
               </div>
-            </div>
             </div>
           </section>
         </div>
@@ -1199,271 +1251,38 @@ export function Sidebar({
                 </IconControl>
               </div>
               <div className="collapsed-flyout__recent-content">
-              {groups.map((group, groupIndex) => (
-                <div className="tree-group" key={`flyout-${group.id}`}>
-                  <div
-                    className={`tree-row-shell tree-row-shell--group ${
-                      draggedRow?.kind === "group" && draggedRow.groupIndex === groupIndex
-                        ? "is-dragging"
-                        : ""
-                    } ${
-                      dropFocusedGroupIndex === groupIndex && draggedRow?.kind !== "group"
-                        ? "is-drop-focused"
-                        : ""
-                    } ${
-                      actionMenu?.target.kind === "group" &&
-                      actionMenu.target.groupIndex === groupIndex
-                        ? "is-menu-open"
-                        : ""
-                    }`}
-                    draggable
-                    onDragStart={(event) => handleGroupDragStart(event, groupIndex, group.title)}
-                    onDragOver={(event) => handleGroupDragOver(event, groupIndex)}
-                    onDragLeave={(event) => {
-                      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                        setDropFocusedGroupIndex((current) =>
-                          current === groupIndex ? null : current,
-                        );
-                      }
-                    }}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      finishDrag();
-                    }}
-                    onDragEnd={cancelDrag}
-                  >
-                    <button
-                      className="tree-row tree-row--group"
-                      type="button"
-                      role="menuitem"
-                      aria-expanded={group.items.length > 0 ? group.expanded : undefined}
-                      onClick={() => {
-                        if (!group.items.length) return;
-                        setGroups((current) =>
-                          current.map((currentGroup, currentIndex) =>
-                            currentIndex === groupIndex
-                              ? {
-                                  ...currentGroup,
-                                  expanded: !currentGroup.expanded,
-                                  showAll: currentGroup.expanded ? false : currentGroup.showAll,
-                                }
-                              : currentGroup,
-                          ),
-                        );
-                      }}
+                <div
+                  className="collapsed-flyout__recent-tasks"
+                  onDragOver={(event) => {
+                    if (!draggedRow || draggedRow.kind === "group") return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "move";
+                    setDropFocusedGroupIndex(null);
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setDropTarget({ kind: "task", groupIndex: null, index: tasks.length });
+                    setIndicatorAt(rect, "bottom");
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    finishDrag();
+                  }}
+                >
+                  {recentEntries.map((entry, entryIndex) => (
+                    <Fragment
+                      key={entry.kind === "group"
+                        ? `flyout-recent-group-${entry.group.id}`
+                        : `flyout-recent-task-${entry.taskIndex}`}
                     >
-                      <ProjectDisclosureIcon expanded={group.expanded} />
-                      <span>{group.title}</span>
-                    </button>
-                    <div className="tree-row__actions tree-row__actions--group">
-                      <IconControl
-                        size="small"
-                        label={t("更多")}
-                        tooltipPlacement="top"
-                        aria-haspopup="menu"
-                        aria-expanded={
-                          actionMenu?.target.kind === "group" &&
-                          actionMenu.target.groupIndex === groupIndex
-                        }
-                        onClick={(event) =>
-                          openActionMenu(event, { kind: "group", groupIndex })
-                        }
-                      >
-                        <FigmaIcon name="more-horizontal" size={16} />
-                      </IconControl>
-                      <IconControl
-                        size="small"
-                        label={t("在{name}中新建对话", { name: group.title })}
-                        tooltipPlacement="top"
-                        onClick={() => createTaskInProject(group)}
-                      >
-                        <FigmaIcon name="new-chat" size={16} />
-                      </IconControl>
-                    </div>
-                  </div>
-                  <div
-                    className={`tree-group__children ${group.expanded ? "is-open" : ""}`}
-                    aria-hidden={!group.expanded}
-                  >
-                    <div className="tree-group__children-inner">
-                      {(group.showAll
-                        ? group.items
-                        : group.items.slice(0, PROJECT_TASK_PREVIEW_LIMIT)
-                      ).map((item, itemIndex) => {
-                        const mappedTaskId = createdTaskIdsRef.current.get(`${group.id}:${item}`);
-                        const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
-                          ? activeTaskId === mappedTaskId
-                          : activeTaskId === null &&
-                            selectedRow?.kind === "item" &&
-                            selectedRow.groupId === group.id &&
-                            selectedRow.itemIndex === itemIndex);
-                        const isMenuOpen =
-                          actionMenu?.target.kind === "item" &&
-                          actionMenu.target.groupIndex === groupIndex &&
-                          actionMenu.target.itemIndex === itemIndex;
-
-                        return (
-                          <div
-                            className={`tree-row-shell tree-row-shell--child ${
-                              isSelected ? "is-selected" : ""
-                            } ${isMenuOpen ? "is-menu-open" : ""} ${
-                              draggedRow?.kind === "item" &&
-                              draggedRow.groupIndex === groupIndex &&
-                              draggedRow.itemIndex === itemIndex
-                                ? "is-dragging"
-                                : ""
-                            }`}
-                            draggable={group.expanded}
-                            onDragStart={(event) =>
-                              handleItemDragStart(event, groupIndex, itemIndex, item)
-                            }
-                            onDragOver={(event) =>
-                              handleTaskDragOver(event, groupIndex, itemIndex)
-                            }
-                            onDrop={(event) => {
-                              event.preventDefault();
-                              finishDrag();
-                            }}
-                            onDragEnd={cancelDrag}
-                            key={`${item}-flyout-${itemIndex}`}
-                          >
-                            <button
-                              className="tree-row tree-row--child"
-                              type="button"
-                              role="menuitem"
-                              aria-current={isSelected ? "page" : undefined}
-                              onClick={() => {
-                                setSelectedRow({ kind: "item", groupId: group.id, itemIndex });
-                                openSavedTask(group.id, item);
-                              }}
-                            >
-                              <span className={`tree-row__selection-indicator ${isSelected ? "is-selected" : ""}`} aria-hidden="true">
-                                {isSelected && <span className="system-dot" />}
-                              </span>
-                              <TaskListItemContent title={item} {...getTaskSidebarMeta(item)} />
-                            </button>
-                            <div className="tree-row__actions tree-row__actions--child">
-                              <IconControl
-                                size="small"
-                        label={t("更多")}
-                                tooltipPlacement="top"
-                                aria-haspopup="menu"
-                                aria-expanded={isMenuOpen}
-                                onClick={(event) =>
-                                  openActionMenu(event, {
-                                    kind: "item",
-                                    groupIndex,
-                                    itemIndex,
-                                  })
-                                }
-                              >
-                                <FigmaIcon name="more-horizontal" size={16} />
-                              </IconControl>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {!group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT ? (
-                        <button
-                          type="button"
-                          className="tree-group__show-more"
-                          onClick={() => setGroups((current) => current.map((currentGroup, currentIndex) =>
-                            currentIndex === groupIndex ? { ...currentGroup, showAll: true } : currentGroup,
-                          ))}
-                        >
-                          <FigmaIcon name="more-horizontal" size={16} />
-                          <span>{t("展示更多该项目任务")} ({group.items.length})</span>
-                        </button>
+                      {entry.kind === "task" &&
+                      recentEntries[entryIndex - 1]?.kind === "group" ? (
+                        <div className="recent-content-divider" aria-hidden="true" />
                       ) : null}
-                      {group.showAll && group.items.length > PROJECT_TASK_PREVIEW_LIMIT && groupIndex < groups.length - 1 ? (
-                        <div className="tree-group__divider" aria-hidden="true" />
-                      ) : null}
-                    </div>
-                  </div>
+                      {entry.kind === "group"
+                        ? renderRecentGroup(entry.group, entry.groupIndex, true)
+                        : renderRecentTask(entry.item, entry.taskIndex, true)}
+                    </Fragment>
+                  ))}
                 </div>
-              ))}
-              {groups.length > 0 && tasks.length > 0 ? (
-                <div className="recent-content-divider" aria-hidden="true" />
-              ) : null}
-              <div
-                className="collapsed-flyout__recent-tasks"
-                onDragOver={(event) => {
-                  if (!draggedRow || draggedRow.kind === "group") return;
-                  event.preventDefault();
-                  event.dataTransfer.dropEffect = "move";
-                  setDropFocusedGroupIndex(null);
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  setDropTarget({ kind: "task", groupIndex: null, index: tasks.length });
-                  setIndicatorAt(rect, "bottom");
-                }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  finishDrag();
-                }}
-              >
-                {tasks.map((item, index) => {
-                  const mappedTaskId = createdTaskIdsRef.current.get(`task:${item}`);
-                  const isSelected = activeView === "workspace" && (mappedTaskId !== undefined
-                    ? activeTaskId === mappedTaskId
-                    : activeTaskId === null &&
-                      selectedRow?.kind === "task" && selectedRow.taskIndex === index);
-                  const isMenuOpen =
-                    actionMenu?.target.kind === "task" &&
-                    actionMenu.target.taskIndex === index;
-
-                  return (
-                    <div
-                      className={`task-row-shell ${
-                        draggedRow?.kind === "task" && draggedRow.taskIndex === index
-                          ? "is-dragging"
-                          : ""
-                      } ${isSelected ? "is-selected" : ""} ${
-                        isMenuOpen ? "is-menu-open" : ""
-                      }`}
-                      draggable
-                      onDragStart={(event) => handleLooseTaskDragStart(event, index, item)}
-                      onDragOver={(event) => handleTaskDragOver(event, null, index)}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        finishDrag();
-                      }}
-                      onDragEnd={cancelDrag}
-                      key={`${item}-recent-flyout-${index}`}
-                    >
-                      <span className="task-row__selection-surface" aria-hidden="true" />
-                      <button
-                        className="task-row"
-                        type="button"
-                        role="menuitem"
-                        aria-current={isSelected ? "page" : undefined}
-                        onClick={() => {
-                          setSelectedRow({ kind: "task", taskIndex: index });
-                          openSavedTask(null, item);
-                        }}
-                      >
-                        <span className={`tree-row__selection-indicator ${isSelected ? "is-selected" : ""}`} aria-hidden="true">
-                          <span className={`system-dot task-row__selection-dot ${isSelected ? "is-visible" : ""}`} />
-                        </span>
-                        <TaskListItemContent title={item} {...getTaskSidebarMeta(item)} />
-                      </button>
-                      <div className="tree-row__actions tree-row__actions--task">
-                        <IconControl
-                          size="small"
-                          label={t("更多")}
-                          tooltipPlacement="top"
-                          aria-haspopup="menu"
-                          aria-expanded={isMenuOpen}
-                          onClick={(event) =>
-                            openActionMenu(event, { kind: "task", taskIndex: index })
-                          }
-                        >
-                          <FigmaIcon name="more-horizontal" size={16} />
-                        </IconControl>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
               </div>
             </div>
           </div>
