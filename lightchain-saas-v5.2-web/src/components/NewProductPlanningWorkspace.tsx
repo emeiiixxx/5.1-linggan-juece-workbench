@@ -12,6 +12,7 @@ import {
 } from "./ImageSelection";
 import {
   AnalysisStepIcon,
+  ConversationErrorMessage,
   ConversationFeed,
   ConversationFileCard,
   ConversationFollowUpExchange,
@@ -52,6 +53,8 @@ type PlanningStage =
   | "results"
   | "plan-generating"
   | "complete";
+
+type ExceptionDemoStage = "ready" | "network" | "parse-failed" | "credits";
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
 const directions = [
@@ -188,6 +191,11 @@ const newProductReferenceItems: readonly ImageGalleryItem[] = newProductReferenc
     src,
     badges: [...evidence.badges],
     sourceUrl: evidence.sourceUrl,
+    detailLines: [
+      "趋势资料 · 2027年2月",
+      `匹配理由：${evidence.subtitle}`,
+      "获取时间：2026-08-06",
+    ],
   };
 });
 
@@ -388,6 +396,38 @@ function NewProductLoadingTask({ title, lines, complete = false }: { title: stri
   );
 }
 
+function NewProductExceptionAnalysisTask() {
+  const [expanded, setExpanded] = useState(true);
+  const controlsId = useId();
+
+  return (
+    <div className="new-product-exception-analysis">
+      <TaskDisclosure
+        title="解析新品企划需求"
+        expanded={expanded}
+        complete={false}
+        controlsId={controlsId}
+        onToggle={() => setExpanded((value) => !value)}
+      >
+        <div className="new-product-exception-step is-complete">
+          <span className="new-product-exception-step__icon"><FigmaIcon name="dot" size={16} /></span>
+          <span>读取业务偏好档案 — 完成</span>
+        </div>
+        <p>已读取并理解业务偏好档案内容。</p>
+        <div className="new-product-exception-step is-complete">
+          <span className="new-product-exception-step__icon"><FigmaIcon name="dot" size={16} /></span>
+          <span>解析客户资料与首轮描述 — 完成</span>
+        </div>
+        <p>已保留本次文字、图片、文档与新品企划约束。</p>
+        <div className="new-product-exception-step is-error">
+          <span className="new-product-exception-step__icon"><FigmaIcon name="info-circle" size={16} /></span>
+          <span>解析失败 — 连接超时</span>
+        </div>
+      </TaskDisclosure>
+    </div>
+  );
+}
+
 const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
   const reader = new FileReader();
   reader.onload = () => resolve(String(reader.result));
@@ -473,7 +513,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   prompt: string;
   profileName?: string;
   attachments?: { name: string; previewUrl?: string }[];
-  initialState?: "default" | "confirmation" | "complete";
+  initialState?: "default" | "confirmation" | "complete" | "exception";
   onTaskProgress?: () => void;
   onTaskComplete?: () => void;
 }) {
@@ -481,17 +521,20 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const scopeDefaults = getResearchScopeDefaults(profileName, locale, prompt);
   const promptContext = useMemo(() => extractPromptContext(prompt), [prompt]);
   const promptExclusions = useMemo(() => getPromptExclusions(prompt), [prompt]);
-  const briefCategory = promptContext.garment ?? "未指定";
+  const briefCategory = promptContext.garments?.join("、") || "未指定";
   const briefAudience = promptContext.audience ?? "未指定";
   const briefMarket = promptContext.market ?? "未指定";
   const briefSeason = promptContext.season ?? "未指定";
   const briefChannels = scopeDefaults.commerce.length ? scopeDefaults.commerce.join("、") : "未指定";
   const startsComplete = initialState === "complete";
-  const startsAtConfirmation = initialState === "confirmation";
+  const exceptionDemo = initialState === "exception";
+  const startsAtConfirmation = initialState === "confirmation" || exceptionDemo;
   const completionReportedRef = useRef(startsComplete);
+  const detailAutoOpenedRef = useRef(startsComplete);
   const [stage, setStage] = useState<PlanningStage>(startsComplete ? "complete" : startsAtConfirmation ? "brief" : "analyzing");
+  const [exceptionDemoStage, setExceptionDemoStage] = useState<ExceptionDemoStage>("ready");
   const [analysisExpanded, setAnalysisExpanded] = useState(!startsComplete && !startsAtConfirmation);
-  const [detailPanelOpen, setDetailPanelOpen] = useState(true);
+  const [detailPanelOpen, setDetailPanelOpen] = useState(startsComplete);
   const [followUp, setFollowUp] = useState("");
   const [planEntryMessage, setPlanEntryMessage] = useState("");
   const [planEntryAttachments, setPlanEntryAttachments] = useState<TaskConversationAttachment[]>([]);
@@ -518,6 +561,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [referencePreviewId, setReferencePreviewId] = useState<string | null>(null);
   const [previewReadOnly, setPreviewReadOnly] = useState(false);
+  const [previewHideSelection, setPreviewHideSelection] = useState(false);
   const [activePreviewCategory, setActivePreviewCategory] = useState<string>(directions[0].id);
   const [reportPreview, setReportPreview] = useState<{ name: string; html: string } | null>(null);
   const [composerFocusRequest, setComposerFocusRequest] = useState(0);
@@ -681,15 +725,29 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     setStage("plan-generating");
   };
 
+  const continueFromBrief = (
+    message = "满意，请继续",
+    submittedAttachments: TaskConversationAttachment[] = [],
+    reportProgress = true,
+  ) => {
+    if (reportProgress) onTaskProgress?.();
+    setBriefEntryMessage(message);
+    setBriefEntryAttachments(submittedAttachments);
+    setFollowUp("");
+    if (exceptionDemo) {
+      setExceptionDemoStage("network");
+      return;
+    }
+    setStage("scope");
+  };
+
   const submitFollowUp = (submittedAttachments: TaskConversationAttachment[]) => {
     const value = followUp.trim();
     if (!value && !submittedAttachments.length) return;
     onTaskProgress?.();
     setFollowUp("");
     if (stage === "brief") {
-      setBriefEntryMessage(value);
-      setBriefEntryAttachments(submittedAttachments);
-      setStage("scope");
+      continueFromBrief(value, submittedAttachments, false);
       return;
     }
     const normalizedValue = value.toLocaleLowerCase().replace(/[\s，。！!、]/g, "");
@@ -799,9 +857,44 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   };
 
   const composerRunning = Boolean(pendingResultGeneration) || ["analyzing", "research", "structure-planning", "ai-generating", "plan-generating"].includes(stage);
+  const exceptionNotice = useMemo(() => exceptionDemoStage === "network"
+    ? {
+        message: "网络异常，重连中...",
+        actionLabel: "立即重试",
+        onAction: () => setExceptionDemoStage("parse-failed"),
+      }
+    : exceptionDemoStage === "parse-failed"
+      ? {
+          message: "解析遇到问题，连接超时",
+          actionLabel: "重试",
+          onAction: () => setExceptionDemoStage("credits"),
+        }
+      : exceptionDemoStage === "credits"
+        ? {
+            message: "您的积分余额不足",
+            actionLabel: "购买积分",
+            onAction: () => window.dispatchEvent(new CustomEvent("lightchain:open-credits")),
+          }
+        : null, [exceptionDemoStage]);
+
+  useEffect(() => {
+    if (!exceptionDemo || exceptionDemoStage !== "credits") return;
+    const resumeAfterPurchase = () => {
+      setExceptionDemoStage("ready");
+      setStage("scope");
+    };
+    window.addEventListener("lightchain:credits-purchased", resumeAfterPurchase);
+    return () => window.removeEventListener("lightchain:credits-purchased", resumeAfterPurchase);
+  }, [exceptionDemo, exceptionDemoStage]);
   const researchReferencesReady = ["directions", "structure-planning", "structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage);
   const productStructureReady = ["structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage);
   const aiResultsReady = ["results", "plan-generating", "complete"].includes(stage);
+
+  useEffect(() => {
+    if (!researchReferencesReady || detailAutoOpenedRef.current) return;
+    detailAutoOpenedRef.current = true;
+    setDetailPanelOpen(true);
+  }, [researchReferencesReady]);
   const selectedDirectionLabels = directions.filter((item) => selectedDirections.includes(item.id)).map((item) => item.title);
   const researchPlatformOptions = getResearchPlatformOptions(markets);
   const allResearchPlatformOptions = getResearchPlatformOptions(researchMarkets);
@@ -927,7 +1020,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
               selected={formSelectedResults.includes(item.id)}
               disabled={!isActive}
               onSelect={() => toggleResult(item.id)}
-              onPreview={() => { setPreviewReadOnly(!isActive); setPreviewId(item.id); setActivePreviewCategory(item.categoryId); }}
+              onPreview={() => { setPreviewReadOnly(!isActive); setPreviewHideSelection(false); setPreviewId(item.id); setActivePreviewCategory(item.categoryId); }}
             />
           ))}
         </div>
@@ -971,13 +1064,32 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 <p>波段：{briefSeason}；计划款数：未指定，将在商品结构中给出待确认建议。</p>
                 <p>排除条件：{promptExclusions.length ? promptExclusions.join("、") : "未指定"}。</p>
                 <p>资料缺口：无历史销售、旧企划、OTB 预算和真实供应商报价。缺失内容不会补造。</p>
-                {stage === "brief" ? (
+                {stage === "brief" && (!exceptionDemo || exceptionDemoStage === "ready") ? (
                   <div className="new-product-quick-replies">
                     <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>补充条件</Button>
-                    <QuickReplyButton onClick={() => { setBriefEntryMessage("满意，请继续"); setBriefEntryAttachments([]); setStage("scope"); }}>满意，请继续</QuickReplyButton>
+                    <QuickReplyButton onClick={() => continueFromBrief()}>满意，请继续</QuickReplyButton>
                   </div>
                 ) : null}
               </AssistantMessage>
+            ) : null}
+
+            {exceptionDemo && exceptionDemoStage !== "ready" ? (
+              <ConversationUserMessage>
+                <ConversationUserAttachments attachments={briefEntryAttachments} />
+                {briefEntryMessage ? <span>{briefEntryMessage}</span> : null}
+              </ConversationUserMessage>
+            ) : null}
+
+            {exceptionDemo && ["parse-failed", "credits"].includes(exceptionDemoStage) ? (
+              <>
+                <AssistantMessage actions={false}>
+                  <p>网络已恢复，正在从中断位置继续解析，已提交的需求与附件不会丢失。</p>
+                  <NewProductExceptionAnalysisTask />
+                </AssistantMessage>
+                <ConversationErrorMessage>
+                  解析遇到问题，连接超时。当前需求与已上传资料已保留，请重试；若问题持续，请联系客服。
+                </ConversationErrorMessage>
+              </>
             ) : null}
 
             {["scope", "research", "directions", "structure-planning", "structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage) ? (
@@ -1200,7 +1312,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
         </div>
 
         <div className="conversation-bottom-fade" aria-hidden="true" />
-        <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} hint={stage === "directions" ? "请先从上方表单完成视觉方向选择" : stage === "results" ? "生成企划将扣除 999 积分" : undefined} disabled={stage === "directions"} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} focusRequest={composerFocusRequest} />
+        <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} hint={stage === "scope" ? "请先完成调研范围确认" : stage === "directions" ? "请先从上方表单完成视觉方向选择" : stage === "results" ? "生成企划将扣除 999 积分" : undefined} disabled={stage === "scope" || stage === "directions" || Boolean(exceptionNotice)} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} focusRequest={composerFocusRequest} exceptionNotice={exceptionNotice} />
       </section>
 
       <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>
@@ -1221,7 +1333,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
               {stage === "complete" ? (
                 <TaskArtifactRow kind="file" onClick={() => setReportPreview({ name: "新品企划案.html", html: newProductPlanHtml })}>新品企划案.html</TaskArtifactRow>
               ) : null}
-              {!researchReferencesReady ? <TaskArtifactRow kind="file">正在生成调研与视觉方向报告.html…</TaskArtifactRow> : null}
+              {stage === "research" && !exceptionNotice ? <TaskArtifactRow kind="file">正在生成调研与视觉方向报告.html…</TaskArtifactRow> : null}
               {stage === "structure-planning" ? <TaskArtifactRow kind="file">正在生成商品结构规划.html…</TaskArtifactRow> : null}
               {stage === "ai-generating" ? <TaskArtifactRow kind="file">正在生成 AI 改款结果.html…</TaskArtifactRow> : null}
               {stage === "plan-generating" ? <TaskArtifactRow kind="file">正在生成新品企划案.html…</TaskArtifactRow> : null}
@@ -1254,6 +1366,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
             if (!item) return;
             const belongsToCurrentBatch = displayedResultItems.some((result) => result.id === item.id);
             setPreviewReadOnly(stage !== "results" || !belongsToCurrentBatch);
+            setPreviewHideSelection(true);
             setPreviewId(item.id);
             setActivePreviewCategory(item.categoryId);
           }}
@@ -1307,16 +1420,18 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
       {previewId ? (
         <ImageGalleryLightbox
-          title={t("选择新品企划案的 AI 改款图")}
+          title={previewHideSelection ? t("生成款式") : t("选择新品企划案的 AI 改款图")}
           categories={lightboxCategories}
           items={allGeneratedResultItems}
           activeCategoryId={activePreviewCategory}
           activeItemId={previewId}
           selectedIds={previewReadOnly ? [] : selectedResults}
           selectionDisabled={previewReadOnly || stage !== "results"}
+          hideSelection={previewHideSelection}
           resultActions={{
             onDownload: downloadGalleryItem,
           }}
+          presentation={previewHideSelection ? "detail" : "gallery"}
           showCategories={false}
           onCategoryChange={(categoryId) => {
             setActivePreviewCategory(categoryId);
@@ -1328,11 +1443,12 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
             setPreviewReadOnly(stage !== "results" || !displayedResultItems.some((item) => item.id === itemId));
           }}
           onToggleSelection={toggleResult}
-          onClose={() => { setPreviewId(null); setPreviewReadOnly(false); }}
+          onClose={() => { setPreviewId(null); setPreviewReadOnly(false); setPreviewHideSelection(false); }}
         />
       ) : null}
       {referencePreviewId ? (
         <ImageGalleryLightbox
+          title={t("参考款式")}
           categories={lightboxCategories}
           items={newProductReferenceItems}
           activeCategoryId={newProductReferenceItems.find((item) => item.id === referencePreviewId)?.categoryId ?? lightboxCategories[0].id}

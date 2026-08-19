@@ -170,6 +170,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
   const [selectedDirectionIds, setSelectedDirectionIds] = useState<string[]>([]);
   const [customDirection, setCustomDirection] = useState("");
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
+  const [candidatesSkipped, setCandidatesSkipped] = useState(false);
   const [favoriteCandidates, setFavoriteCandidates] = useState<string[]>([]);
   const [previewCandidate, setPreviewCandidate] = useState<string | null>(null);
   const [previewResult, setPreviewResult] = useState<string | null>(null);
@@ -310,6 +311,14 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
     setSelectedCandidates((current) => current.includes(candidateId)
       ? current.filter((id) => id !== candidateId)
       : [...current, candidateId]);
+  };
+
+  const skipCandidates = () => {
+    onTaskProgress?.();
+    setSelectedCandidates([]);
+    setCandidateReply("");
+    setCandidatesSkipped(true);
+    setStage("candidate-analysis");
   };
 
   const toggleFavoriteCandidate = (candidateId: string) => {
@@ -558,7 +567,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
                   <ConversationFormTitle
                     title="候选池图片集 · 支持多选"
                     status={stage === "candidates" ? "pending" : "confirmed"}
-                    statusLabel={stage === "candidates" ? "待确认" : "已确认"}
+                    statusLabel={stage === "candidates" ? "待确认" : candidatesSkipped ? "已跳过" : "已确认"}
                   />
                   <div className="image-selection-grid" role="group" aria-label="候选池图片集，支持多选">
                     {candidateIds.map((candidateId, index) => {
@@ -579,19 +588,22 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
                       );
                     })}
                   </div>
-                  {stage === "candidates" && <div className="research-scope-actions"><SelectAllControl selected={selectedCandidates.length === candidateIds.length} className="selection-select-all--leading" onToggle={() => setSelectedCandidates(selectedCandidates.length === candidateIds.length ? [] : [...candidateIds])} /><Button variant="primary" size="small" disabled={!selectedCandidates.length} onClick={() => submitMessage(`已选择 ${selectedCandidates.length} 张参考素材`)}>下一步</Button></div>}
+                  {stage === "candidates" && <div className="research-scope-actions"><SelectAllControl selected={selectedCandidates.length === candidateIds.length} className="selection-select-all--leading" onToggle={() => setSelectedCandidates(selectedCandidates.length === candidateIds.length ? [] : [...candidateIds])} /><Button variant="secondary" size="small" onClick={skipCandidates}>跳过</Button><Button variant="primary" size="small" disabled={!selectedCandidates.length} onClick={() => submitMessage(`已选择 ${selectedCandidates.length} 张参考素材`)}>下一步</Button></div>}
                 </div>
               </AssistantMessage>
             )}
 
-            {stageIndex >= 6 && (
+            {candidatesSkipped && <UserMessage entrance><span>跳过参考素材</span></UserMessage>}
+            {candidatesSkipped && stageIndex >= 7 && <AssistantMessage><p>已跳过参考素材选择。后续将仅基于已确认的款式需求、设计方向与改款边界继续生成。</p></AssistantMessage>}
+
+            {stageIndex >= 6 && !candidatesSkipped && (
               <UserMessage entrance>
                 <ConversationUserAttachments attachments={replyAttachments.candidates ?? []} />
                 <span>{`已选择 ${selectedCandidates.length} 张参考素材：${selectedCandidates.join("、")}`}</span>
               </UserMessage>
             )}
 
-            {stageIndex >= 6 && (
+            {stageIndex >= 6 && !candidatesSkipped && (
               <AssistantMessage className="conversation-analysis-confirmation">
                 <p>您已选择了 {selectedCandidates.length} 张参考图像，加上最初的{apparelItem}需求，共 {selectedCandidates.length + 1} 组信息作为设计素材基底{exclusionSummary}。</p>
                 <p>请确认：</p>
@@ -611,9 +623,9 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
 
             {stageIndex >= 7 && (
               <AssistantMessage className="conversation-analysis">
-                <p>我正在对您选择的 {selectedCandidates.length} 张参考图像进行深度解析，提取廓形、工艺、材质、细节等设计要素...</p>
+                <p>{candidatesSkipped ? "我正在基于已确认的款式需求和设计方向建立执行语言。" : `我正在对您选择的 ${selectedCandidates.length} 张参考图像进行深度解析，提取廓形、工艺、材质、细节等设计要素...`}</p>
                 <TaskDisclosure
-                  title="图像深度解析"
+                  title={candidatesSkipped ? "设计方向解析" : "图像深度解析"}
                   expanded={candidateAnalysisExpanded}
                   complete={stage !== "candidate-analysis"}
                   controlsId="apparel-candidate-analysis-details"
@@ -808,7 +820,8 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
           onChange={setFollowUp}
           onSubmit={(submittedAttachments) => submitMessage(undefined, submittedAttachments)}
           placeholder={composerPlaceholder[stage]}
-          disabled={!composerEnabled}
+          hint={stage === "directions" ? "请先从上方表单完成设计方向选择" : stage === "candidates" ? "请先从上方选择参考素材，或选择跳过" : undefined}
+          disabled={!composerEnabled || stage === "directions" || stage === "candidates"}
         />
       </section>
 

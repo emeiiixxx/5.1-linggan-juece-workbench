@@ -49,8 +49,10 @@ export const initialTaskSidebarMeta: Record<string, TaskSidebarMeta> = {
   "上线节奏与复盘指标": { workflow: "plan", status: "pending", updatedAt: "2026-08-18" },
   "2027春夏北美宠物雨衣趋势调研": { workflow: "new-product", status: "running" },
   "米白针织开衫设计方向确认": { workflow: "apparel", status: "pending", updatedAt: "2026-08-17" },
+  "轻盈花园图案系列": { workflow: "pattern", status: "completed", updatedAt: "2026-08-19" },
   "Loro Piana 2027春夏男装企划": { workflow: "plan", status: "completed", updatedAt: "2026-08-16" },
   "北美成熟女装新品范围确认": { workflow: "new-product", status: "pending", updatedAt: "2026-08-15" },
+  "新品企划异常状态演示": { workflow: "new-product", status: "pending", updatedAt: "2026-08-19" },
 };
 
 export const completedProjectTaskExample = {
@@ -68,8 +70,7 @@ export const completedCustomerProposalExample = {
   id: -2027002,
   title: "27年颜色流行趋势",
   projectId: 0,
-  prompt: "围绕 2027 年颜色流行趋势，结合目标市场、客户需求与公开行业资料，整理视觉方向、参考素材和 AI 改款结果，并生成一份完整客户提案。",
-  profileName: "灭霸毁灭世界回忆录",
+  prompt: "围绕 2027 年北美女装颜色与柔性通勤趋势，结合公开行业资料，整理视觉方向、参考素材和 AI 改款结果，并生成一份完整客户提案。",
   workflow: "default" as const,
   status: "completed" as const,
   updatedAt: "2026-08-18",
@@ -121,6 +122,27 @@ export const standaloneDemoTaskExamples = [
     status: "pending" as const,
     updatedAt: "2026-08-15T16:20:00+08:00",
     initialState: "confirmation" as const,
+  },
+  {
+    id: -2027014,
+    title: "轻盈花园图案系列",
+    projectId: null,
+    prompt: "为 2027 春夏女装开发一组轻盈花园主题图案，以手绘花卉、度假植物和复古线条为主，用于连衣裙、半裙与衬衫，输出连续花型和定位印花示意。",
+    workflow: "pattern" as const,
+    status: "completed" as const,
+    updatedAt: "2026-08-19T10:30:00+08:00",
+    initialState: "complete" as const,
+  },
+  {
+    id: -2027015,
+    title: "新品企划异常状态演示",
+    projectId: null,
+    prompt: "为 2027 秋季北美成熟女装规划一组柔性通勤新品，包含印花衬衫、轻结构外套和过渡季连衣裙；确认需求后继续调研，并保留异常恢复过程中的文字与附件。",
+    profileName: "北美成熟女装偏好档案",
+    workflow: "new-product" as const,
+    status: "pending" as const,
+    updatedAt: "2026-08-19T15:20:00+08:00",
+    initialState: "exception" as const,
   },
 ];
 

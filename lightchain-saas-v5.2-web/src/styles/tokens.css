@@ -24,6 +24,7 @@
 
   --surface-default: #262a2b;
   --surface-secondary: #303536;
+  --surface-danger: rgb(66 36 36 / 80%);
   --surface-floating: rgb(0 0 0 / 60%);
   --surface-floating-strong: rgb(0 0 0 / 75%);
 
@@ -107,6 +108,7 @@
 
   --surface-default: #ffffff;
   --surface-secondary: #f9fafa;
+  --surface-danger: rgb(255 76 76 / 12%);
   --surface-floating: rgb(0 0 0 / 60%);
   --surface-floating-strong: rgb(0 0 0 / 75%);
 

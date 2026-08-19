@@ -14,7 +14,6 @@ import { CircleCheckbox } from "./CircleCheckbox";
 import { downloadImageZip } from "../utils/downloadZip";
 import { ProgressiveImage } from "./ProgressiveImage";
 import { ConversationUserAttachments, type ConversationUserAttachment } from "./ConversationUserAttachments";
-import { ImageActionBar } from "./ImageSelection";
 
 export type ConversationStepStatus = "complete" | "loading" | "pending";
 
@@ -90,8 +89,7 @@ async function writeClipboardText(text: string) {
 
 function getMessageMetaPosition(message: HTMLElement, metaSize?: { width: number; height: number }): MessageMetaPosition {
   const isUserMessage = message.classList.contains("conversation-message--user");
-  const copyEnabled = !message.matches('[data-message-copy="disabled"]')
-    && !message.querySelector('[data-message-copy="disabled"]');
+  const copyEnabled = isUserMessage;
   const anchor = isUserMessage
     ? message.querySelector<HTMLElement>(".conversation-user-bubble") ?? message
     : message;
@@ -325,7 +323,6 @@ export function ConversationFeed({ className = "", children, ...props }: HTMLAtt
           ) : (
             <>
               <div>
-                {metaPosition.copyEnabled ? <IconControl label={t("复制消息")} variant="bare" size="xsmall" onClick={copyHoveredMessage}><FigmaIcon name="copy" size={16} /></IconControl> : null}
                 <IconControl label={t("赞同消息")} variant="bare" size="xsmall" aria-pressed={currentFeedback?.reaction === "like"} onClick={likeHoveredMessage}>
                   <AnimatePresence initial={false} mode="wait">
                     <motion.span className="conversation-feedback-icon" key={currentFeedback?.reaction === "like" ? "like-filled" : "like"} initial={reduceMotion ? false : { opacity: 0, scale: 0.72, rotate: -8 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} exit={reduceMotion ? undefined : { opacity: 0, scale: 0.84 }} transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}>
@@ -709,8 +706,6 @@ export function TaskDetailPanel({
   const { t } = useI18n();
   const [expandedGallery, setExpandedGallery] = useState<"reference" | "generated" | null>(null);
   const [referenceDownloading, setReferenceDownloading] = useState(false);
-  const [favoriteGalleryItems, setFavoriteGalleryItems] = useState<Set<string>>(() => new Set());
-  const [galleryToast, setGalleryToast] = useState("");
   const visibleGeneratedReferences = [...generatedReferences]
     .sort((left, right) => (right.groupDate ?? right.date ?? "").localeCompare(left.groupDate ?? left.date ?? ""))
     .slice(0, 20);
@@ -726,12 +721,6 @@ export function TaskDetailPanel({
     else groups.set(groupDate, [reference]);
     return groups;
   }, new Map<string, TaskDetailReferenceLink[]>()));
-
-  useEffect(() => {
-    if (!galleryToast) return;
-    const timer = window.setTimeout(() => setGalleryToast(""), 1800);
-    return () => window.clearTimeout(timer);
-  }, [galleryToast]);
 
   const renderReference = (reference: TaskDetailReferenceLink, expanded = false, onSelect = onReferenceSelect) => {
     const content = (
@@ -777,27 +766,7 @@ export function TaskDetailPanel({
 
   const renderGalleryThumbnail = (reference: TaskDetailReferenceLink, onSelect?: (reference: TaskDetailReferenceLink) => void) => {
     const itemKey = reference.id ?? reference.thumbnail ?? reference.href;
-    const favorited = favoriteGalleryItems.has(itemKey);
     const image = <ProgressiveImage className="task-detail-gallery-thumbnail" src={assetUrl(reference.thumbnail!)} alt="" aria-hidden="true" />;
-    const toggleFavorite = () => {
-      setFavoriteGalleryItems((current) => {
-        const next = new Set(current);
-        if (next.has(itemKey)) next.delete(itemKey);
-        else next.add(itemKey);
-        return next;
-      });
-      setGalleryToast(favorited ? "已从资源库移除" : "已收藏到资源库");
-    };
-    const downloadImage = () => {
-      const source = assetUrl(reference.thumbnail!);
-      const extension = source.split("?")[0].match(/\.([a-z0-9]+)$/i)?.[1] ?? "jpg";
-      const safeLabel = reference.label.replace(/[\\/:*?"<>|]/g, "-");
-      const link = document.createElement("a");
-      link.href = source;
-      link.download = `${safeLabel}.${extension}`;
-      link.click();
-      setGalleryToast("图片下载已开始");
-    };
     return (
       <div className="task-detail-gallery-item" key={itemKey}>
         {onSelect ? (
@@ -805,7 +774,6 @@ export function TaskDetailPanel({
         ) : (
           <a className="task-detail-gallery-toggle" href={reference.href} title={reference.label} aria-label={reference.label} target="_blank" rel="noreferrer">{image}</a>
         )}
-        <ImageActionBar favorited={favorited} size="xsmall" onFavorite={toggleFavorite} onDownload={downloadImage} />
       </div>
     );
   };
@@ -926,7 +894,6 @@ export function TaskDetailPanel({
           </div>
         </div>
       ) : null}
-      <Toast message={galleryToast} />
     </div>
   );
 }
@@ -989,6 +956,22 @@ export function ConversationFollowUpExchange({
         {children}
       </motion.article>
     </div>
+  );
+}
+
+export function ConversationErrorMessage({ children }: { children: ReactNode }) {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <motion.article
+      className="conversation-message conversation-message--assistant conversation-error-message"
+      data-message-actions="true"
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.32, ease: revealEase }}
+    >
+      <div className="conversation-error-bubble" role="alert">{children}</div>
+    </motion.article>
   );
 }
 

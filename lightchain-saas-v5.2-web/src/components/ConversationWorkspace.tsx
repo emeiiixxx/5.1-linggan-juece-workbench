@@ -59,6 +59,11 @@ const customerProposalReferenceStyles: readonly ImageGalleryItem[] = trendDirect
     subtitle: evidence.subtitle,
     badges: [...evidence.badges],
     sourceUrl: evidence.sourceUrl,
+    detailLines: [
+      "趋势资料 · 2027年2月",
+      `匹配理由：${evidence.subtitle}`,
+      "获取时间：2026-08-06",
+    ],
   };
 });
 
@@ -83,7 +88,14 @@ const quickActionReveal = {
 const customerAiResultImages = candidateCategories.flatMap((category) =>
   candidateReferenceImages
     .filter((candidate) => candidate.categoryId === category.id && candidate.page === 1)
-    .slice(0, 3),
+    .slice(0, 3)
+    .map((candidate, index) => ({
+      ...candidate,
+      title: `${category.label}方案 ${String(index + 1).padStart(2, "0")}`,
+      subtitle: "AI 改款结果 · 继承已确认视觉方向",
+      badges: ["AI 改款", category.label],
+      sourceUrl: undefined,
+    })),
 );
 
 type CustomerAiResultBatch = {
@@ -158,6 +170,14 @@ function getProfileSummary(profileName: string) {
   if (profileName.includes("日本")) return "品类：女装　价格段：JPY 8,000–18,000　市场：日本、韩国、美国　年龄段：25–34岁、35–44岁";
   if (profileName.includes("灭霸") || profileName.includes("Thanos")) return "品类：女装、男装、童装　价格段：USD 1,000–999,999,999　市场：日本、韩国、美国　年龄段：多年龄段";
   return "已应用该档案中保存的品类、价格、市场与年龄范围";
+}
+
+function getProfileAnalysisDefaults(profileName: string | undefined) {
+  if (!profileName) return null;
+  if (profileName.includes("卡宾")) return { category: "鞋袋", price: "CNY 200–1,000", audience: "3–18岁" };
+  if (profileName.includes("日本")) return { category: "女装", price: "JPY 8,000–18,000", audience: "25–34岁、35–44岁" };
+  if (profileName.includes("灭霸") || profileName.includes("Thanos")) return { category: "女装、男装、童装", price: "USD 1,000–999,999,999", audience: "多年龄段" };
+  return null;
 }
 
 function buildTrendReportHtml(
@@ -338,9 +358,11 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const completionReportedRef = useRef(startsComplete);
   const profileScopeDefaults = getResearchScopeDefaults(profileName, locale, prompt);
   const promptContext = useMemo(() => extractPromptContext(prompt), [prompt]);
+  const profileAnalysisDefaults = getProfileAnalysisDefaults(profileName);
   const parsedMarket = promptContext.market ?? (profileName ? profileScopeDefaults.markets.join("、") : "未指定");
-  const parsedAudience = promptContext.audience ?? (profileName ? "25-34岁" : "未指定");
-  const parsedCategory = promptContext.garment ?? (profileName ? "女装" : "未指定");
+  const parsedAudience = promptContext.audience ?? profileAnalysisDefaults?.audience ?? "未指定";
+  const parsedCategory = promptContext.garments?.join("、") || profileAnalysisDefaults?.category || "未指定";
+  const parsedPrice = promptContext.price ?? profileAnalysisDefaults?.price ?? "未指定";
   const parsedSeason = promptContext.season ?? "待补充";
   const missingSummary = promptContext.season ? "当前描述未发现必须补充项" : "已确认缺失信息：季节";
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
@@ -394,6 +416,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const [aiResultsConfirmed, setAiResultsConfirmed] = useState(startsComplete);
   const [aiResultPreviewId, setAiResultPreviewId] = useState<string | null>(null);
   const [aiResultPreviewReadOnly, setAiResultPreviewReadOnly] = useState(false);
+  const [aiResultPreviewHideSelection, setAiResultPreviewHideSelection] = useState(false);
   const [customerAiResultBatches, setCustomerAiResultBatches] = useState<CustomerAiResultBatch[]>([initialCustomerAiResultBatch]);
   const [customerAiRevisionMessages, setCustomerAiRevisionMessages] = useState<CustomerAiRevisionMessage[]>([]);
   const [pendingCustomerAiRevision, setPendingCustomerAiRevision] = useState<PendingCustomerAiRevision | null>(null);
@@ -927,7 +950,8 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     const activeBatch = batch.id === customerAiResultBatches[customerAiResultBatches.length - 1]?.id
       && customerProposalStage === "results"
       && !aiResultsConfirmed;
-    const selectedIds = activeBatch ? selectedAiResultIds : [];
+    const latestBatch = batch.id === customerAiResultBatches[customerAiResultBatches.length - 1]?.id;
+    const selectedIds = activeBatch || (latestBatch && aiResultsConfirmed) ? selectedAiResultIds : [];
     return (
       <section
         className={`new-product-results-form customer-ai-results-form ${activeBatch ? "" : "is-confirmed"}`}
@@ -952,6 +976,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
               onSelect={() => toggleAiResult(item.id)}
               onPreview={() => {
                 setAiResultPreviewReadOnly(!activeBatch);
+                setAiResultPreviewHideSelection(false);
                 setAiResultPreviewId(item.id);
               }}
             />
@@ -1106,7 +1131,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                         <li><StreamingText delay={0.94}>目标：根据当前描述形成客户可评审的方向方案</StreamingText></li>
                         <li><StreamingText delay={1.08}>{`市场：${parsedMarket}　人群：${parsedAudience}`}</StreamingText></li>
                         <li><StreamingText delay={1.22}>{`品类：${parsedCategory}　季节：${parsedSeason}`}</StreamingText></li>
-                        <li><StreamingText delay={1.36}>{`价格：${profileName ? "JPY 8,000-18,000" : "未指定"}　设计方向：待补充`}</StreamingText></li>
+                        <li><StreamingText delay={1.36}>{`价格：${parsedPrice}　设计方向：待补充`}</StreamingText></li>
                         <li><StreamingText delay={1.5}>参考图特征：未上传，待补充</StreamingText></li>
                         <li><StreamingText delay={1.64}>保留元素：待补充　排除元素：待补充</StreamingText></li>
                         <li><StreamingText delay={1.78}>{promptContext.season ? "必要字段已从当前描述中识别" : "待补充：季节"}</StreamingText></li>
@@ -1246,7 +1271,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                           transition={{ duration: reduceMotion ? 0 : 0.32, ease: revealEase }}
                           data-node-id="488:112592"
                         >
-                          <p>调研摘要：目标人群 25-34岁；品类 女装；核心视觉词 待验证；排除项 待补充。趋势资料、社媒信号和电商供给/竞争信息将分别呈现，不把单一来源写成确定趋势或销量机会。</p>
+                          <p>调研摘要：目标人群 {parsedAudience}；品类 {parsedCategory}；核心视觉词待验证；排除项待补充。趋势资料、社媒信号和电商供给/竞争信息将分别呈现，不把单一来源写成确定趋势或销量机会。</p>
                         </motion.article> : null}
 
                         {scopeResultStage >= 2 ? <motion.article
@@ -1727,10 +1752,11 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
           placeholder={conversationPlaceholder}
           disabled={
             !analysisComplete
+            || (scopeFormVisible && !scopeConfirmed)
             || (scopeConfirmed && !trendScanComplete)
           }
           isRunning={customerProposalRunning}
-          hint={customerProposalStage === "results" ? "生成提案将扣除 999 积分" : undefined}
+          hint={scopeFormVisible && !scopeConfirmed ? "请先完成调研范围确认" : customerProposalStage === "results" ? "生成提案将扣除 999 积分" : undefined}
           onStop={stopCustomerProposalTask}
           motionDelay={0.16}
           focusRequest={composerFocusRequest}
@@ -1799,6 +1825,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
           onGeneratedSelect={(reference) => {
             if (!reference.id) return;
             setAiResultPreviewReadOnly(!displayedCustomerAiResults.some((item) => item.id === reference.id) || customerProposalStage !== "results");
+            setAiResultPreviewHideSelection(true);
             setAiResultPreviewId(reference.id);
           }}
         />
@@ -1887,6 +1914,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
       ) : null}
       {referenceStylePreviewId ? (
         <ImageGalleryLightbox
+          title={t("参考款式")}
           categories={candidateCategories}
           items={customerProposalReferenceStyles}
           activeCategoryId={customerProposalReferenceStyles.find((item) => item.id === referenceStylePreviewId)?.categoryId ?? candidateCategories[0].id}
@@ -1910,16 +1938,18 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
       ) : null}
       {aiResultPreviewId ? (
         <ImageGalleryLightbox
-          title="选择进入正式客户提案的 AI 改款图"
+          title={aiResultPreviewHideSelection ? t("生成款式") : "选择进入正式客户提案的 AI 改款图"}
           categories={candidateCategories}
           items={allCustomerGeneratedItems}
           activeCategoryId={allCustomerGeneratedItems.find((item) => item.id === aiResultPreviewId)?.categoryId ?? candidateCategories[0].id}
           activeItemId={aiResultPreviewId}
           selectedIds={aiResultPreviewReadOnly ? [] : selectedAiResultIds}
           selectionDisabled={aiResultPreviewReadOnly || aiResultsConfirmed || customerProposalStage !== "results" || customerProposalRunning}
+          hideSelection={aiResultPreviewHideSelection}
           resultActions={{
             onDownload: downloadCustomerAiImage,
           }}
+          presentation={aiResultPreviewHideSelection ? "detail" : "gallery"}
           showCategories={false}
           onCategoryChange={(categoryId) => {
             const firstResult = allCustomerGeneratedItems.find((item) => item.categoryId === categoryId);
@@ -1936,6 +1966,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
           onClose={() => {
             setAiResultPreviewId(null);
             setAiResultPreviewReadOnly(false);
+            setAiResultPreviewHideSelection(false);
           }}
         />
       ) : null}

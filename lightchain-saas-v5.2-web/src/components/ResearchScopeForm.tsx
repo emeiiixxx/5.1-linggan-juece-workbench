@@ -1,6 +1,7 @@
 import { assetUrl } from "../utils/assets";
 import { BusinessButton, Button } from "./Button";
 import { SelectAllControl } from "./ConversationPrimitives";
+import { FigmaIcon } from "./FigmaIcon";
 
 type ResearchScopeFormProps = {
   confirmed: boolean;
@@ -77,8 +78,8 @@ export function ResearchScopeForm({
     ? "已从企业档案带入预填信息，可修改"
     : "已按语言预选地区，可修改";
   const guidance = profileLinked
-    ? "💡已关联业务偏好档案，已提供默认调研范围，所有选项仍可调整。"
-    : "💡未关联业务偏好档案，已根据当前语言预选地区，其余选项请按需选择。";
+    ? "已关联业务偏好档案，已提供默认调研范围，所有选项仍可调整。"
+    : "未关联业务偏好档案，已根据当前语言预选地区，其余选项请按需选择。";
   const allSelected = markets.length > 0
     && commerceOptions.length > 0
     && socialOptions.length > 0
@@ -113,6 +114,7 @@ export function ResearchScopeForm({
       </header>
 
       <div className="research-scope-note" id="research-scope-guidance">
+        <FigmaIcon name="idea" size={16} />
         <p>{guidance}</p>
       </div>
 

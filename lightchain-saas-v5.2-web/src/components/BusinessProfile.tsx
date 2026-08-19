@@ -352,7 +352,7 @@ function CurrencySelect({ value, onChange }: { value: string; onChange: (value: 
   return <div className={`profile-currency-select ${open ? "is-open" : ""}`} ref={selectRef}><button type="button" onClick={() => setOpen((current) => !current)}><span className={value ? "" : "profile-currency-select__placeholder"}>{value || t("货币")}</span><FigmaIcon name="chevron-down" size={16} /></button>{open && <span className="profile-select-menu">{["JPY", "CNY", "USD"].map((currency) => <button type="button" key={currency} onClick={() => { onChange(currency); setOpen(false); }}><span>{currency}</span></button>)}</span>}</div>;
 }
 
-export function BusinessProfile({ onCreateTask }: { onCreateTask?: (profile: Profile) => void }) {
+export function BusinessProfile({ onCreateTask, createRequestKey = 0 }: { onCreateTask?: (profile: Profile) => void; createRequestKey?: number }) {
   const { t } = useI18n();
   const reduceMotion = useReducedMotion();
   const [view, setView] = useState<ArchiveView>("list");
@@ -393,6 +393,13 @@ export function BusinessProfile({ onCreateTask }: { onCreateTask?: (profile: Pro
   useEffect(() => () => {
     if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
   }, []);
+  useEffect(() => {
+    if (!createRequestKey) return;
+    setForm(blankForm());
+    setUploadState("idle");
+    setAnimateCreateEntry(true);
+    setView("create");
+  }, [createRequestKey]);
   const applyAutofill = () => {
     setForm({ name: "日本通勤女装档案", category: ["女装"], minPrice: "8000", maxPrice: "18000", price: priceChoice, currency: "JPY", countries: ["日本"], ages: ["25–34岁"], channels: ["ZOZOTOWN", "Rakuten Fashion"], brands: [] });
     setAnimateCreateEntry(false);

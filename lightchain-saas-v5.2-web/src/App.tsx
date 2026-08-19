@@ -30,7 +30,7 @@ type TaskRecord = {
   sourceLabel?: TaskSourceLabel | "灵感设计";
   status: TaskStatus;
   updatedAt: string;
-  initialState?: "default" | "confirmation" | "complete";
+  initialState?: "default" | "confirmation" | "complete" | "exception";
 };
 
 const workflowPageTitles: Record<TaskRecord["workflow"], string> = {
@@ -64,9 +64,12 @@ export default function App() {
   const [activeView, setActiveView] = useState<"workspace" | "preferences">("workspace");
   const [selectedProfile, setSelectedProfile] = useState<SelectedProfile | null>(null);
   const [selectedProject, setSelectedProject] = useState<SelectedProject | null>(null);
+  const [createdProjects, setCreatedProjects] = useState<SelectedProject[]>([]);
   const [taskRecords, setTaskRecords] = useState<TaskRecord[]>(allDemoTaskExamples);
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
   const [newTaskKey, setNewTaskKey] = useState(0);
+  const [createProfileRequestKey, setCreateProfileRequestKey] = useState(0);
+  const [createProjectRequestKey, setCreateProjectRequestKey] = useState(0);
   const resolvedTaskRecords = taskRecords.map((task) => ({
     ...task,
     workflow: resolveTaskWorkflow(task),
@@ -123,6 +126,14 @@ export default function App() {
             setActiveTaskId(null);
             setActiveView("preferences");
           }}
+          createProjectRequestKey={createProjectRequestKey}
+          onProjectCreated={(project) => {
+            setCreatedProjects((current) => [
+              project,
+              ...current.filter((item) => item.id !== project.id),
+            ]);
+            setSelectedProject(project);
+          }}
           onCreateTaskInProject={(project) => {
             transitionTaskFocus(null);
             setSelectedProject(project);
@@ -156,12 +167,14 @@ export default function App() {
             ));
           }}
           onDeleteProject={(projectId) => {
+            setCreatedProjects((current) => current.filter((project) => project.id !== projectId));
             setSelectedProject((current) => current?.id === projectId ? null : current);
           }}
         />
         <Activity mode={activeView === "preferences" ? "visible" : "hidden"} name="business-profile">
           <Suspense fallback={<main className="workspace-region" aria-busy="true" />}>
             <BusinessProfile
+              createRequestKey={createProfileRequestKey}
               onCreateTask={(profile) => {
                 transitionTaskFocus(null);
                 setSelectedProfile({ id: profile.id, name: profile.name });
@@ -175,13 +188,22 @@ export default function App() {
         <Activity mode={activeView === "workspace" ? "visible" : "hidden"} name="workspace">
           <Workspace
             theme={theme}
+            active={activeView === "workspace"}
             activeTask={activeTask}
             taskIds={taskRecords.map((task) => task.id)}
             newTaskKey={newTaskKey}
             selectedProfile={selectedProfile}
             onSelectedProfileChange={setSelectedProfile}
+            onCreateProfile={() => {
+              transitionTaskFocus(null);
+              setActiveTaskId(null);
+              setCreateProfileRequestKey((value) => value + 1);
+              setActiveView("preferences");
+            }}
             selectedProject={selectedProject}
+            createdProjects={createdProjects}
             onSelectedProjectChange={setSelectedProject}
+            onCreateProject={() => setCreateProjectRequestKey((value) => value + 1)}
             onTaskStatusChange={(taskId, status) => {
               const updatedAt = new Date().toISOString();
               setTaskRecords((current) => current.map((task) =>

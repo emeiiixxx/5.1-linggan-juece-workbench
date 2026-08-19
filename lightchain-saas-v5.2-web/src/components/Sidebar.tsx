@@ -33,6 +33,8 @@ type SidebarProps = {
   activeTaskId?: number | null;
   onOpenWorkspace?: () => void;
   onOpenPreferences?: () => void;
+  createProjectRequestKey?: number;
+  onProjectCreated?: (project: { id: number; name: string }) => void;
   onCreateTaskInProject?: (project: { id: number; name: string }) => void;
   createdTask?: {
     id: number;
@@ -107,6 +109,8 @@ export function Sidebar({
   activeTaskId = null,
   onOpenWorkspace,
   onOpenPreferences,
+  createProjectRequestKey = 0,
+  onProjectCreated,
   onCreateTaskInProject,
   createdTask,
   taskRecords = [],
@@ -363,6 +367,14 @@ export function Sidebar({
   }, [createProjectOpen]);
 
   useEffect(() => {
+    if (!createProjectRequestKey) return;
+    setCreateProjectValue("");
+    setCreateProjectOpen(true);
+    setActionMenu(null);
+    setCollapsedMenu(null);
+  }, [createProjectRequestKey]);
+
+  useEffect(() => {
     if (collapsedMenu !== "recent") return;
     const updateFlyoutMaxHeight = () => {
       const triggerTop = collapsedRecentTriggerRef.current?.getBoundingClientRect().top;
@@ -585,10 +597,12 @@ export function Sidebar({
   const confirmCreateProject = () => {
     const projectName = createProjectValue.trim();
     if (!projectName) return;
+    const project = { id: Date.now(), title: projectName };
     setGroups((current) => [
-      { id: Date.now(), title: projectName, items: [], expanded: false, showAll: false },
+      { ...project, items: [], expanded: false, showAll: false },
       ...current,
     ]);
+    onProjectCreated?.({ id: project.id, name: project.title });
     setRecentExpanded(true);
     setCreateProjectOpen(false);
     setCreateProjectValue("");

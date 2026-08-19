@@ -25,8 +25,17 @@ type ImageSelectionProps = {
 const actionIcons = {
   preview: assetUrl("assets/figma-icons/view-full-image.svg"),
   favorite: assetUrl("assets/figma-icons/favorite.svg"),
+  favoriteFilled: assetUrl("assets/figma-icons/favorite-filled-rounded.svg"),
   download: assetUrl("assets/figma-icons/download.svg"),
 };
+
+function FavoriteActionIcon({ filled }: { filled: boolean }) {
+  return (
+    <span className="candidate-lightbox__action-icon" aria-hidden="true">
+      <img src={filled ? actionIcons.favoriteFilled : actionIcons.favorite} alt="" />
+    </span>
+  );
+}
 
 export function ImageActionBar({ favorited = false, size = "small", onPreview, onFavorite, onDownload }: {
   favorited?: boolean;
@@ -167,7 +176,7 @@ export function ImageLightbox({ src, alt, onClose }: { src: string; alt: string;
       <section ref={dialogRef} className="media-lightbox" role="dialog" aria-modal="true" aria-labelledby="media-lightbox-title">
         <header className="media-lightbox__header">
           <h2 id="media-lightbox-title">{alt}</h2>
-          <IconControl label={t("关闭大图")} variant="ghost" autoFocus onClick={onClose}><FigmaIcon name="close" size={20} /></IconControl>
+          <IconControl label={t("关闭大图")} variant="ghost" tooltipPlacement="left" autoFocus onClick={onClose}><FigmaIcon name="close" size={20} /></IconControl>
         </header>
         <div className="media-lightbox__content"><ProgressiveImage src={src} alt={alt} priority /></div>
       </section>
@@ -190,6 +199,8 @@ export type ImageGalleryItem = {
   subtitle?: string;
   badges?: readonly string[];
   sourceUrl?: string;
+  detailLines?: readonly string[];
+  generationPrompt?: string;
 };
 
 export function ImageGalleryLightbox({
@@ -229,7 +240,7 @@ export function ImageGalleryLightbox({
     onOpenSource: (item: ImageGalleryItem) => void;
   };
   hideSelection?: boolean;
-  presentation?: "gallery" | "reference";
+  presentation?: "gallery" | "reference" | "detail";
   showCategories?: boolean;
   onCategoryChange: (categoryId: string) => void;
   onNavigate: (itemId: string) => void;
@@ -238,6 +249,7 @@ export function ImageGalleryLightbox({
 }) {
   const { t } = useI18n();
   const isReferencePresentation = presentation === "reference";
+  const isDetailPresentation = presentation === "reference" || presentation === "detail";
   const visibleItems = useMemo(
     () => showCategories ? items.filter((item) => item.categoryId === activeCategoryId) : items,
     [activeCategoryId, items, showCategories],
@@ -253,6 +265,7 @@ export function ImageGalleryLightbox({
   const thumbnailsRef = useRef<HTMLDivElement>(null);
   const thumbnailFrameRef = useRef<number | null>(null);
   const [thumbnailOverflow, setThumbnailOverflow] = useState({ left: false, right: false });
+  const [favoritedItemIds, setFavoritedItemIds] = useState<Set<string>>(() => new Set());
   useModalFocus(backdropRef, true, onClose);
 
   const updateThumbnailOverflow = useCallback(() => {
@@ -283,11 +296,11 @@ export function ImageGalleryLightbox({
     if (!backdrop || !card || !tip || prefersReducedMotion()) return;
     const timeline = gsap.timeline()
       .from(backdrop, { autoAlpha: 0, duration: gsapMotion.fast, ease: "power2.out" });
-    if (showCategories && !isReferencePresentation) {
+    if (showCategories && !isDetailPresentation) {
       timeline.from(".candidate-lightbox__tabs", { autoAlpha: 0, y: -8, duration: gsapMotion.duration, ease: gsapMotion.ease }, "<0.04");
     }
     timeline.from(card, { autoAlpha: 0, y: 14, scale: 0.988, duration: 0.52, ease: gsapMotion.ease }, "<0.02");
-    if (!isReferencePresentation) {
+    if (!isDetailPresentation) {
       timeline.from(
         ".candidate-lightbox__previous, .candidate-lightbox__next",
         { autoAlpha: 0, scale: 0.9, duration: 0.28, stagger: 0.04, ease: gsapMotion.ease },
@@ -297,7 +310,7 @@ export function ImageGalleryLightbox({
     timeline
       .fromTo(tip, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.24, ease: "power2.out" }, "<")
       .to(tip, { autoAlpha: 0, duration: 0.28, ease: "power2.in", delay: 2.48 });
-  }, { scope: backdropRef, dependencies: [isReferencePresentation, showCategories] });
+  }, { scope: backdropRef, dependencies: [isDetailPresentation, showCategories] });
 
   useGSAP(() => {
     if (!cardRef.current || prefersReducedMotion()) return;
@@ -312,7 +325,7 @@ export function ImageGalleryLightbox({
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isReferencePresentation) return;
+      if (isDetailPresentation) return;
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       const nextIndex = activeIndex + (event.key === "ArrowLeft" ? -1 : 1);
       const nextItem = visibleItems[nextIndex];
@@ -325,7 +338,7 @@ export function ImageGalleryLightbox({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [activeIndex, isReferencePresentation, onNavigate, visibleItems]);
+  }, [activeIndex, isDetailPresentation, onNavigate, visibleItems]);
 
   useEffect(() => {
     const thumbnails = thumbnailsRef.current;
@@ -357,6 +370,16 @@ export function ImageGalleryLightbox({
 
   if (typeof document === "undefined" || !activeItem) return null;
 
+  const activeItemFavorited = favoritedItemIds.has(activeItem.id);
+  const toggleFavorite = () => {
+    setFavoritedItemIds((current) => {
+      const next = new Set(current);
+      if (next.has(activeItem.id)) next.delete(activeItem.id);
+      else next.add(activeItem.id);
+      return next;
+    });
+  };
+
   const move = (delta: number) => {
     const nextItem = visibleItems[activeIndex + delta];
     if (nextItem) onNavigate(nextItem.id);
@@ -374,7 +397,7 @@ export function ImageGalleryLightbox({
   return createPortal(
     <div
       ref={backdropRef}
-      className={`candidate-lightbox-backdrop ${showCategories ? "" : "candidate-lightbox-backdrop--flat"} ${isReferencePresentation ? "candidate-lightbox-backdrop--reference" : ""} ${title ? "candidate-lightbox-backdrop--titled" : ""}`.trim()}
+      className={`candidate-lightbox-backdrop ${showCategories ? "" : "candidate-lightbox-backdrop--flat"} ${isReferencePresentation ? "candidate-lightbox-backdrop--reference" : ""} ${presentation === "detail" ? "candidate-lightbox-backdrop--detail" : ""} ${title ? "candidate-lightbox-backdrop--titled" : ""}`.trim()}
       role="dialog"
       aria-modal="true"
       aria-label={`${t("查看大图")}：${activeItem.code} ${activeCategory?.label ?? activeItem.title}`}
@@ -382,15 +405,14 @@ export function ImageGalleryLightbox({
     >
       {title ? (
         <header className="candidate-lightbox__header">
-          <FigmaIcon name="apparel-design-menu" size={32} />
           <strong>{title}</strong>
         </header>
       ) : null}
-      <IconControl className="candidate-lightbox__close" label={t("关闭大图")} variant="ghost" size="medium" autoFocus onClick={onClose}>
+      <IconControl className="candidate-lightbox__close" label={t("关闭大图")} variant="ghost" size="medium" tooltipPlacement="left" autoFocus onClick={onClose}>
         <FigmaIcon name="close" size={20} />
       </IconControl>
 
-      {showCategories && !isReferencePresentation ? (
+      {showCategories && !isDetailPresentation ? (
         <div className="candidate-lightbox__tabs" role="tablist" aria-label={t("参考图类型")}>
           {categories.map((category) => (
             <button
@@ -408,9 +430,10 @@ export function ImageGalleryLightbox({
       ) : null}
 
       <span ref={tipRef} className="candidate-lightbox__tip" aria-live="polite">
-        {isReferencePresentation
-          ? "💡Tips：支持按 esc 退出查看大图"
-          : "💡 Tips：支持按键盘 ← → 键切换图片，按 Esc 退出查看大图"}
+        <FigmaIcon name="idea" size={16} />
+        {isDetailPresentation
+          ? "Tips：支持按 Esc 退出查看大图"
+          : "Tips：支持按键盘 ← → 键切换图片，按 Esc 退出查看大图"}
       </span>
 
       <section
@@ -443,18 +466,34 @@ export function ImageGalleryLightbox({
         <footer className="candidate-lightbox__information">
           <div className="candidate-lightbox__copy">
             <strong>{activeItem.code} · {activeItem.title}</strong>
-            <span>{activeItem.subtitle ?? "TikTok Shop US · USD 20.00"}</span>
-            {!isReferencePresentation ? (
+            {!isDetailPresentation || !activeItem.detailLines?.length ? (
+              <span>{activeItem.subtitle ?? "TikTok Shop US · USD 20.00"}</span>
+            ) : null}
+            {!isDetailPresentation ? (
               <div className="candidate-lightbox__badges" aria-label={t("素材标签")}>
                 {(activeItem.badges ?? ["Amazon US / TikTok Shop US", "2026年8月 / 2027年2月", activeCategory?.label ?? "连衣裙、裤装、上衣、套装"]).map((badge) => (
                   <small key={badge}>{badge}</small>
                 ))}
               </div>
             ) : null}
+            {isDetailPresentation && activeItem.detailLines?.length ? (
+              <span className="candidate-lightbox__detail-lines">
+                {activeItem.detailLines.map((line) => <span key={line}>{line}</span>)}
+              </span>
+            ) : null}
+            {isDetailPresentation && activeItem.generationPrompt ? (
+              <span className="candidate-lightbox__generation-prompt">{t("改款提示词")}：{activeItem.generationPrompt}</span>
+            ) : null}
           </div>
           <div className="candidate-lightbox__actions">
             {resultActions ? (
               <>
+                {isDetailPresentation ? (
+                  <Button variant="outline" aria-pressed={activeItemFavorited} onClick={toggleFavorite}>
+                    <FavoriteActionIcon filled={activeItemFavorited} />
+                    {t(activeItemFavorited ? "已收藏" : "收藏到资源库")}
+                  </Button>
+                ) : null}
                 <Button variant="outline" onClick={() => resultActions.onDownload(activeItem)}>
                   <FigmaIcon name="download" size={20} />
                   {t("下载")}
@@ -474,6 +513,10 @@ export function ImageGalleryLightbox({
               <>
                 <Button variant="outline" onClick={() => referenceActions.onOpenSource(activeItem)}>
                   {t("查看来源")}
+                </Button>
+                <Button variant="outline" aria-pressed={activeItemFavorited} onClick={toggleFavorite}>
+                  <FavoriteActionIcon filled={activeItemFavorited} />
+                  {t(activeItemFavorited ? "已收藏" : "收藏到资源库")}
                 </Button>
                 <Button variant="outline" onClick={() => referenceActions.onDownload(activeItem)}>
                   <FigmaIcon name="download" size={20} />
@@ -499,7 +542,7 @@ export function ImageGalleryLightbox({
         </footer>
       </section>
 
-      {!isReferencePresentation ? (
+      {!isDetailPresentation ? (
         <>
           <IconControl
             className="candidate-lightbox__previous"

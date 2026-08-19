@@ -17,6 +17,9 @@ const ConversationWorkspace = lazy(() =>
 const ClothingConversationWorkspace = lazy(() =>
   import("./ClothingConversationWorkspace").then(({ ClothingConversationWorkspace }) => ({ default: ClothingConversationWorkspace })),
 );
+const PatternConversationWorkspace = lazy(() =>
+  import("./PatternConversationWorkspace").then(({ PatternConversationWorkspace }) => ({ default: PatternConversationWorkspace })),
+);
 const NewProductPlanningWorkspace = lazy(() =>
   import("./NewProductPlanningWorkspace").then(({ NewProductPlanningWorkspace }) => ({ default: NewProductPlanningWorkspace })),
 );
@@ -39,6 +42,7 @@ const composerPlaceholders = [
 ];
 type ProfileOption = { id: number; name: string };
 type ProjectOption = { id: number; name: string };
+type ComposerMenuOption = { id: number; name: string };
 type Attachment = { id: string; name: string; kind: "file" | "image"; previewUrl?: string };
 type WorkspaceTask = {
   id: number;
@@ -46,7 +50,7 @@ type WorkspaceTask = {
   profileName?: string;
   attachments?: { name: string; previewUrl?: string }[];
   workflow: TaskWorkflow;
-  initialState?: "default" | "confirmation" | "complete";
+  initialState?: "default" | "confirmation" | "complete" | "exception";
 };
 const defaultPlanPrompt = "以 Loro Piana 的 2027春夏 系列做为设计灵感，需要包含 短款外套、衬衫、卫衣、短袖、长裤、短裤 这些品类，生成一份 男装 主题设计企划";
 const defaultPlanEditorHtml = '以 <span class="composer-semantic-slot">Loro Piana</span> 的 <span class="composer-semantic-slot">2027春夏</span> 系列做为设计灵感，需要包含 <span class="composer-semantic-slot">短款外套、衬衫、卫衣、短袖、长裤、短裤</span> 这些品类，生成一份 <span class="composer-semantic-slot">男装</span> 主题设计企划';
@@ -60,11 +64,14 @@ function TaskConversation({ task, onTaskStatusChange }: {
   if (task.workflow === "new-product") {
     return <NewProductPlanningWorkspace prompt={task.prompt} profileName={task.profileName} attachments={task.attachments} initialState={task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} />;
   }
-  if (task.workflow === "apparel" || task.workflow === "pattern") {
-    return <ClothingConversationWorkspace prompt={task.prompt} attachments={task.attachments} initialState={task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} />;
+  if (task.workflow === "apparel") {
+    return <ClothingConversationWorkspace prompt={task.prompt} attachments={task.attachments} initialState={task.initialState === "exception" ? "default" : task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} />;
+  }
+  if (task.workflow === "pattern") {
+    return <PatternConversationWorkspace prompt={task.prompt} attachments={task.attachments} initialState={task.initialState === "exception" ? "default" : task.initialState} onTaskProgress={onTaskProgress} onTaskComplete={onTaskComplete} />;
   }
   if (task.workflow === "plan") {
-    return <PlanConversationWorkspace prompt={task.prompt} initialState={task.initialState} onTaskComplete={onTaskComplete} />;
+    return <PlanConversationWorkspace prompt={task.prompt} initialState={task.initialState === "exception" ? "default" : task.initialState} onTaskComplete={onTaskComplete} />;
   }
   return <ConversationWorkspace
     prompt={task.prompt}
@@ -144,15 +151,125 @@ const projectOptions: ProjectOption[] = [
   { id: 5, name: "Untitled" },
 ];
 
-export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selectedProfile, onSelectedProfileChange, selectedProject, onSelectedProjectChange, onTaskStatusChange, onCreateTask }: {
+function ComposerEntityMenu<T extends ComposerMenuOption>({
+  label,
+  options,
+  selectedId,
+  createLabel,
+  createIcon,
+  dataNodeId,
+  reduceMotion,
+  onSelectionChange,
+  onCreate,
+  onClose,
+}: {
+  label: string;
+  options: readonly T[];
+  selectedId?: number;
+  createLabel: string;
+  createIcon: string;
+  dataNodeId: string;
+  reduceMotion: boolean | null;
+  onSelectionChange?: (option: T | null) => void;
+  onCreate?: () => void;
+  onClose: () => void;
+}) {
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const selectedIndex = options.findIndex((option) => option.id === selectedId);
+    const initialIndex = selectedIndex >= 0 ? selectedIndex : 0;
+    optionRefs.current[initialIndex]?.focus();
+    return () => previousFocus?.focus();
+  }, []);
+
+  const moveOptionFocus = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowDown", "ArrowUp", "Home", "End", "Escape"].includes(event.key)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.key === "Escape") {
+      onClose();
+      return;
+    }
+    const currentIndex = optionRefs.current.findIndex((option) => option === document.activeElement);
+    const lastIndex = Math.max(0, options.length - 1);
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? lastIndex
+        : event.key === "ArrowUp"
+          ? currentIndex <= 0 ? lastIndex : currentIndex - 1
+          : currentIndex >= lastIndex ? 0 : currentIndex + 1;
+    optionRefs.current[nextIndex]?.focus();
+  };
+
+  return (
+    <motion.div
+      className="composer-profile-menu"
+      role="listbox"
+      aria-label={label}
+      data-node-id={dataNodeId}
+      initial={reduceMotion ? false : { opacity: 0, y: -6, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.98 }}
+      transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
+      onKeyDown={moveOptionFocus}
+    >
+      <span className="composer-profile-menu__label">{label}</span>
+      <div className="composer-profile-menu__options composer-profile-menu__scroll-region">
+        {options.map((option, index) => {
+          const selected = selectedId === option.id;
+          return (
+            <button
+              type="button"
+              role="option"
+              aria-selected={selected}
+              tabIndex={selected || (!options.some((item) => item.id === selectedId) && option === options[0]) ? 0 : -1}
+              className={selected ? "is-selected" : ""}
+              ref={(node) => { optionRefs.current[index] = node; }}
+              key={option.id}
+              onClick={() => {
+                onSelectionChange?.(selected ? null : option);
+                onClose();
+              }}
+            >
+              <span>{option.name}</span>
+              {selected && <FigmaIcon name="check" size={16} />}
+            </button>
+          );
+        })}
+      </div>
+      <div className="composer-profile-menu__footer">
+        <button
+          type="button"
+          className="composer-profile-menu__create"
+          onClick={() => {
+            onClose();
+            onCreate?.();
+          }}
+        >
+          <FigmaIcon name={createIcon} size={20} />
+          <span>{createLabel}</span>
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+export function Workspace({ theme, active = true, activeTask, taskIds, newTaskKey = 0, selectedProfile, onSelectedProfileChange, onCreateProfile, selectedProject, createdProjects = [], onSelectedProjectChange, onCreateProject, onTaskStatusChange, onCreateTask }: {
   theme: "dark" | "light";
+  active?: boolean;
   activeTask?: WorkspaceTask | null;
   taskIds?: readonly number[];
   newTaskKey?: number;
   selectedProfile?: ProfileOption | null;
   onSelectedProfileChange?: (profile: ProfileOption | null) => void;
+  onCreateProfile?: () => void;
   selectedProject?: ProjectOption | null;
+  createdProjects?: readonly ProjectOption[];
   onSelectedProjectChange?: (project: ProjectOption | null) => void;
+  onCreateProject?: () => void;
   onTaskStatusChange?: (taskId: number, status: "running" | "completed") => void;
   onCreateTask?: (task: { title: string; projectId: number | null; prompt: string; attachments?: { name: string; previewUrl?: string }[]; workflow: TaskWorkflow; sourceLabel: TaskSourceLabel }) => void;
 }) {
@@ -206,10 +323,16 @@ export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selected
   const quickStartLayoutTransition = quickStartOpen
     ? quickStartExpandTransition
     : quickStartCollapseTransition;
-  const availableProjectOptions =
-    selectedProject && !projectOptions.some((project) => project.id === selectedProject.id)
-      ? [selectedProject, ...projectOptions]
-      : projectOptions;
+  const availableProjectOptions = [
+    ...createdProjects,
+    ...(selectedProject && !createdProjects.some((project) => project.id === selectedProject.id)
+      && !projectOptions.some((project) => project.id === selectedProject.id)
+      ? [selectedProject]
+      : []),
+    ...projectOptions,
+  ].filter((project, index, projects) =>
+    projects.findIndex((candidate) => candidate.id === project.id) === index,
+  );
   const setPlanEditorElement = useCallback((node: HTMLDivElement | null) => {
     planEditorRef.current = node;
     if (node) node.innerHTML = savedPlanEditorHtmlRef.current;
@@ -311,6 +434,21 @@ export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selected
     setProfileMenuOpen(false);
     setProjectMenuOpen(false);
   }, [newTaskKey]);
+
+  useEffect(() => {
+    if (active) return;
+    setProductPlanningMenuOpen(false);
+    setProfileMenuOpen(false);
+    setProjectMenuOpen(false);
+    setAttachmentMenuOpen(false);
+  }, [active]);
+
+  useEffect(() => {
+    setProductPlanningMenuOpen(false);
+    setProfileMenuOpen(false);
+    setProjectMenuOpen(false);
+    setAttachmentMenuOpen(false);
+  }, [activeTask?.id]);
 
   useEffect(() => {
     if (!profileMenuOpen && !projectMenuOpen && !attachmentMenuOpen && !productPlanningMenuOpen) return;
@@ -744,8 +882,8 @@ export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selected
                   </motion.div>
                 )}
               </AnimatePresence>
-              <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple onChange={(event) => addAttachments(event, "file")} />
-              <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple onChange={(event) => addAttachments(event, "image")} />
+              <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple tabIndex={-1} aria-label={t("选择要上传的文件")} onChange={(event) => addAttachments(event, "file")} />
+              <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple tabIndex={-1} aria-label={t("选择要上传的图片")} onChange={(event) => addAttachments(event, "image")} />
             </div>}
             <div className="composer__send-hint" title={t("Enter 发送 · Shift + Enter 换行")}>{t("Enter 发送 · Shift + Enter 换行")}</div>
             <IconControl
@@ -833,39 +971,18 @@ export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selected
               </button>
               <AnimatePresence>
                 {profileMenuOpen && (
-                  <motion.div
-                    className="composer-profile-menu"
-                    role="listbox"
-                    aria-label={t("选择业务偏好档案")}
-                    data-node-id="453:93991"
-                    initial={reduceMotion ? false : { opacity: 0, y: -6, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.98 }}
-                    transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
-                  >
-                    <span className="composer-profile-menu__label">{t("选择业务偏好档案")}</span>
-                    <div className="composer-profile-menu__options">
-                      {profileOptions.map((profile) => {
-                        const selected = selectedProfile?.id === profile.id;
-                        return (
-                          <button
-                            type="button"
-                            role="option"
-                            aria-selected={selected}
-                            className={selected ? "is-selected" : ""}
-                            key={profile.id}
-                            onClick={() => {
-                              onSelectedProfileChange?.(selected ? null : profile);
-                              setProfileMenuOpen(false);
-                            }}
-                          >
-                            <span>{profile.name}</span>
-                            {selected && <FigmaIcon name="check" size={16} />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
+                  <ComposerEntityMenu
+                    label={t("选择业务偏好档案")}
+                    options={profileOptions}
+                    selectedId={selectedProfile?.id}
+                    createLabel={t("新建业务偏好档案")}
+                    createIcon="plus"
+                    dataNodeId="453:93991"
+                    reduceMotion={reduceMotion}
+                    onSelectionChange={onSelectedProfileChange}
+                    onCreate={onCreateProfile}
+                    onClose={() => setProfileMenuOpen(false)}
+                  />
                 )}
               </AnimatePresence>
             </div>}
@@ -888,38 +1005,18 @@ export function Workspace({ theme, activeTask, taskIds, newTaskKey = 0, selected
               </button>
               <AnimatePresence>
                 {projectMenuOpen && (
-                  <motion.div
-                    className="composer-profile-menu composer-project-menu"
-                    role="listbox"
-                    aria-label={t("选择项目")}
-                    initial={reduceMotion ? false : { opacity: 0, y: -6, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.98 }}
-                    transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
-                  >
-                    <span className="composer-profile-menu__label">{t("选择项目")}</span>
-                    <div className="composer-profile-menu__options composer-project-menu__options">
-                      {availableProjectOptions.map((project) => {
-                        const selected = selectedProject?.id === project.id;
-                        return (
-                          <button
-                            type="button"
-                            role="option"
-                            aria-selected={selected}
-                            className={selected ? "is-selected" : ""}
-                            key={project.id}
-                            onClick={() => {
-                              onSelectedProjectChange?.(selected ? null : project);
-                              setProjectMenuOpen(false);
-                            }}
-                          >
-                            <span>{project.name}</span>
-                            {selected && <FigmaIcon name="check" size={16} />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
+                  <ComposerEntityMenu
+                    label={t("选择项目")}
+                    options={availableProjectOptions}
+                    selectedId={selectedProject?.id}
+                    createLabel={t("新建项目")}
+                    createIcon="add-project"
+                    dataNodeId="453:94442"
+                    reduceMotion={reduceMotion}
+                    onSelectionChange={onSelectedProjectChange}
+                    onCreate={onCreateProject}
+                    onClose={() => setProjectMenuOpen(false)}
+                  />
                 )}
               </AnimatePresence>
             </div>

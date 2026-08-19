@@ -13,11 +13,19 @@ export function scrollWithinConversation(
 
   const containerRect = container.getBoundingClientRect();
   const elementRect = element.getBoundingClientRect();
+  const conversationStage = container.closest<HTMLElement>(".conversation-stage");
+  const composerClearanceValue = conversationStage
+    ? getComputedStyle(conversationStage).getPropertyValue("--conversation-composer-clearance")
+    : "";
+  const composerClearance = Math.max(0, Number.parseFloat(composerClearanceValue) || 0);
+  const visibleTop = containerRect.top + 12;
+  const visibleBottom = containerRect.bottom - composerClearance - 16;
+  const visibleHeight = Math.max(0, visibleBottom - visibleTop);
   const offset = block === "start"
-    ? elementRect.top - containerRect.top
+    ? elementRect.top - visibleTop
     : block === "center"
-      ? elementRect.top - containerRect.top - (containerRect.height - elementRect.height) / 2
-      : elementRect.bottom - containerRect.bottom;
+      ? elementRect.top - visibleTop - (visibleHeight - elementRect.height) / 2
+      : elementRect.bottom - visibleBottom;
 
   container.scrollTo({
     top: Math.max(0, container.scrollTop + offset),

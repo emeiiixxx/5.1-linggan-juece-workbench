@@ -10,6 +10,12 @@ export type TaskConversationAttachment = {
   previewUrl?: string;
 };
 
+export type TaskConversationExceptionNotice = {
+  message: string;
+  actionLabel: string;
+  onAction: () => void;
+};
+
 type ComposerAttachment = TaskConversationAttachment & {
   id: string;
   kind: "file" | "image";
@@ -28,6 +34,7 @@ type TaskConversationComposerProps = {
   className?: string;
   motionDelay?: number;
   focusRequest?: number;
+  exceptionNotice?: TaskConversationExceptionNotice | null;
 };
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
@@ -45,13 +52,14 @@ export function TaskConversationComposer({
   className = "",
   motionDelay = 0,
   focusRequest = 0,
+  exceptionNotice = null,
 }: TaskConversationComposerProps) {
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const composerRef = useRef<HTMLElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
   const attachmentUrlsRef = useRef(new Set<string>());
   const reduceMotion = useReducedMotion();
   const { textareaRef, height } = useAutoGrowTextarea(value, 144, 320, 64 + (attachments.length ? 36 : 0));
@@ -67,11 +75,11 @@ export function TaskConversationComposer({
   useEffect(() => {
     const conversationStage = composerRef.current?.closest<HTMLElement>(".conversation-stage");
     if (!conversationStage) return;
-    conversationStage.style.setProperty("--conversation-composer-clearance", `${height + 48}px`);
+    conversationStage.style.setProperty("--conversation-composer-clearance", `${height + 48 + (exceptionNotice ? 48 : 0)}px`);
     return () => {
       conversationStage.style.removeProperty("--conversation-composer-clearance");
     };
-  }, [height]);
+  }, [exceptionNotice, height]);
 
   useEffect(() => {
     const conversationStage = composerRef.current?.closest<HTMLElement>(".conversation-stage");
@@ -164,17 +172,42 @@ export function TaskConversationComposer({
     onSubmit(consumeAttachments());
   };
 
+  const shellHeight = height + (exceptionNotice ? 48 : 0);
+
   return (
-    <motion.section
+    <motion.div
       ref={composerRef}
-      className={`conversation-composer composer__input ${className}`}
-      aria-label={ariaLabel}
-      style={{ height }}
+      className={`conversation-composer-shell ${exceptionNotice ? "has-exception" : ""}`}
+      style={{ height: shellHeight }}
       initial={reduceMotion ? false : { opacity: 0, y: 18, x: "-50%" }}
       animate={{ opacity: 1, y: 0, x: "-50%" }}
       transition={{ duration: reduceMotion ? 0 : 0.46, delay: reduceMotion ? 0 : motionDelay, ease: revealEase }}
     >
-      <div className="composer__content">
+      <AnimatePresence initial={false}>
+        {exceptionNotice ? (
+          <motion.div
+            className="conversation-composer-exception"
+            role="alert"
+            aria-live="assertive"
+            initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            transition={{ duration: reduceMotion ? 0 : 0.24, ease: revealEase }}
+          >
+            <div className="conversation-composer-exception__content">
+              <FigmaIcon name="exclamation" size={20} />
+              <span>{exceptionNotice.message}</span>
+              <button type="button" onClick={exceptionNotice.onAction}>{exceptionNotice.actionLabel}</button>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+      <section
+        className={`conversation-composer composer__input ${className}`}
+        aria-label={ariaLabel}
+        style={{ height }}
+      >
+        <div className="composer__content">
         <AnimatePresence initial={false}>
           {attachments.length > 0 && (
             <motion.div
@@ -248,8 +281,8 @@ export function TaskConversationComposer({
             disabled={disabled || isRunning}
           />
         </div>
-      </div>
-      <div className="conversation-composer__left-actions">
+        </div>
+        <div className="conversation-composer__left-actions">
         <div className="composer-attachment" ref={attachmentMenuRef}>
           <IconControl
             className="composer-attachment__button"
@@ -285,24 +318,25 @@ export function TaskConversationComposer({
               </motion.div>
             )}
           </AnimatePresence>
-          <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple onChange={(event) => addAttachments(event, "file")} />
-          <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple onChange={(event) => addAttachments(event, "image")} />
+          <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple tabIndex={-1} aria-label="选择要上传的文件" onChange={(event) => addAttachments(event, "file")} />
+          <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple tabIndex={-1} aria-label="选择要上传的图片" onChange={(event) => addAttachments(event, "image")} />
         </div>
-      </div>
-      <span>{hint}</span>
-      <IconControl
-        className={`composer__send conversation-composer__send ${isRunning ? "is-running" : ""}`}
-        label={isRunning ? "停止当前任务" : "发送"}
-        tooltipPlacement="top"
-        disabled={isRunning ? !onStop : disabled || (!value.trim() && !attachments.length)}
-        onClick={isRunning ? onStop : submit}
-      >
-        {isRunning ? (
-          <img className="conversation-composer__stop-icon" src={assetUrl("assets/figma-icons/stop.svg")} alt="" />
-        ) : (
-          <FigmaIcon name="arrow-up" size={24} />
-        )}
-      </IconControl>
-    </motion.section>
+        </div>
+        <span>{hint}</span>
+        <IconControl
+          className={`composer__send conversation-composer__send ${isRunning ? "is-running" : ""}`}
+          label={isRunning ? "停止当前任务" : "发送"}
+          tooltipPlacement="top"
+          disabled={isRunning ? !onStop : disabled || (!value.trim() && !attachments.length)}
+          onClick={isRunning ? onStop : submit}
+        >
+          {isRunning ? (
+            <img className="conversation-composer__stop-icon" src={assetUrl("assets/figma-icons/stop.svg")} alt="" />
+          ) : (
+            <FigmaIcon name="arrow-up" size={24} />
+          )}
+        </IconControl>
+      </section>
+    </motion.div>
   );
 }
