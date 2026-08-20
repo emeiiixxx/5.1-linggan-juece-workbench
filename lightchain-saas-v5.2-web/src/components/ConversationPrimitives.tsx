@@ -6,7 +6,7 @@ import { gsap, gsapMotion, useGSAP } from "../motion/gsap";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
 import { Button, OutlineToggleButton, SuggestionButton } from "./Button";
-import { useI18n } from "../i18n";
+import { translateSystemCopy, useI18n } from "../i18n";
 import { useModalFocus } from "../hooks/useModalFocus";
 import { Toast } from "./Toast";
 import { SelectionCard } from "./SelectionCard";
@@ -570,12 +570,18 @@ export function ConversationFormTitle({
   status?: "pending" | "confirmed";
   statusLabel?: string;
 }) {
+  const { locale } = useI18n();
+  const localizedTitle = translateSystemCopy(title, locale);
+  const displayTitle = localizedTitle.replace(/^(\s*)([a-z])/, (_, whitespace: string, firstLetter: string) =>
+    `${whitespace}${firstLetter.toUpperCase()}`,
+  );
+
   return (
     <header className="conversation-form-title">
       <div className="conversation-form-title__row">
         <div className="conversation-form-title__heading">
           <span><img src={assetUrl("assets/figma-icons/apparel-design.svg")} alt="" /></span>
-          <strong>{title}</strong>
+          <strong data-i18n-static="true">{displayTitle}</strong>
         </div>
         {status ? <span className={`conversation-form-status is-${status}`}>{statusLabel}</span> : null}
       </div>

@@ -46,6 +46,7 @@ const composerPlaceholders = [
   "描述想要设计的款式，或上传参考图片...",
   "描述想要生成的图案风格、元素和应用场景...",
 ];
+const featuredCaseBackToTopRevealOffset = 240;
 type ProfileOption = { id: number; name: string };
 type ProjectOption = { id: number; name: string };
 type ComposerMenuOption = { id: number; name: string };
@@ -291,6 +292,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
   const [productPlanningMenuOpen, setProductPlanningMenuOpen] = useState(false);
   const [quickStartOpen, setQuickStartOpen] = useState(true);
   const [selectedFeaturedCase, setSelectedFeaturedCase] = useState<FeaturedCase | null>(null);
+  const [showFeaturedCaseBackToTop, setShowFeaturedCaseBackToTop] = useState(false);
   const [pendingFeaturedCaseReuse, setPendingFeaturedCaseReuse] = useState<PendingFeaturedCaseReuse | null>(null);
   const [mountedTaskIds, setMountedTaskIds] = useState<number[]>(() => activeTask ? [activeTask.id] : []);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -304,6 +306,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
+  const featuredCasePreviewRef = useRef<HTMLElement>(null);
   const planEditorRef = useRef<HTMLDivElement>(null);
   const activePlanSlotRef = useRef<HTMLElement | null>(null);
   const savedPlanEditorHtmlRef = useRef(defaultPlanEditorHtml);
@@ -681,6 +684,60 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
     onHomeReentry?.();
   };
 
+  const scrollFeaturedCaseToTop = () => {
+    const conversationScroll = featuredCasePreviewRef.current?.querySelector<HTMLElement>(".conversation-scroll");
+    if (!conversationScroll) return;
+
+    conversationScroll.scrollTo({
+      top: 0,
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
+  };
+
+  const updateFeaturedCaseBackToTopVisibility = (scrollTop: number) => {
+    setShowFeaturedCaseBackToTop((visible) => {
+      if (scrollTop <= 8) return false;
+      if (scrollTop > featuredCaseBackToTopRevealOffset) return true;
+      return visible;
+    });
+  };
+
+  const trackFeaturedCaseScroll = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement) || !target.classList.contains("conversation-scroll")) return;
+    updateFeaturedCaseBackToTopVisibility(target.scrollTop);
+  };
+
+  useEffect(() => {
+    if (!selectedFeaturedCase) {
+      setShowFeaturedCaseBackToTop(false);
+      return;
+    }
+
+    let frame = 0;
+    let observer: MutationObserver | null = null;
+    const syncInitialPosition = () => {
+      const conversationScroll = featuredCasePreviewRef.current?.querySelector<HTMLElement>(".conversation-scroll");
+      if (!conversationScroll) return;
+      updateFeaturedCaseBackToTopVisibility(conversationScroll.scrollTop);
+      observer?.disconnect();
+    };
+    const scheduleSync = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(syncInitialPosition);
+    };
+
+    scheduleSync();
+    if (featuredCasePreviewRef.current) {
+      observer = new MutationObserver(scheduleSync);
+      observer.observe(featuredCasePreviewRef.current, { childList: true, subtree: true });
+    }
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+    };
+  }, [selectedFeaturedCase]);
+
   useEffect(() => {
     if (!pendingFeaturedCaseReuse || selectedFeaturedCase || activeTask) return;
 
@@ -715,7 +772,12 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
     ))}
     <Activity mode={!activeTask && selectedFeaturedCase ? "visible" : "hidden"} name="featured-case-preview">
       {selectedFeaturedCase ? (
-        <section className="featured-case-preview" aria-label={`${t("只读案例")}：${t(selectedFeaturedCase.title)}`}>
+        <section
+          ref={featuredCasePreviewRef}
+          className="featured-case-preview"
+          aria-label={`${t("只读案例")}：${t(selectedFeaturedCase.title)}`}
+          onScrollCapture={(event) => trackFeaturedCaseScroll(event.target)}
+        >
           <div className="featured-case-preview__nav-region" data-node-id="804:49808">
             <header className="featured-case-preview__header" data-node-id="804:49809">
               <button type="button" className="featured-case-preview__back" onClick={returnFromFeaturedCase}>
@@ -739,14 +801,44 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
             />
           </div>
           <div className="featured-case-preview__action-region">
-            <button
-              type="button"
-              className="profile-button profile-button--primary featured-case-preview__reuse"
-              data-node-id="831:50891"
-              onClick={reuseFeaturedCasePrompt}
-            >
-              {t("复制初始输入新建任务")}
-            </button>
+            <div className="featured-case-preview__action-controls">
+              <AnimatePresence initial={false}>
+                {showFeaturedCaseBackToTop && (
+                  <motion.div
+                    className="featured-case-preview__back-to-top-wrap"
+                    initial={reduceMotion ? false : { opacity: 0, y: 4, scale: 0.94 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 4, scale: 0.94 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }}
+                  >
+                    <IconControl
+                      className="featured-case-preview__back-to-top"
+                      data-node-id="831:50977"
+                      label={t("返回顶部")}
+                      size="large"
+                      tooltipPlacement="left"
+                      onClick={scrollFeaturedCaseToTop}
+                    >
+                      <FigmaIcon name="pin" size={24} />
+                    </IconControl>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <button
+                type="button"
+                className="profile-button profile-button--primary featured-case-preview__reuse"
+                aria-label={t("复制初始输入到新建任务")}
+                data-node-id="831:50960"
+                onClick={reuseFeaturedCasePrompt}
+              >
+                <span className="featured-case-preview__reuse-icon" data-node-id="831:50946">
+                  <FigmaIcon name="copy" size={24} />
+                </span>
+                <span className="featured-case-preview__reuse-label" data-node-id="831:50940">
+                  {t("复制初始输入到新建任务")}
+                </span>
+              </button>
+            </div>
           </div>
         </section>
       ) : null}
