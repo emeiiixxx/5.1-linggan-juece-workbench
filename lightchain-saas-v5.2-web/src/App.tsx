@@ -121,12 +121,6 @@ export default function App() {
       : "灵感决策工作台";
   const concurrentTaskCount = taskRecords.filter((task) => task.status !== "completed").length;
 
-  const rejectNewTaskWhenFull = () => {
-    if (concurrentTaskCount < MAX_CONCURRENT_TASKS) return false;
-    setTaskLimitNotice("当前任务数量已达上限，请稍后再试。");
-    return true;
-  };
-
   const transitionTaskFocus = (nextTaskId: number | null) => {
     if (activeTaskId !== null && nextTaskId === null) {
       setHomeEntryKey((value) => value + 1);
@@ -189,7 +183,6 @@ export default function App() {
             setNewTaskKey((value) => value + 1);
           }}
           onStartNewTask={() => {
-            if (rejectNewTaskWhenFull()) return;
             transitionTaskFocus(null);
             setNewTaskWorkflow(null);
             setActiveView("workspace");
@@ -211,7 +204,6 @@ export default function App() {
           }}
           createdProjects={createdProjects}
           onCreateTaskInProject={(project) => {
-            if (rejectNewTaskWhenFull()) return;
             transitionTaskFocus(null);
             setNewTaskWorkflow(null);
             setSelectedProject(project);
@@ -255,7 +247,6 @@ export default function App() {
             <BusinessProfile
               createRequestKey={createProfileRequestKey}
               onCreateTask={(profile, taskType: ProfileTaskType) => {
-                if (rejectNewTaskWhenFull()) return;
                 transitionTaskFocus(null);
                 setSelectedProfile({ id: profile.id, name: profile.name });
                 setNewTaskWorkflow(taskType === "new-product" ? "new-product" : "default");
@@ -302,6 +293,8 @@ export default function App() {
               ));
             }}
             onCreateTask={({ title, projectId, prompt, workflow, sourceLabel, attachments }) => {
+              // Keep every new-task entry accessible. The limit is enforced only
+              // when Send is about to create another task so the draft stays intact.
               if (concurrentTaskCount >= MAX_CONCURRENT_TASKS) {
                 setTaskLimitNotice("当前任务数量已达上限，请稍后再试。");
                 return false;
