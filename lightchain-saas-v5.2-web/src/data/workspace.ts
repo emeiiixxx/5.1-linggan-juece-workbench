@@ -20,7 +20,7 @@ export const projectGroups = [
 
 export type TaskWorkflow = "new-product" | "default" | "apparel" | "pattern" | "plan";
 export type TaskStatus = "running" | "pending" | "completed";
-export type TaskSourceLabel = "新品企划" | "客户提案" | "服装设计" | "图案设计" | "企划案";
+export type TaskSourceLabel = "新品企划" | "客户提案" | "服装设计" | "图案设计" | "主题企划";
 export type TaskSidebarMeta = {
   workflow: TaskWorkflow;
   sourceLabel?: TaskSourceLabel;
@@ -33,7 +33,7 @@ export const taskWorkflowLabels: Record<TaskWorkflow, TaskSourceLabel> = {
   default: "客户提案",
   apparel: "服装设计",
   pattern: "图案设计",
-  plan: "企划案",
+  plan: "主题企划",
 };
 
 export const initialTaskSidebarMeta: Record<string, TaskSidebarMeta> = {

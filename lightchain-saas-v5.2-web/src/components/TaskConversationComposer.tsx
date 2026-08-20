@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useAutoGrowTextarea } from "../hooks/useAutoGrowTextarea";
 import { assetUrl } from "../utils/assets";
+import { fileIconAssetPath } from "../utils/fileIcon";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
 
@@ -231,7 +232,7 @@ export function TaskConversationComposer({
                   {attachment.previewUrl ? (
                     <img className="composer-attachment-chip__thumbnail" src={attachment.previewUrl} alt="" />
                   ) : (
-                    <img className="composer-attachment-chip__file" src={assetUrl("assets/figma-icons/file-pdf.svg")} alt="" />
+                    <img className="composer-attachment-chip__file" src={assetUrl(fileIconAssetPath(attachment.name))} alt="" />
                   )}
                   <span title={attachment.name}>{attachment.name}</span>
                   <button

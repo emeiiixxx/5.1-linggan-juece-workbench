@@ -856,6 +856,17 @@ export function Sidebar({
     if (left.kind !== right.kind) return left.kind === "group" ? -1 : 1;
     return right.updatedAt - left.updatedAt || left.stableIndex - right.stableIndex;
   });
+  const isRecentEmpty = recentEntries.length === 0;
+
+  const renderRecentEmptyState = (isFlyout: boolean) => (
+    <div
+      className={`recent-empty-state ${isFlyout ? "recent-empty-state--flyout" : ""}`}
+      role="status"
+    >
+      <img src={assetUrl("assets/sidebar/empty-recent-tasks.png")} alt="" />
+      <span>{t("暂无最近任务")}</span>
+    </div>
+  );
 
   const renderRecentGroup = (
     group: (typeof groups)[number],
@@ -1163,7 +1174,7 @@ export function Sidebar({
         </div>
 
         <div className="sidebar__scroll">
-          <section className="sidebar-section sidebar-section--recent">
+          <section className={`sidebar-section sidebar-section--recent ${isRecentEmpty ? "is-empty" : ""}`}>
             <div className="sidebar-section__heading">
               <button
                 className="sidebar-section__trigger"
@@ -1206,7 +1217,7 @@ export function Sidebar({
                     finishDrag();
                   }}
                 >
-                  {recentEntries.map((entry, entryIndex) => (
+                  {isRecentEmpty ? renderRecentEmptyState(false) : recentEntries.map((entry, entryIndex) => (
                     <Fragment
                       key={entry.kind === "group"
                         ? `recent-group-${entry.group.id}`
@@ -1300,7 +1311,7 @@ export function Sidebar({
                     finishDrag();
                   }}
                 >
-                  {recentEntries.map((entry, entryIndex) => (
+                  {isRecentEmpty ? renderRecentEmptyState(true) : recentEntries.map((entry, entryIndex) => (
                     <Fragment
                       key={entry.kind === "group"
                         ? `flyout-recent-group-${entry.group.id}`

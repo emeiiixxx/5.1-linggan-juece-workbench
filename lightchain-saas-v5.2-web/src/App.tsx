@@ -72,10 +72,11 @@ const workflowPageTitles: Record<TaskRecord["workflow"], string> = {
   default: "客户提案",
   apparel: "服装设计",
   pattern: "图案设计",
-  plan: "企划案",
+  plan: "主题企划",
 };
 
 const resolveTaskSourceLabel = (task: TaskRecord): TaskSourceLabel => {
+  if ((task.sourceLabel as string | undefined) === "企划案") return "主题企划";
   if (task.sourceLabel === "灵感设计") {
     return /图案|印花|纹样|花型/.test(task.prompt) ? "图案设计" : "服装设计";
   }

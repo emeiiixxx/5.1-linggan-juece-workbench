@@ -22,6 +22,7 @@ import { useGsapEntrance } from "../motion/gsap";
 import { extractPromptContext } from "../utils/promptContext";
 import { ProgressiveImage } from "./ProgressiveImage";
 import { scrollWithinConversation } from "../utils/conversationScroll";
+import { useI18n } from "../i18n";
 
 type PlanStage =
   | "theme"
@@ -254,12 +255,13 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
   onTaskComplete?: () => void;
   readOnly?: boolean;
 }) {
+  const { t } = useI18n();
   const promptContext = useMemo(() => extractPromptContext(prompt), [prompt]);
   const planBrand = promptContext.brand ?? "目标品牌";
   const planSeason = promptContext.season ?? "目标季节";
   const planAudience = promptContext.audience ?? "目标客群";
   const planSubject = `${planBrand} ${planSeason} ${planAudience}`;
-  const planName = `${planBrand} ${planSeason}设计企划案`;
+  const planName = `${planBrand} ${planSeason}主题企划`;
   const startsComplete = initialState === "complete";
   const completionReportedRef = useRef(startsComplete);
   const [stage, setStage] = useState<PlanStage>(startsComplete ? "complete" : "theme");
@@ -414,7 +416,7 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
 
   return (
     <motion.main className={`workspace-region workspace-region--conversation plan-workspace ${detailPanelOpen ? "has-detail-panel" : ""} ${readOnly ? "is-read-only" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
-      <section className="conversation-stage" aria-label="企划案任务对话">
+      <section className="conversation-stage" aria-label={t("主题企划任务对话")}>
         <div className="conversation-scroll">
           <ConversationFeed className="plan-conversation-feed" metaDisabled={readOnly}>
             <ConversationUserMessage entrance>{prompt}</ConversationUserMessage>
@@ -456,7 +458,7 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
                 <p>请从以下图片中选择您喜欢的参考图片，或选择“需要更多参考图片”来获取更多选项，选择“生成企划”以继续下一步。</p>
                 <section className="plan-choice-form" data-message-meta="disabled" data-copy-exclude="true">
                   <ConversationFormTitle title="设计需求" status={stage === "references" ? "pending" : "confirmed"} statusLabel={stage === "references" ? "待确认" : "已确认"} />
-                  <div className="image-selection-grid" role="group" aria-label="企划案参考图片，支持多选">
+                  <div className="image-selection-grid" role="group" aria-label={t("主题企划参考图片，支持多选")}>
                     {jacketImages.map((src, index) => <ImageSelection
                       src={assetUrl(src)}
                       alt={`${planSubject}参考 ${index + 1}`}
@@ -487,7 +489,7 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
                 <p>请从以下图片中选择您喜欢的参考图片，或选择“需要更多参考图片”来获取更多选项，选择“生成企划”以继续下一步。</p>
                 <section className="plan-choice-form" data-message-meta="disabled" data-copy-exclude="true">
                   <ConversationFormTitle title="设计需求" status={stage === "more-references" ? "pending" : "confirmed"} statusLabel={stage === "more-references" ? "待确认" : "已确认"} />
-                  <div className="image-selection-grid" role="group" aria-label="企划案参考图片，支持多选">
+                  <div className="image-selection-grid" role="group" aria-label={t("主题企划参考图片，支持多选")}>
                     {referenceImages.map((src, index) => <ImageSelection
                       src={assetUrl(src)}
                       alt={`${planSubject}参考 ${index + 1}`}
@@ -532,7 +534,7 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
                 <p>请选择您希望的最终文件呈现格式：PPT、网页、PPT和网页。</p>
                 <section className="plan-choice-form plan-export-form" data-message-meta="disabled" data-copy-exclude="true">
                   <ConversationFormTitle title="设计需求" status={stage === "export" ? "pending" : "confirmed"} statusLabel={stage === "export" ? "待确认" : "已确认"} />
-                  <div className="plan-export-options" role="radiogroup" aria-label="选择企划案导出格式">
+                  <div className="plan-export-options" role="radiogroup" aria-label={t("选择主题企划导出格式")}>
                     {(["PPT", "HTML", "PPT与HTML"] as const).map((format) => {
                       const selected = exportFormat === format;
                       return <button type="button" role="radio" className={selected ? "is-selected" : ""} aria-checked={selected} disabled={stage !== "export"} onClick={() => setExportFormat(format)} key={format}><span className="plan-file-icons">{format.includes("PPT") ? <span className="plan-file-icon"><img src={planFileIcons.PPT} alt="" /></span> : null}{format.includes("HTML") ? <span className="plan-file-icon"><img src={planFileIcons.HTML} alt="" /></span> : null}</span><strong>{format}</strong><Radio checked={selected} /></button>;
@@ -560,7 +562,7 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
 
       <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>
         <TaskDetailPanel
-          ariaLabel="企划案任务概览"
+          ariaLabel={t("主题企划任务概览")}
           onCollapse={() => setDetailPanelOpen(false)}
           artifacts={exportFormat.includes("HTML") && stage === "complete" ? (
             <TaskArtifactRow kind="file" onClick={previewPlan}>{planName}.html</TaskArtifactRow>
@@ -571,7 +573,7 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
         />
         <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
       </aside>
-      {preview ? <ImageLightbox src={assetUrl(preview)} alt="企划案参考图片" onClose={() => setPreview(null)} /> : null}
+      {preview ? <ImageLightbox src={assetUrl(preview)} alt={t("主题企划参考图片")} onClose={() => setPreview(null)} /> : null}
       <Toast message={toast} />
     </motion.main>
   );

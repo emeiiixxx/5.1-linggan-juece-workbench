@@ -17,10 +17,10 @@ export type FeaturedCase = {
 
 export const featuredCasesByTab: readonly (readonly FeaturedCase[])[] = [
   [
-    { id: "planning-kids-pdf", title: "类PDF 2025，Kids设计企划案", image: "assets/featured-cases/planning-kids.png", prompt: "以 PDF 2025 秋冬系列为设计灵感，为男童规划印花外套、棒球外套、卫衣、毛衣与长裤，生成完整主题设计企划。", workflow: "plan" },
-    { id: "planning-women-jacquemus", title: "类JACQUEMUS 2026，Women设计企划案", image: "assets/featured-cases/planning-women-jacquemus.png", prompt: "以 JACQUEMUS 2026 度假系列为设计灵感，为成熟女装规划轻结构外套、衬衫连衣裙、印花连衣裙与半裙，生成完整主题设计企划。", workflow: "plan" },
-    { id: "planning-women-dior", title: "类DIOR 2026，Women设计企划案", image: "assets/featured-cases/planning-women-dior.png", prompt: "以 DIOR 2026 女装系列为设计灵感，围绕轻礼服、薄纱叠搭、柔性剪裁与过渡季外套，生成完整主题设计企划。", workflow: "plan" },
-    { id: "planning-women-resort", title: "轻奢度假 2027，Women设计企划案", image: "assets/featured-cases/planning-women-editorial.png", prompt: "面向 2027 春夏轻奢度假女装市场，规划连衣裙、轻薄外套、半裙与精致针织，生成完整主题设计企划。", workflow: "plan" },
+    { id: "planning-kids-pdf", title: "类PDF 2025，Kids主题企划", image: "assets/featured-cases/planning-kids.png", prompt: "以 PDF 2025 秋冬系列为设计灵感，为男童规划印花外套、棒球外套、卫衣、毛衣与长裤，生成完整主题设计企划。", workflow: "plan" },
+    { id: "planning-women-jacquemus", title: "类JACQUEMUS 2026，Women主题企划", image: "assets/featured-cases/planning-women-jacquemus.png", prompt: "以 JACQUEMUS 2026 度假系列为设计灵感，为成熟女装规划轻结构外套、衬衫连衣裙、印花连衣裙与半裙，生成完整主题设计企划。", workflow: "plan" },
+    { id: "planning-women-dior", title: "类DIOR 2026，Women主题企划", image: "assets/featured-cases/planning-women-dior.png", prompt: "以 DIOR 2026 女装系列为设计灵感，围绕轻礼服、薄纱叠搭、柔性剪裁与过渡季外套，生成完整主题设计企划。", workflow: "plan" },
+    { id: "planning-women-resort", title: "轻奢度假 2027，Women主题企划", image: "assets/featured-cases/planning-women-editorial.png", prompt: "面向 2027 春夏轻奢度假女装市场，规划连衣裙、轻薄外套、半裙与精致针织，生成完整主题设计企划。", workflow: "plan" },
   ],
   [
     { id: "proposal-outdoor", title: "北美轻户外品牌客户提案", image: "assets/figma-confirmed/candidate-gallery-look-01.png", prompt: "为北美轻户外品牌制作一份客户提案，包含趋势判断、竞品参考、视觉方向、候选款式与正式提案结果。", workflow: "default" },

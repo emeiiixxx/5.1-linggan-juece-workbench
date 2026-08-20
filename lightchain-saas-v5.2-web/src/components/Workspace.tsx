@@ -1,7 +1,8 @@
-import { Activity, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { Activity, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from "motion/react";
 import { quickStartCardsByTab, taskWorkflowLabels, type TaskSourceLabel, type TaskWorkflow } from "../data/workspace";
 import { assetUrl } from "../utils/assets";
+import { fileIconAssetPath } from "../utils/fileIcon";
 import { FigmaIcon } from "./FigmaIcon";
 import { FeaturedCases, type FeaturedCase } from "./FeaturedCases";
 import { ArchiveHeaderMotion } from "./ArchiveHeaderMotion";
@@ -36,12 +37,12 @@ type PendingFeaturedCaseReuse = {
   tab: number;
   planningType?: ProductPlanningType;
 };
-const productPlanningOptions: { value: ProductPlanningType; label: TaskSourceLabel; icon: string }[] = [
-  { value: "new-product", label: "新品企划", icon: "apparel-design-menu" },
-  { value: "plan", label: "企划案", icon: "plan" },
+const productPlanningOptions: { value: ProductPlanningType; label: TaskSourceLabel }[] = [
+  { value: "new-product", label: "新品企划" },
+  { value: "plan", label: "主题企划" },
 ];
 const composerPlaceholders = [
-  "描述下一季的市场,人群,品类和经营目标...",
+  "描述你想调研的市场、品类或款式方向...",
   "输入客户需求,或上传brief、邮件和会议纪要...",
   "描述想要设计的款式，或上传参考图片...",
   "描述想要生成的图案风格、元素和应用场景...",
@@ -300,9 +301,13 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [message, setMessage] = useState("");
+  const [attachmentListHeight, setAttachmentListHeight] = useState(0);
+  const [productPlanningSelectorOffset, setProductPlanningSelectorOffset] = useState(90);
   const [tabListElement, setTabListElement] = useState<HTMLDivElement | null>(null);
-  const { textareaRef: composerTextareaRef, height: composerInputHeight } = useAutoGrowTextarea(message, 160);
+  const { textareaRef: composerTextareaRef, height: composerInputHeight } = useAutoGrowTextarea(message, 160, 280, 64 + attachmentListHeight, true);
   const productPlanningMenuRef = useRef<HTMLDivElement>(null);
+  const productPlanningSelectorButtonRef = useRef<HTMLButtonElement>(null);
+  const composerAttachmentListRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
@@ -353,8 +358,41 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
   );
   const setPlanEditorElement = useCallback((node: HTMLDivElement | null) => {
     planEditorRef.current = node;
-    if (node) node.innerHTML = savedPlanEditorHtmlRef.current;
+    if (node) {
+      node.innerHTML = savedPlanEditorHtmlRef.current;
+      node.dataset.empty = String(!planPromptRef.current.trim());
+    }
   }, []);
+
+  useLayoutEffect(() => {
+    if (activeTab !== 0) return;
+    const selector = productPlanningSelectorButtonRef.current;
+    if (!selector) return;
+    const nextOffset = Math.ceil(selector.getBoundingClientRect().width) + 4;
+    setProductPlanningSelectorOffset((current) => current === nextOffset ? current : nextOffset);
+  }, [activeTab, locale, productPlanningType]);
+
+  useLayoutEffect(() => {
+    const attachmentList = composerAttachmentListRef.current;
+    if (!attachmentList || !attachments.length || isPlanMode) {
+      setAttachmentListHeight((current) => current === 0 ? current : 0);
+      return;
+    }
+
+    const measureAttachmentList = () => {
+      const maxHeight = Number.parseFloat(window.getComputedStyle(attachmentList).maxHeight);
+      const measuredHeight = Number.isFinite(maxHeight)
+        ? Math.min(attachmentList.scrollHeight, maxHeight)
+        : attachmentList.scrollHeight;
+      const nextHeight = Math.ceil(measuredHeight);
+      setAttachmentListHeight((current) => current === nextHeight ? current : nextHeight);
+    };
+
+    measureAttachmentList();
+    const observer = new ResizeObserver(measureAttachmentList);
+    observer.observe(attachmentList);
+    return () => observer.disconnect();
+  }, [attachments.length, isPlanMode]);
 
   const syncPlanEditorValue = (editor: HTMLDivElement, normalizeEmptyMarkup = false) => {
     const nextPrompt = editor.innerText.replace(/\u00a0/g, " ");
@@ -900,6 +938,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
               <AnimatePresence initial={false}>
                 {!isPlanMode && attachments.length > 0 && (
                   <motion.div
+                    ref={composerAttachmentListRef}
                     className="composer-attachment-list"
                     initial={reduceMotion ? false : { opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
@@ -919,7 +958,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
                         {attachment.previewUrl ? (
                           <img className="composer-attachment-chip__thumbnail" src={attachment.previewUrl} alt="" />
                         ) : (
-                          <img className="composer-attachment-chip__file" src={assetUrl("assets/figma-icons/file-pdf.svg")} alt="" />
+                          <img className="composer-attachment-chip__file" src={assetUrl(fileIconAssetPath(attachment.name))} alt="" />
                         )}
                         <span title={attachment.name}>{attachment.name}</span>
                         <button
@@ -942,6 +981,36 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
                   </motion.div>
                 )}
               </AnimatePresence>
+              <div
+                className={`composer-editor-stage ${activeTab === 0 ? "has-product-planning-selector" : ""}`}
+                ref={activeTab === 0 ? productPlanningMenuRef : undefined}
+                style={activeTab === 0 ? {
+                  "--composer-task-selector-offset": `${productPlanningSelectorOffset}px`,
+                } as CSSProperties : undefined}
+              >
+                <div className="composer-editor-scroll">
+                {activeTab === 0 && (
+                  <div className="composer-product-planning-select composer-product-planning-select--inline">
+                    <button
+                      ref={productPlanningSelectorButtonRef}
+                      type="button"
+                      className={`composer-task-type-selector ${productPlanningMenuOpen ? "is-open" : ""}`}
+                      aria-haspopup="listbox"
+                      aria-expanded={productPlanningMenuOpen}
+                      aria-controls="composer-product-planning-menu"
+                      data-node-id="840:52934"
+                      onClick={() => {
+                        setProductPlanningMenuOpen((open) => !open);
+                        setProfileMenuOpen(false);
+                        setProjectMenuOpen(false);
+                        setAttachmentMenuOpen(false);
+                      }}
+                    >
+                      <span>{t(productPlanningOptions.find((option) => option.value === productPlanningType)?.label ?? "新品企划")}</span>
+                      <FigmaIcon name="chevron-down" size={16} className="composer-task-type-selector__chevron" />
+                    </button>
+                  </div>
+                )}
               <AnimatePresence mode="wait" initial={false}>
               {isPlanMode ? (
                 <motion.div
@@ -955,9 +1024,9 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
                   contentEditable
                   suppressContentEditableWarning
                   role="textbox"
-                  aria-label="描述企划案的主题、目标和交付要求..."
+                  aria-label={t("描述主题企划的主题、目标和交付要求...")}
                   aria-multiline="true"
-                  data-placeholder="描述企划案的主题、目标和交付要求..."
+                  data-placeholder={t("描述主题企划的主题、目标和交付要求...")}
                   data-empty="false"
                   onBeforeInput={(event) => {
                     const inputType = (event.nativeEvent as InputEvent).inputType ?? "";
@@ -1067,6 +1136,42 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
               </motion.div>
               )}
               </AnimatePresence>
+                </div>
+                <AnimatePresence>
+                  {activeTab === 0 && productPlanningMenuOpen && (
+                    <motion.div
+                      id="composer-product-planning-menu"
+                      className="composer-product-planning-menu composer-product-planning-menu--inline"
+                      role="listbox"
+                      aria-label={t("选择商品企划类型")}
+                      data-node-id="840:54220"
+                      initial={reduceMotion ? false : { opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }}
+                    >
+                      {productPlanningOptions.map((option) => (
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={productPlanningType === option.value}
+                          key={option.value}
+                          onClick={() => {
+                            if (option.value === "plan" && !planHasUserDraftRef.current) {
+                              planPromptRef.current = defaultPlanPrompt;
+                              savedPlanEditorHtmlRef.current = defaultPlanEditorHtml;
+                            }
+                            setProductPlanningType(option.value);
+                            setProductPlanningMenuOpen(false);
+                          }}
+                        >
+                          {t(option.label)}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
             {!isPlanMode && <div className="composer-attachment" ref={attachmentMenuRef}>
               <IconControl
@@ -1123,60 +1228,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
             </IconControl>
           </div>
           <div className="composer__footer">
-            {activeTab === 0 && <div className="composer-product-planning-select" ref={productPlanningMenuRef}>
-              <button
-                type="button"
-                className={`composer-select composer-select--product-planning ${productPlanningMenuOpen ? "is-open" : ""}`}
-                aria-haspopup="listbox"
-                aria-expanded={productPlanningMenuOpen}
-                onClick={() => {
-                  setProductPlanningMenuOpen((open) => !open);
-                  setProfileMenuOpen(false);
-                  setProjectMenuOpen(false);
-                  setAttachmentMenuOpen(false);
-                }}
-              >
-                <FigmaIcon name={productPlanningOptions.find((option) => option.value === productPlanningType)?.icon ?? "apparel-design-menu"} size={16} />
-                <span>{t(productPlanningOptions.find((option) => option.value === productPlanningType)?.label ?? "新品企划")}</span>
-                <FigmaIcon name="chevron-right" size={16} className="composer-select__chevron" />
-              </button>
-              <AnimatePresence>
-                {productPlanningMenuOpen && (
-                  <motion.div
-                    className="composer-profile-menu composer-profile-menu--design composer-product-planning-menu"
-                    role="listbox"
-                    aria-label={t("选择商品企划类型")}
-                    initial={reduceMotion ? false : { opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
-                  >
-                    <div className="composer-profile-menu__options">
-                      {productPlanningOptions.map((option) => (
-                        <button
-                          type="button"
-                          role="option"
-                          aria-selected={productPlanningType === option.value}
-                          key={option.value}
-                          onClick={() => {
-                            if (option.value === "plan" && !planHasUserDraftRef.current) {
-                              planPromptRef.current = defaultPlanPrompt;
-                              savedPlanEditorHtmlRef.current = defaultPlanEditorHtml;
-                            }
-                            setProductPlanningType(option.value);
-                            setProductPlanningMenuOpen(false);
-                          }}
-                        >
-                          <FigmaIcon name={option.icon} size={16} />
-                          <span>{t(option.label)}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>}
-            {!isPlanMode && activeTab < 2 && <div className="composer-profile-select" ref={profileMenuRef}>
+            {activeTab < 2 && <div className="composer-profile-select" ref={profileMenuRef}>
               <button
                 type="button"
                 className={`composer-select composer-select--profile ${profileMenuOpen ? "is-open" : ""}`}
