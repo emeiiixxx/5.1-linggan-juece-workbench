@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { createPortal } from "react-dom";
 import { FigmaIcon } from "./FigmaIcon";
@@ -409,7 +409,7 @@ function CurrencySelect({ value, onChange }: { value: string; onChange: (value: 
   return <div className={`profile-currency-select ${open ? "is-open" : ""}`} ref={selectRef}><button type="button" onClick={() => setOpen((current) => !current)}><span className={value ? "" : "profile-currency-select__placeholder"}>{value || t("货币")}</span><FigmaIcon name="chevron-down" size={16} /></button>{open && <span className="profile-select-menu">{["JPY", "CNY", "USD"].map((currency) => <button type="button" key={currency} onClick={() => { onChange(currency); setOpen(false); }}><span>{currency}</span></button>)}</span>}</div>;
 }
 
-export function BusinessProfile({ onCreateTask, createRequestKey = 0 }: { onCreateTask?: (profile: Profile, taskType: ProfileTaskType) => void; createRequestKey?: number }) {
+export function BusinessProfile({ onCreateTask, createRequestKey = 0, listRequestKey = 0 }: { onCreateTask?: (profile: Profile, taskType: ProfileTaskType) => void; createRequestKey?: number; listRequestKey?: number }) {
   const { t } = useI18n();
   const reduceMotion = useReducedMotion();
   const [view, setView] = useState<ArchiveView>("list");
@@ -422,7 +422,6 @@ export function BusinessProfile({ onCreateTask, createRequestKey = 0 }: { onCrea
   const [uploadOpen, setUploadOpen] = useState(false);
   const [parseProgress, setParseProgress] = useState(0);
   const [parseDestination, setParseDestination] = useState<"create" | "edit">("create");
-  const [detailUploadOpen, setDetailUploadOpen] = useState(false);
   const [toast, setToast] = useState("");
   const toastTimerRef = useRef<number | null>(null);
 
@@ -457,6 +456,12 @@ export function BusinessProfile({ onCreateTask, createRequestKey = 0 }: { onCrea
     setAnimateCreateEntry(true);
     setView("create");
   }, [createRequestKey]);
+  useLayoutEffect(() => {
+    if (!listRequestKey) return;
+    setActiveProfile(null);
+    setUploadOpen(false);
+    setView("list");
+  }, [listRequestKey]);
   const applyAutofill = () => {
     setForm((current) => ({ ...blankForm(), name: "日本通勤女装档案", category: ["女装"], minPrice: "8000", maxPrice: "18000", price: "JPY 8,000 ～ 18,000", currency: "JPY", countries: ["日本"], ages: ["25–34岁"], channels: ["ZOZOTOWN", "Rakuten Fashion"], visualPreference: current.visualPreference }));
     setAnimateCreateEntry(false);
@@ -508,7 +513,7 @@ export function BusinessProfile({ onCreateTask, createRequestKey = 0 }: { onCrea
   };
 
   if (view === "detail" && activeProfile) {
-    return <><ProfileDetail profile={activeProfile} onBack={returnToList} onCreateTask={onCreateTask} onEdit={() => { setForm(formFromProfile(activeProfile)); setUploads(activeProfile.files); setView("edit"); }} onReparse={() => setDetailUploadOpen(true)} onRemoveFile={(id) => { const file = activeProfile.files.find((item) => item.id === id); if (file?.preview) URL.revokeObjectURL(file.preview); const updated = { ...activeProfile, files: activeProfile.files.filter((item) => item.id !== id), updated: "刚刚" }; setProfiles((current) => current.map((profile) => profile.id === updated.id ? updated : profile)); setActiveProfile(updated); }} onRename={(name) => { const updated = { ...activeProfile, name, updated: "刚刚" }; setProfiles((current) => current.map((profile) => profile.id === updated.id ? updated : profile)); setActiveProfile(updated); notify(t("档案已重命名")); }} onDuplicate={() => { const prefix = activeProfile.name.replace(/-\d+$/, ""); let index = 1; while (profiles.some((profile) => profile.name === `${prefix}-${index}`)) index += 1; const copiedProfile = { ...activeProfile, id: Date.now(), name: `${prefix}-${index}`, updated: "刚刚" }; setProfiles((current) => [copiedProfile, ...current]); notify(t("复制成功")); }} onDelete={() => { setProfiles((current) => current.filter((profile) => profile.id !== activeProfile.id)); runViewTransition(() => setArchiveView("list", null)); notify(t("档案已删除")); }} />{detailUploadOpen && <UploadModal onClose={() => setDetailUploadOpen(false)} onConfirm={(files) => { setDetailUploadOpen(false); setForm(formFromProfile(activeProfile)); setUploads(files); setParseDestination("edit"); setView("parsing"); }} />}<Toast message={toast} /></>;
+    return <><ProfileDetail profile={activeProfile} onBack={returnToList} onCreateTask={onCreateTask} onEdit={() => { setForm(formFromProfile(activeProfile)); setUploads(activeProfile.files); setView("edit"); }} onRename={(name) => { const updated = { ...activeProfile, name, updated: "刚刚" }; setProfiles((current) => current.map((profile) => profile.id === updated.id ? updated : profile)); setActiveProfile(updated); notify(t("档案已重命名")); }} onDuplicate={() => { const prefix = activeProfile.name.replace(/-\d+$/, ""); let index = 1; while (profiles.some((profile) => profile.name === `${prefix}-${index}`)) index += 1; const copiedProfile = { ...activeProfile, id: Date.now(), name: `${prefix}-${index}`, updated: "刚刚" }; setProfiles((current) => [copiedProfile, ...current]); notify(t("复制成功")); }} onDelete={() => { setProfiles((current) => current.filter((profile) => profile.id !== activeProfile.id)); runViewTransition(() => setArchiveView("list", null)); notify(t("档案已删除")); }} /><Toast message={toast} /></>;
   }
 
   if (view === "parsing") {
@@ -558,8 +563,9 @@ function CreatePage({ form, setForm, files, complete, canSave, parsing, editing,
   const category = (value: string) => change("category", form.category.includes(value) ? form.category.filter((item) => item !== value) : [...form.category, value]);
   const hasFormContent = Object.values(form).some((value) => Array.isArray(value) ? value.length > 0 : Boolean(value));
   return (
-    <main className="profile-region profile-editor-region"><motion.div className="profile-editor-shell" data-node-id={parsing ? "328:5431" : "301:68938"} variants={primaryPageEntrance} initial={reduceMotion || !animateEntry ? false : "hidden"} animate="visible">
-      <motion.button className="profile-back" type="button" onClick={onBack} variants={primaryPageEntranceItem}><FigmaIcon name="arrow-left" size={20} />{t("返回")}</motion.button>
+    <main className="profile-region profile-editor-region">
+      <motion.button className="profile-back profile-back--edge" type="button" onClick={onBack} variants={primaryPageEntranceItem} initial={reduceMotion || !animateEntry ? false : "hidden"} animate="visible"><FigmaIcon name="arrow-left" size={20} />{t("返回")}</motion.button>
+      <motion.div className="profile-editor-shell" data-node-id={parsing ? "328:5431" : "301:68938"} variants={primaryPageEntrance} initial={reduceMotion || !animateEntry ? false : "hidden"} animate="visible">
       <motion.header className="profile-editor-header" variants={primaryPageEntranceItem}><h1>{t(editing ? "编辑业务偏好档案" : "创建业务偏好档案")}</h1><p>{t("保存不同任务中重复使用的业务范围，系统将在任务开始时自动应用")}</p></motion.header>
       <motion.section className="profile-autofill" variants={primaryPageEntranceItem}><div className="profile-form-label">{t("智能预填")}</div><p>{t("系统只预填资料中明确提到的信息，未提及的字段将保持为空")}</p><UploadPanel files={files} parsed={!parsing && files.length > 0} onSelect={onSelectFile} onRemove={onRemoveFile} /></motion.section>
       {parsing && <motion.div variants={primaryPageEntranceItem}><ParsingPanel progress={parseProgress} /></motion.div>}
@@ -591,7 +597,8 @@ function CreatePage({ form, setForm, files, complete, canSave, parsing, editing,
           <div><button className="profile-button profile-button--secondary" type="button" onClick={onCancel}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" disabled={!canSave} onClick={onSave}>{t(editing ? "保存修改" : "保存档案")}</button></div>
         </footer>
       </motion.div>
-    </motion.div></main>
+      </motion.div>
+    </main>
   );
 }
 
@@ -747,7 +754,7 @@ function ProfileCard({ profile, onDetail, onCreateTask, onRename, onDuplicate, o
   );
 }
 
-function ProfileDetail({ profile, onBack, onCreateTask, onEdit, onReparse, onRemoveFile, onRename, onDuplicate, onDelete }: { profile: Profile; onBack: () => void; onCreateTask?: (profile: Profile, taskType: ProfileTaskType) => void; onEdit: () => void; onReparse: () => void; onRemoveFile: (id: string) => void; onRename: (name: string) => void; onDuplicate: () => void; onDelete: () => void }) {
+function ProfileDetail({ profile, onBack, onCreateTask, onEdit, onRename, onDuplicate, onDelete }: { profile: Profile; onBack: () => void; onCreateTask?: (profile: Profile, taskType: ProfileTaskType) => void; onEdit: () => void; onRename: (name: string) => void; onDuplicate: () => void; onDelete: () => void }) {
   const { locale, t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const [dialog, setDialog] = useState<"rename" | "delete" | null>(null);
@@ -765,5 +772,5 @@ function ProfileDetail({ profile, onBack, onCreateTask, onEdit, onReparse, onRem
     { label: "参考品牌", value: profile.brands.length ? localizedList(profile.brands) : t("未填写"), fullWidth: true },
     { label: "视觉偏好", value: profile.visualPreference.trim() || t("未填写"), fullWidth: true },
   ];
-  return <main className="profile-region profile-editor-region profile-scene"><div className="profile-editor-shell profile-detail-shell" data-node-id="333:13015"><button className="profile-back" type="button" onClick={onBack}><FigmaIcon name="arrow-left" size={20} />{t("返回")}</button><div className="profile-detail-stage" style={sharedTransitionStyle(`profile-card-${profile.id}`)}><header className="profile-detail-header"><div><h1 title={profile.name} style={sharedTransitionStyle(`profile-title-${profile.id}`)}>{profile.name}</h1><p>{t("用于任务中的默认业务范围与生成边界")}</p></div><div><ProfileTaskCreateMenu profile={profile} onCreateTask={onCreateTask} /><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onEdit}>{t("编辑")}</button><span className="profile-detail-more" ref={menuRef}><button className="profile-icon-button" type="button" aria-label={t("更多")} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><FigmaIcon name="more-horizontal" size={20} /></button>{menuOpen && <span className="profile-detail-menu" role="menu"><button type="button" role="menuitem" onClick={() => { setName(profile.name); setDialog("rename"); setMenuOpen(false); }}><FigmaIcon name="modify" size={16} /><span>{t("重命名")}</span></button><button type="button" role="menuitem" onClick={() => { onDuplicate(); setMenuOpen(false); }}><FigmaIcon name="copy" size={16} /><span>{t("复制档案")}</span></button><button className="is-danger" type="button" role="menuitem" onClick={() => { setDialog("delete"); setMenuOpen(false); }}><FigmaIcon name="trash" size={16} /><span>{t("删除")}</span></button></span>}</span></div></header><section className="profile-detail-grid" data-node-id="333:13055">{cells.map(({ label, value, fullWidth }) => <div className={fullWidth ? "profile-detail-grid__full-width" : undefined} key={label}><span>{t(label)}</span><strong title={value}>{value}</strong></div>)}</section><section className="profile-source-card"><div className="profile-source-card__header"><span>{t("资料包")}</span><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onReparse}>{t("重新上传并解析")}</button></div>{profile.files.length ? <div className="profile-source-card__files">{profile.files.map((file) => <UploadFileRow key={file.id} name={file.name} preview={file.preview} onRemove={() => onRemoveFile(file.id)} />)}</div> : <span className="profile-detail__empty">{t("未上传资料")}</span>}</section></div></div>{dialog && <ProfileActionDialog mode={dialog} profile={profile} name={name} titleId="profile-action-title" onNameChange={setName} onClose={() => setDialog(null)} onRename={onRename} onDelete={onDelete} />}</main>;
+  return <main className="profile-region profile-editor-region profile-scene"><button className="profile-back profile-back--edge" type="button" onClick={onBack}><FigmaIcon name="arrow-left" size={20} />{t("返回")}</button><div className="profile-editor-shell profile-detail-shell" data-node-id="333:13015"><div className="profile-detail-stage" style={sharedTransitionStyle(`profile-card-${profile.id}`)}><header className="profile-detail-header"><div><h1 title={profile.name} style={sharedTransitionStyle(`profile-title-${profile.id}`)}>{profile.name}</h1><p>{t("用于任务中的默认业务范围与生成边界")}</p></div><div><ProfileTaskCreateMenu profile={profile} onCreateTask={onCreateTask} /><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onEdit}>{t("编辑")}</button><span className="profile-detail-more" ref={menuRef}><button className="profile-icon-button" type="button" aria-label={t("更多")} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><FigmaIcon name="more-horizontal" size={20} /></button>{menuOpen && <span className="profile-detail-menu" role="menu"><button type="button" role="menuitem" onClick={() => { setName(profile.name); setDialog("rename"); setMenuOpen(false); }}><FigmaIcon name="modify" size={16} /><span>{t("重命名")}</span></button><button type="button" role="menuitem" onClick={() => { onDuplicate(); setMenuOpen(false); }}><FigmaIcon name="copy" size={16} /><span>{t("复制档案")}</span></button><button className="is-danger" type="button" role="menuitem" onClick={() => { setDialog("delete"); setMenuOpen(false); }}><FigmaIcon name="trash" size={16} /><span>{t("删除")}</span></button></span>}</span></div></header><section className="profile-detail-grid" data-node-id="333:13055">{cells.map(({ label, value, fullWidth }) => <div className={fullWidth ? "profile-detail-grid__full-width" : undefined} key={label}><span>{t(label)}</span><strong title={value}>{value}</strong></div>)}</section><section className="profile-source-card" data-node-id="333:13561"><div className="profile-source-card__header"><span>{t("资料包")}</span></div>{profile.files.length ? <div className="profile-source-card__files">{profile.files.map((file) => <UploadFileRow key={file.id} name={file.name} preview={file.preview} />)}</div> : <span className="profile-detail__empty">{t("未上传资料")}</span>}</section></div></div>{dialog && <ProfileActionDialog mode={dialog} profile={profile} name={name} titleId="profile-action-title" onNameChange={setName} onClose={() => setDialog(null)} onRename={onRename} onDelete={onDelete} />}</main>;
 }

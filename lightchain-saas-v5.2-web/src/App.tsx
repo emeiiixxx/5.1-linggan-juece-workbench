@@ -120,6 +120,7 @@ export default function App() {
   const [newTaskKey, setNewTaskKey] = useState(0);
   const [newTaskWorkflow, setNewTaskWorkflow] = useState<"new-product" | "default" | null>(null);
   const [createProfileRequestKey, setCreateProfileRequestKey] = useState(0);
+  const [profileListRequestKey, setProfileListRequestKey] = useState(0);
   const [createProjectRequestKey, setCreateProjectRequestKey] = useState(0);
   const resolvedTaskRecords = taskRecords.map((task) => ({
     ...task,
@@ -205,6 +206,7 @@ export default function App() {
           onOpenPreferences={() => {
             transitionTaskFocus(null);
             setActiveTaskId(null);
+            setProfileListRequestKey((value) => value + 1);
             setActiveView("preferences");
           }}
           createProjectRequestKey={createProjectRequestKey}
@@ -259,6 +261,7 @@ export default function App() {
           <Suspense fallback={<main className="workspace-region" aria-busy="true" />}>
             <BusinessProfile
               createRequestKey={createProfileRequestKey}
+              listRequestKey={profileListRequestKey}
               onCreateTask={(profile, taskType: ProfileTaskType) => {
                 transitionTaskFocus(null);
                 setSelectedProfile({ id: profile.id, name: profile.name });
