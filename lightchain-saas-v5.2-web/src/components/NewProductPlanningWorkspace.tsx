@@ -1220,7 +1220,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 />
                 {stage === "structure" ? (
                   <div className="conversation-quick-action">
-                    <Button variant="primary" size="small" onClick={() => { onTaskProgress?.(); continueToAiGeneration(); }}>继续生成 AI 改款 <FigmaIcon name="arrow-right" size={16} /></Button>
+                    <BusinessButton points={10} onClick={() => { onTaskProgress?.(); continueToAiGeneration(); }}>继续生成 AI 改款</BusinessButton>
                   </div>
                 ) : null}
               </AssistantMessage>

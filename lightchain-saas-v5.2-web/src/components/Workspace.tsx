@@ -333,6 +333,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
     .map((taskId) => tasks.find((task) => task.id === taskId))
     .filter((task): task is WorkspaceTask => Boolean(task));
   const isPlanMode = activeTab === 0 && productPlanningType === "plan";
+  const supportsProfileSelection = activeTab < 2 && !isPlanMode;
   const activeQuickStartCards = quickStartCardsByTab[activeTab] ?? quickStartCardsByTab[0];
   const reduceMotion = useReducedMotion();
   const homeEntranceControls = useAnimationControls();
@@ -527,6 +528,12 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
     setProjectMenuOpen(false);
     setAttachmentMenuOpen(false);
   }, [active]);
+
+  useEffect(() => {
+    if (!isPlanMode) return;
+    setProfileMenuOpen(false);
+    onSelectedProfileChange?.(null);
+  }, [isPlanMode, onSelectedProfileChange]);
 
   useEffect(() => {
     setProductPlanningMenuOpen(false);
@@ -1228,7 +1235,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
             </IconControl>
           </div>
           <div className="composer__footer">
-            {activeTab < 2 && <div className="composer-profile-select" ref={profileMenuRef}>
+            {supportsProfileSelection && <div className="composer-profile-select" ref={profileMenuRef}>
               <button
                 type="button"
                 className={`composer-select composer-select--profile ${profileMenuOpen ? "is-open" : ""}`}

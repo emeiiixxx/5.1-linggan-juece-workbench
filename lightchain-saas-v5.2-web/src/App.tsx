@@ -67,6 +67,17 @@ const stripTransientAttachmentUrls = (tasks: TaskRecord[]) => tasks.map((task) =
   attachments: task.attachments?.map(({ name }) => ({ name })),
 }));
 
+const mergePersistedTasksWithDemoDetails = (persistedTasks?: TaskRecord[]): TaskRecord[] => {
+  if (!persistedTasks) return [...allDemoTaskExamples];
+
+  const persistedTaskIds = new Set(persistedTasks.map((task) => task.id));
+  const persistedTaskTitles = new Set(persistedTasks.map((task) => task.title));
+  const missingDemoTasks = allDemoTaskExamples.filter((task) =>
+    !persistedTaskIds.has(task.id) && !persistedTaskTitles.has(task.title));
+
+  return [...persistedTasks, ...missingDemoTasks];
+};
+
 const workflowPageTitles: Record<TaskRecord["workflow"], string> = {
   "new-product": "新品企划",
   default: "客户提案",
@@ -101,7 +112,8 @@ export default function App() {
   const [selectedProfile, setSelectedProfile] = useState<SelectedProfile | null>(initialWorkspace?.selectedProfile ?? null);
   const [selectedProject, setSelectedProject] = useState<SelectedProject | null>(initialWorkspace?.selectedProject ?? null);
   const [createdProjects, setCreatedProjects] = useState<SelectedProject[]>(initialWorkspace?.createdProjects ?? []);
-  const [taskRecords, setTaskRecords] = useState<TaskRecord[]>(initialWorkspace?.taskRecords ?? allDemoTaskExamples);
+  const [taskRecords, setTaskRecords] = useState<TaskRecord[]>(() =>
+    mergePersistedTasksWithDemoDetails(initialWorkspace?.taskRecords));
   const [activeTaskId, setActiveTaskId] = useState<number | null>(initialWorkspace?.activeTaskId ?? null);
   const [taskLimitNotice, setTaskLimitNotice] = useState("");
   const [homeEntryKey, setHomeEntryKey] = useState(0);

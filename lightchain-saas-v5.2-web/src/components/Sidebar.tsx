@@ -270,12 +270,24 @@ export function Sidebar({
   };
 
   const openSavedTask = (projectId: number | null, title: string) => {
-    const taskId = createdTaskIdsRef.current.get(`${projectId ?? "task"}:${title}`);
+    const taskKey = `${projectId ?? "task"}:${title}`;
+    const taskId = createdTaskIdsRef.current.get(taskKey);
     if (taskId !== undefined) {
       setSelectedRow(null);
       onOpenTask?.(taskId);
       return;
     }
+
+    const fallbackTask = allDemoTaskExamples.find((task) =>
+      task.title === title && task.projectId === projectId)
+      ?? allDemoTaskExamples.find((task) => task.title === title);
+    if (fallbackTask) {
+      createdTaskIdsRef.current.set(taskKey, fallbackTask.id);
+      setSelectedRow(null);
+      onOpenTask?.(fallbackTask.id);
+      return;
+    }
+
     onSelectStaticRow?.();
   };
 

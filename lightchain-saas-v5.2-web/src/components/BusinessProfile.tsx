@@ -2,15 +2,13 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { motion, useReducedMotion } from "motion/react";
 import { createPortal } from "react-dom";
 import { FigmaIcon } from "./FigmaIcon";
-import { Radio } from "./Radio";
 import { assetUrl } from "../utils/assets";
 import { fileIconAssetPath } from "../utils/fileIcon";
 import { primaryPageEntrance, primaryPageEntranceFadeItem, primaryPageEntranceItem } from "../utils/pageMotion";
 import { useI18n } from "../i18n";
 import { Toast } from "./Toast";
 
-type ArchiveView = "list" | "create" | "edit" | "parsing" | "confirm" | "detail";
-type UploadState = "idle" | "ready";
+type ArchiveView = "list" | "create" | "edit" | "parsing" | "detail";
 type LocalUpload = { id: string; name: string; preview?: string };
 type ProfileTaskType = "new-product" | "customer-proposal";
 
@@ -24,11 +22,11 @@ type Profile = {
   channels: string[];
   brands: string[];
   visualPreference: string;
-  fileCount: number;
+  files: LocalUpload[];
   updated: string;
 };
 
-type Form = Omit<Profile, "id" | "updated" | "fileCount"> & { minPrice: string; maxPrice: string; currency: string };
+type Form = Omit<Profile, "id" | "updated" | "files"> & { minPrice: string; maxPrice: string; currency: string };
 
 type ViewTransitionDocument = Document & {
   startViewTransition?: (update: () => void) => { finished: Promise<void> };
@@ -45,7 +43,7 @@ const initialProfiles: Profile[] = [
     channels: ["ZOZOTOWN", "Rakuten Fashion"],
     brands: [],
     visualPreference: "",
-    fileCount: 1,
+    files: [{ id: "profile-1001-file-1", name: "日本通勤女装资料包.pdf" }],
     updated: "2026-08-04",
   },
   {
@@ -58,7 +56,7 @@ const initialProfiles: Profile[] = [
     channels: ["线下门店", "跨境电商"],
     brands: ["Thanos"],
     visualPreference: "漫威宇宙风格、赛博朋克、暗黑系",
-    fileCount: 1,
+    files: [{ id: "profile-1002-file-1", name: "Thanos品牌资料.pdf" }],
     updated: "2026-06-04",
   },
   {
@@ -71,7 +69,7 @@ const initialProfiles: Profile[] = [
     channels: ["天猫", "京东", "抖音", "小红书", "线下门店", "跨境电商"],
     brands: ["Cabbeen"],
     visualPreference: "",
-    fileCount: 1,
+    files: [{ id: "profile-1003-file-1", name: "卡宾鞋袋商品资料.xlsx" }],
     updated: "2026-08-04",
   },
   {
@@ -84,7 +82,7 @@ const initialProfiles: Profile[] = [
     channels: ["Retail", "E-commerce"],
     brands: ["Thanos"],
     visualPreference: "",
-    fileCount: 1,
+    files: [{ id: "profile-1004-file-1", name: "Thanos Brand Profile.pdf" }],
     updated: "Aug 4, 2026",
   },
 ];
@@ -265,6 +263,58 @@ function AdaptiveSelectTags({ values, onChange }: { values: string[]; onChange: 
   );
 }
 
+function TagInputField({ label, values, placeholder, onChange }: { label: string; values: string[]; placeholder: string; onChange: (values: string[]) => void }) {
+  const { t } = useI18n();
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const commitDraft = () => {
+    const additions = draft
+      .split(/[、,，;；\n]+/)
+      .map((value) => value.trim())
+      .filter((value) => value && !values.includes(value));
+    if (additions.length) onChange([...values, ...additions]);
+    setDraft("");
+  };
+
+  return (
+    <div className="profile-form-field profile-tag-input-field">
+      <span className="profile-form-label">{t(label)}</span>
+      <div className="profile-tag-input" onClick={() => inputRef.current?.focus()}>
+        {values.map((value) => (
+          <span className="profile-tag profile-tag--removable" key={value}>
+            <span title={value}>{value}</span>
+            <button
+              type="button"
+              aria-label={`${t("删除")} ${value}`}
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onChange(values.filter((item) => item !== value));
+              }}
+            >
+              <FigmaIcon name="close" size={12} />
+            </button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commitDraft}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+              event.preventDefault();
+              commitDraft();
+            }
+          }}
+          placeholder={values.length ? "" : t(placeholder)}
+          aria-label={t(label)}
+        />
+      </div>
+    </div>
+  );
+}
+
 function SelectField({ label, required, values, placeholder, options, onChange, multi = true, display = "tags", menuLabel }: {
   label: string; required?: boolean; values: string[]; placeholder: string; options: string[]; onChange: (values: string[]) => void; multi?: boolean; display?: "tags" | "text"; menuLabel?: string;
 }) {
@@ -318,7 +368,7 @@ function SelectField({ label, required, values, placeholder, options, onChange, 
   );
 }
 
-function UploadPanel({ state, onSelect, onRemove }: { state: UploadState; onSelect: () => void; onRemove: () => void }) {
+function UploadPanel({ files, parsed = false, onSelect, onRemove }: { files: LocalUpload[]; parsed?: boolean; onSelect: () => void; onRemove: (id: string) => void }) {
   const { t } = useI18n();
   return (
     <section className="profile-upload-panel">
@@ -326,22 +376,21 @@ function UploadPanel({ state, onSelect, onRemove }: { state: UploadState; onSele
         <strong>{t("上传资料包，自动预填档案")}</strong>
         <span>{t("支持商品企划、品牌资料、销售复盘、客户提案等")}<br />{t("支持 PDF、PPT、Word、Excel、CSV、JPG、PNG 格式")}</span>
       </div>
-      <button type="button" className="profile-button profile-button--primary profile-button--small" onClick={onSelect}>{t("选择资料")}</button>
-      {state === "ready" && (
-        <UploadFileRow onRemove={onRemove} />
-      )}
+      <button type="button" className="profile-button profile-button--primary profile-button--small" onClick={onSelect}>{t(parsed ? "重新上传并解析" : "选择资料")}</button>
+      {files.map((file) => <UploadFileRow key={file.id} name={file.name} preview={file.preview} onRemove={parsed ? undefined : () => onRemove(file.id)} />)}
     </section>
   );
 }
 
-function UploadFileRow({ onRemove, name = "日本通勤女装资料包.pdf", preview }: { onRemove: () => void; name?: string; preview?: string }) {
+function UploadFileRow({ onRemove, name = "日本通勤女装资料包.pdf", preview }: { onRemove?: () => void; name?: string; preview?: string }) {
   const { t } = useI18n();
   const fileIcon = assetUrl(fileIconAssetPath(name));
-  const trashIcon = assetUrl("assets/figma-icons/trash.svg");
   return <div className="profile-upload-file">
-    <img className={`profile-upload-file__type ${preview ? "is-thumbnail" : ""}`} src={preview ?? fileIcon} alt="" />
+    {preview
+      ? <img className="profile-upload-file__type is-thumbnail" src={preview} alt="" />
+      : <span className="profile-upload-file__type" aria-hidden="true"><i /><img src={fileIcon} alt="" /></span>}
     <span>{name}</span>
-    <button type="button" aria-label={t("移除文件")} onClick={onRemove}><img src={trashIcon} alt="" /></button>
+    {onRemove && <button type="button" aria-label={t("移除文件")} onClick={onRemove}><FigmaIcon name="trash" size={16} /></button>}
   </div>;
 }
 
@@ -369,10 +418,10 @@ export function BusinessProfile({ onCreateTask, createRequestKey = 0 }: { onCrea
   const [query, setQuery] = useState("");
   const [form, setForm] = useState<Form>(blankForm);
   const [animateCreateEntry, setAnimateCreateEntry] = useState(false);
-  const [uploadState, setUploadState] = useState<UploadState>("idle");
+  const [uploads, setUploads] = useState<LocalUpload[]>([]);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [priceChoice, setPriceChoice] = useState("JPY 8,000 – 18,000");
   const [parseProgress, setParseProgress] = useState(0);
+  const [parseDestination, setParseDestination] = useState<"create" | "edit">("create");
   const [detailUploadOpen, setDetailUploadOpen] = useState(false);
   const [toast, setToast] = useState("");
   const toastTimerRef = useRef<number | null>(null);
@@ -386,7 +435,7 @@ export function BusinessProfile({ onCreateTask, createRequestKey = 0 }: { onCrea
     if (profile !== undefined) setActiveProfile(profile);
     setView(nextView);
   };
-  const openCreate = () => { setForm(blankForm()); setUploadState("idle"); setAnimateCreateEntry(true); setView("create"); };
+  const openCreate = () => { setForm(blankForm()); setUploads([]); setAnimateCreateEntry(true); setView("create"); };
   const openDetail = (profile: Profile) => runViewTransition(() => setArchiveView("detail", profile));
   const returnToList = () => runViewTransition(() => setArchiveView("list"));
   const notify = (message: string) => {
@@ -404,65 +453,77 @@ export function BusinessProfile({ onCreateTask, createRequestKey = 0 }: { onCrea
   useEffect(() => {
     if (!createRequestKey) return;
     setForm(blankForm());
-    setUploadState("idle");
+    setUploads([]);
     setAnimateCreateEntry(true);
     setView("create");
   }, [createRequestKey]);
   const applyAutofill = () => {
-    setForm({ ...blankForm(), name: "日本通勤女装档案", category: ["女装"], minPrice: "8000", maxPrice: "18000", price: priceChoice, currency: "JPY", countries: ["日本"], ages: ["25–34岁"], channels: ["ZOZOTOWN", "Rakuten Fashion"], visualPreference: form.visualPreference });
+    setForm((current) => ({ ...blankForm(), name: "日本通勤女装档案", category: ["女装"], minPrice: "8000", maxPrice: "18000", price: "JPY 8,000 ～ 18,000", currency: "JPY", countries: ["日本"], ages: ["25–34岁"], channels: ["ZOZOTOWN", "Rakuten Fashion"], visualPreference: current.visualPreference }));
     setAnimateCreateEntry(false);
-    setView("create");
   };
   useEffect(() => {
     if (view !== "parsing") return;
     setParseProgress(0);
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const duration = reduceMotion ? 0 : 2800;
+    const startedAt = performance.now();
+    let animationFrame: number | undefined;
     let completeTimeout: number | undefined;
-    const interval = window.setInterval(() => {
-      setParseProgress((current) => {
-        const next = Math.min(current + 2, 100);
-        if (next === 100) {
-          window.clearInterval(interval);
-          completeTimeout = window.setTimeout(() => setView("confirm"), 480);
-        }
-        return next;
-      });
-    }, 56);
-    return () => { window.clearInterval(interval); if (completeTimeout) window.clearTimeout(completeTimeout); };
-  }, [view]);
+    const finish = () => {
+      setParseProgress(100);
+      completeTimeout = window.setTimeout(() => {
+        applyAutofill();
+        setView(parseDestination);
+      }, 480);
+    };
+    const updateProgress = (now: number) => {
+      if (duration === 0) {
+        finish();
+        return;
+      }
+      const elapsed = Math.min((now - startedAt) / duration, 1);
+      const eased = 1 - Math.pow(1 - elapsed, 3);
+      setParseProgress(Math.round(eased * 100));
+      if (elapsed < 1) animationFrame = window.requestAnimationFrame(updateProgress);
+      else finish();
+    };
+    animationFrame = window.requestAnimationFrame(updateProgress);
+    return () => {
+      if (animationFrame !== undefined) window.cancelAnimationFrame(animationFrame);
+      if (completeTimeout) window.clearTimeout(completeTimeout);
+    };
+  }, [parseDestination, view]);
   const save = () => {
     if (!canSave) return;
-    const profile: Profile = { id: Date.now(), name: form.name, category: form.category, price: `${form.currency} ${form.minPrice} ～ ${form.maxPrice}`, countries: form.countries, ages: form.ages, channels: form.channels, brands: form.brands, visualPreference: form.visualPreference, fileCount: uploadState === "ready" ? 1 : 0, updated: "刚刚" };
+    const profile: Profile = { id: Date.now(), name: form.name, category: form.category, price: `${form.currency} ${form.minPrice} ～ ${form.maxPrice}`, countries: form.countries, ages: form.ages, channels: form.channels, brands: form.brands, visualPreference: form.visualPreference, files: uploads, updated: "刚刚" };
     setProfiles((current) => [profile, ...current]);
     setArchiveView("detail", profile);
   };
   const saveModification = () => {
     if (!canSave || !activeProfile) return;
-    const updated: Profile = { ...activeProfile, name: form.name, category: form.category, price: `${form.currency} ${form.minPrice} ～ ${form.maxPrice}`, countries: form.countries, ages: form.ages, channels: form.channels, brands: form.brands, visualPreference: form.visualPreference, updated: "刚刚" };
+    const updated: Profile = { ...activeProfile, name: form.name, category: form.category, price: `${form.currency} ${form.minPrice} ～ ${form.maxPrice}`, countries: form.countries, ages: form.ages, channels: form.channels, brands: form.brands, visualPreference: form.visualPreference, files: uploads, updated: "刚刚" };
     setProfiles((current) => current.map((profile) => profile.id === updated.id ? updated : profile));
     setArchiveView("detail", updated);
     notify(t("档案已保存"));
   };
 
   if (view === "detail" && activeProfile) {
-    return <><ProfileDetail profile={activeProfile} onBack={returnToList} onCreateTask={onCreateTask} onEdit={() => { setForm(formFromProfile(activeProfile)); setView("edit"); }} onReparse={() => setDetailUploadOpen(true)} onRename={(name) => { const updated = { ...activeProfile, name, updated: "刚刚" }; setProfiles((current) => current.map((profile) => profile.id === updated.id ? updated : profile)); setActiveProfile(updated); notify(t("档案已重命名")); }} onDuplicate={() => { const prefix = activeProfile.name.replace(/-\d+$/, ""); let index = 1; while (profiles.some((profile) => profile.name === `${prefix}-${index}`)) index += 1; const copiedProfile = { ...activeProfile, id: Date.now(), name: `${prefix}-${index}`, updated: "刚刚" }; setProfiles((current) => [copiedProfile, ...current]); notify(t("复制成功")); }} onDelete={() => { setProfiles((current) => current.filter((profile) => profile.id !== activeProfile.id)); runViewTransition(() => setArchiveView("list", null)); notify(t("档案已删除")); }} />{detailUploadOpen && <UploadModal onClose={() => setDetailUploadOpen(false)} onConfirm={() => { setDetailUploadOpen(false); setForm(formFromProfile(activeProfile)); setUploadState("ready"); setView("parsing"); }} />}<Toast message={toast} /></>;
+    return <><ProfileDetail profile={activeProfile} onBack={returnToList} onCreateTask={onCreateTask} onEdit={() => { setForm(formFromProfile(activeProfile)); setUploads(activeProfile.files); setView("edit"); }} onReparse={() => setDetailUploadOpen(true)} onRemoveFile={(id) => { const file = activeProfile.files.find((item) => item.id === id); if (file?.preview) URL.revokeObjectURL(file.preview); const updated = { ...activeProfile, files: activeProfile.files.filter((item) => item.id !== id), updated: "刚刚" }; setProfiles((current) => current.map((profile) => profile.id === updated.id ? updated : profile)); setActiveProfile(updated); }} onRename={(name) => { const updated = { ...activeProfile, name, updated: "刚刚" }; setProfiles((current) => current.map((profile) => profile.id === updated.id ? updated : profile)); setActiveProfile(updated); notify(t("档案已重命名")); }} onDuplicate={() => { const prefix = activeProfile.name.replace(/-\d+$/, ""); let index = 1; while (profiles.some((profile) => profile.name === `${prefix}-${index}`)) index += 1; const copiedProfile = { ...activeProfile, id: Date.now(), name: `${prefix}-${index}`, updated: "刚刚" }; setProfiles((current) => [copiedProfile, ...current]); notify(t("复制成功")); }} onDelete={() => { setProfiles((current) => current.filter((profile) => profile.id !== activeProfile.id)); runViewTransition(() => setArchiveView("list", null)); notify(t("档案已删除")); }} />{detailUploadOpen && <UploadModal onClose={() => setDetailUploadOpen(false)} onConfirm={(files) => { setDetailUploadOpen(false); setForm(formFromProfile(activeProfile)); setUploads(files); setParseDestination("edit"); setView("parsing"); }} />}<Toast message={toast} /></>;
   }
 
-  if (view === "parsing" || view === "confirm") {
-    return <>
-      <CreatePage form={form} setForm={setForm} uploadState="ready" complete={complete} canSave={false} parsing={view === "parsing"} parseProgress={parseProgress} onBack={() => setView("list")} onSelectFile={() => setView("parsing")} onRemoveFile={() => setUploadState("idle")} onSave={save} onCancel={() => setView("list")} />
-      {view === "confirm" && <ParseConfirm choice={priceChoice} onChoice={setPriceChoice} onCancel={() => { setAnimateCreateEntry(false); setView("create"); }} onApply={applyAutofill} />}
-    </>;
+  if (view === "parsing") {
+    return <CreatePage form={form} setForm={setForm} files={uploads} complete={complete} canSave={false} parsing parseProgress={parseProgress} editing={parseDestination === "edit"} onBack={() => setView(parseDestination)} onSelectFile={() => setView("parsing")} onRemoveFile={(id) => setUploads((current) => current.filter((file) => file.id !== id))} onSave={parseDestination === "edit" ? saveModification : save} onCancel={() => setView(parseDestination)} />;
   }
 
   if (view === "create") {
     return <>
-      <CreatePage form={form} setForm={setForm} uploadState={uploadState} complete={complete} canSave={canSave} animateEntry={animateCreateEntry} onBack={() => setView("list")} onSelectFile={() => setUploadOpen(true)} onRemoveFile={() => setUploadState("idle")} onSave={save} onCancel={() => setView("list")} />
-      {uploadOpen && <UploadModal onClose={() => setUploadOpen(false)} onConfirm={() => { setUploadOpen(false); setUploadState("ready"); setView("parsing"); }} />}
+      <CreatePage form={form} setForm={setForm} files={uploads} complete={complete} canSave={canSave} animateEntry={animateCreateEntry} onBack={() => setView("list")} onSelectFile={() => setUploadOpen(true)} onRemoveFile={(id) => setUploads((current) => current.filter((file) => file.id !== id))} onSave={save} onCancel={() => setView("list")} />
+      {uploadOpen && <UploadModal onClose={() => setUploadOpen(false)} onConfirm={(files) => { setUploadOpen(false); setUploads(files); setParseDestination("create"); setView("parsing"); }} />}
     </>;
   }
 
   if (view === "edit" && activeProfile) {
-    return <><CreatePage form={form} setForm={setForm} uploadState={uploadState} complete={complete} canSave={canSave} editing onBack={() => setView("detail")} onSelectFile={() => setUploadOpen(true)} onRemoveFile={() => setUploadState("idle")} onSave={saveModification} onCancel={() => setView("detail")} />{uploadOpen && <UploadModal onClose={() => setUploadOpen(false)} onConfirm={() => { setUploadOpen(false); setUploadState("ready"); setView("parsing"); }} />}<Toast message={toast} /></>;
+    return <><CreatePage form={form} setForm={setForm} files={uploads} complete={complete} canSave={canSave} editing onBack={() => setView("detail")} onSelectFile={() => setUploadOpen(true)} onRemoveFile={(id) => setUploads((current) => current.filter((file) => file.id !== id))} onSave={saveModification} onCancel={() => setView("detail")} />{uploadOpen && <UploadModal onClose={() => setUploadOpen(false)} onConfirm={(files) => { setUploadOpen(false); setUploads(files); setParseDestination("edit"); setView("parsing"); }} />}<Toast message={toast} /></>;
   }
 
   const hasProfiles = visibleProfiles.length > 0;
@@ -490,7 +551,7 @@ export function BusinessProfile({ onCreateTask, createRequestKey = 0 }: { onCrea
   );
 }
 
-function CreatePage({ form, setForm, uploadState, complete, canSave, parsing, editing, animateEntry = false, parseProgress = 0, onBack, onSelectFile, onRemoveFile, onSave, onCancel }: { form: Form; setForm: (form: Form) => void; uploadState: UploadState; complete: number; canSave: boolean; parsing?: boolean; editing?: boolean; animateEntry?: boolean; parseProgress?: number; onBack: () => void; onSelectFile: () => void; onRemoveFile: () => void; onSave: () => void; onCancel: () => void; }) {
+function CreatePage({ form, setForm, files, complete, canSave, parsing, editing, animateEntry = false, parseProgress = 0, onBack, onSelectFile, onRemoveFile, onSave, onCancel }: { form: Form; setForm: (form: Form) => void; files: LocalUpload[]; complete: number; canSave: boolean; parsing?: boolean; editing?: boolean; animateEntry?: boolean; parseProgress?: number; onBack: () => void; onSelectFile: () => void; onRemoveFile: (id: string) => void; onSave: () => void; onCancel: () => void; }) {
   const { t } = useI18n();
   const reduceMotion = useReducedMotion();
   const change = <K extends keyof Form>(key: K, value: Form[K]) => setForm({ ...form, [key]: value });
@@ -500,7 +561,7 @@ function CreatePage({ form, setForm, uploadState, complete, canSave, parsing, ed
     <main className="profile-region profile-editor-region"><motion.div className="profile-editor-shell" data-node-id={parsing ? "328:5431" : "301:68938"} variants={primaryPageEntrance} initial={reduceMotion || !animateEntry ? false : "hidden"} animate="visible">
       <motion.button className="profile-back" type="button" onClick={onBack} variants={primaryPageEntranceItem}><FigmaIcon name="arrow-left" size={20} />{t("返回")}</motion.button>
       <motion.header className="profile-editor-header" variants={primaryPageEntranceItem}><h1>{t(editing ? "编辑业务偏好档案" : "创建业务偏好档案")}</h1><p>{t("保存不同任务中重复使用的业务范围，系统将在任务开始时自动应用")}</p></motion.header>
-      <motion.section className="profile-autofill" variants={primaryPageEntranceItem}><div className="profile-form-label">{t("智能预填")}</div><p>{t("系统只预填资料中明确提到的信息，未提及的字段将保持为空")}</p><UploadPanel state={uploadState} onSelect={onSelectFile} onRemove={onRemoveFile} /></motion.section>
+      <motion.section className="profile-autofill" variants={primaryPageEntranceItem}><div className="profile-form-label">{t("智能预填")}</div><p>{t("系统只预填资料中明确提到的信息，未提及的字段将保持为空")}</p><UploadPanel files={files} parsed={!parsing && files.length > 0} onSelect={onSelectFile} onRemove={onRemoveFile} /></motion.section>
       {parsing && <motion.div variants={primaryPageEntranceItem}><ParsingPanel progress={parseProgress} /></motion.div>}
       <motion.form className="profile-form" variants={primaryPageEntranceItem} onSubmit={(event) => { event.preventDefault(); onSave(); }}>
         <label className="profile-form-field"><span className="profile-form-label">{t("档案名称")}<b>*</b></span><input value={form.name} onChange={(event) => change("name", event.target.value)} placeholder={t("示例：通勤女装档案")} /></label>
@@ -511,16 +572,8 @@ function CreatePage({ form, setForm, uploadState, complete, canSave, parsing, ed
           <SelectField label="国家" required values={form.countries} placeholder="选择国家" options={["中国", "日本", "韩国", "美国", "欧洲", "非洲"]} onChange={(value) => change("countries", value)} menuLabel="选择国家（支持多选）" />
           <SelectField label="年龄段" required values={form.ages} placeholder="选择年龄段" options={["0–18岁", "19–24岁", "25–34岁", "35–44岁", "45–65岁"]} onChange={(value) => change("ages", value)} multi={false} display="text" menuLabel="选择年龄段" />
         </div>
-        <SelectField label="渠道" values={form.channels} placeholder="选择平台" options={["ZOZOTOWN", "Rakuten Fashion", "天猫", "京东", "抖音"]} onChange={(value) => change("channels", value)} />
-        <label className="profile-form-field" data-node-id="840:51182">
-          <span className="profile-form-label">{t("参考品牌")}</span>
-          <input
-            data-node-id="840:51184"
-            value={form.brands.join("、")}
-            onChange={(event) => change("brands", event.target.value ? [event.target.value] : [])}
-            placeholder={t("输入品牌名称")}
-          />
-        </label>
+        <TagInputField label="渠道" values={form.channels} placeholder="输入渠道名称，按回车确认" onChange={(value) => change("channels", value)} />
+        <TagInputField label="参考品牌" values={form.brands} placeholder="输入品牌名称，按回车确认" onChange={(value) => change("brands", value)} />
         <label className="profile-form-field profile-form-visual-preference" data-node-id="840:51052">
           <span className="profile-form-label">{t("视觉偏好")}</span>
           <textarea
@@ -531,7 +584,13 @@ function CreatePage({ form, setForm, uploadState, complete, canSave, parsing, ed
           />
         </label>
       </motion.form>
-      <motion.footer className="profile-form-footer" variants={primaryPageEntranceFadeItem}><button className="profile-button profile-button--secondary" type="button" disabled={!hasFormContent} onClick={() => setForm(blankForm())}><FigmaIcon name="reset" size={20} />{t("重置")}</button><span>{t("已完成")} <b>{complete} / 5</b> {t("项必填内容")}</span><div><button className="profile-button profile-button--secondary" type="button" onClick={onCancel}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" disabled={!canSave} onClick={onSave}>{t(editing ? "保存修改" : "保存档案")}</button></div></motion.footer>
+      <motion.div className="profile-form-footer-region" data-node-id="343:5706" variants={primaryPageEntranceFadeItem}>
+        <footer className="profile-form-footer" data-node-id="328:9406">
+          <button className="profile-button profile-button--outline" type="button" disabled={!hasFormContent} onClick={() => setForm(blankForm())}><FigmaIcon name="reset" size={20} />{t("重置")}</button>
+          <span>{t("已完成")} <b>{complete} / 5</b> {t("项必填内容")}</span>
+          <div><button className="profile-button profile-button--secondary" type="button" onClick={onCancel}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" disabled={!canSave} onClick={onSave}>{t(editing ? "保存修改" : "保存档案")}</button></div>
+        </footer>
+      </motion.div>
     </motion.div></main>
   );
 }
@@ -541,10 +600,11 @@ function ParsingPanel({ progress }: { progress: number }) {
   const tasks = ["读取日本通勤女装资料包.pdf", "提取商品企划与价格信息", "识别品类、国家、年龄段与渠道"];
   const completed = progress === 100 ? tasks.length : Math.min(tasks.length - 1, Math.floor(progress / 34));
   const successIcon = assetUrl("assets/figma-icons/success.svg");
-  return <section className="profile-parsing" aria-live="polite"><header><span className={`profile-parsing__status ${progress === 100 ? "is-complete" : "is-loading"}`}>{progress === 100 ? <img src={successIcon} alt="" /> : <i />}</span><div><strong>{t(progress === 100 ? "资料解析完成" : "正在解析资料包")}</strong><span>{t(progress === 100 ? "已识别可预填信息，正在准备确认结果" : "系统正在读取并识别资料内容")}</span></div></header><ul>{tasks.map((task, index) => <li className={index < completed || progress === 100 ? "is-complete" : index === completed ? "is-current" : ""} key={task} title={t(task)}><span>{index < completed || progress === 100 ? <img src={successIcon} alt="" /> : <i />}</span>{t(task)}</li>)}</ul><div className="profile-progress"><i><b style={{ width: `${progress}%` }} /></i><strong>{progress}%</strong></div></section>;
+  const loadingIcon = assetUrl("assets/figma-icons/demand-loading.svg");
+  return <section className="profile-parsing" data-node-id="328:5908" aria-live="polite" aria-label={`${t("正在解析资料包")} ${progress}%`}><header><strong>{t(progress === 100 ? "资料解析完成" : "正在解析资料包")}</strong><div className="profile-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><i><b style={{ transform: `scaleX(${progress / 100})` }} /></i><span>{progress}%</span></div></header><ul>{tasks.map((task, index) => { const isComplete = index < completed || progress === 100; const isCurrent = !isComplete && index === completed; return <li className={isComplete ? "is-complete" : isCurrent ? "is-current" : ""} key={task} title={t(task)}><span>{isComplete ? <img src={successIcon} alt="" /> : isCurrent ? <img className="profile-parsing__loading" src={loadingIcon} alt="" /> : <i />}</span><span>{t(task)}</span></li>; })}</ul></section>;
 }
 
-function UploadModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
+function UploadModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: (files: LocalUpload[]) => void }) {
   const { t } = useI18n();
   const [files, setFiles] = useState<LocalUpload[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -560,21 +620,7 @@ function UploadModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: (
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
-  return <div className="profile-confirm-backdrop profile-upload-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="profile-upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-title"><button className="profile-confirm__close" type="button" aria-label={t("关闭")} onClick={onClose}><FigmaIcon name="close" size={20} /></button><h2 id="upload-title">{t("上传资料")}</h2><p>{t("系统只预填资料中明确提到的信息，未提及的字段将保持为空")}</p><input ref={inputRef} className="profile-file-input" type="file" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png" onChange={(event) => { if (event.target.files) addFiles(event.target.files); event.target.value = ""; }} /><button className={`profile-dropzone ${dragging ? "is-dragging" : ""}`} type="button" onClick={() => inputRef.current?.click()} onDragEnter={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={(event) => { event.preventDefault(); setDragging(false); }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); setDragging(false); addFiles(event.dataTransfer.files); }}><img src={profileArt("empty-icon-file.png")} alt="" /><strong>{t(dragging ? "释放文件即可上传" : "拖放文件到此处，或点击选择")}</strong><span>{t("支持 PDF、PPT、Word、Excel、CSV、JPG、PNG 格式")}</span></button>{files.length > 0 && <div className="profile-upload-file-list">{files.map((file) => <UploadFileRow key={file.id} name={file.name} preview={file.preview} onRemove={() => removeFile(file.id)} />)}</div>}<footer><button className="profile-button profile-button--secondary" type="button" onClick={onClose}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" disabled={!files.length} onClick={onConfirm}>{t("开始解析")}</button></footer></section></div>;
-}
-
-function ParseConfirm({ choice, onChoice, onCancel, onApply }: { choice: string; onChoice: (value: string) => void; onCancel: () => void; onApply: () => void }) {
-  const { t } = useI18n();
-  const choices = ["JPY 8,000 – 18,000", "JPY 12,000 – 25,000", "暂不预填"];
-  const successIcon = assetUrl("assets/figma-icons/success.svg");
-  const infoIcon = assetUrl("assets/figma-icons/info-circle.svg");
-  const recognised = ["品类：女装", "价格段：JPY8,000–18,000", "国家：日本", "年龄段：25–34岁、35–44岁", "渠道：ZOZOTOWN、Rakuten Fashion"];
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onCancel(); };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onCancel]);
-  return <div className="profile-confirm-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}><section className="profile-confirm" role="dialog" aria-modal="true" aria-labelledby="parse-title"><button className="profile-confirm__close" type="button" aria-label={t("关闭")} onClick={onCancel}><FigmaIcon name="close" size={20} /></button><h2 id="parse-title">{t("资料解析完成")}</h2><p>{t("已识别并可预填 5 项信息，未提及内容保持为空。")}</p><ul>{recognised.map((value) => <li key={value}><img src={successIcon} alt="" /><span>{t(value)}</span></li>)}<li className="is-warning"><img src={infoIcon} alt="" /><span>{t("未识别：参考品牌")}</span></li></ul><div className="profile-confirm__divider" aria-hidden="true" /><strong>{t("价格段同时出现两个候选，请选择")}</strong><div className="profile-confirm__choices" role="radiogroup">{choices.map((value) => <button type="button" role="radio" aria-checked={choice === value} key={value} onClick={() => onChoice(value)}><Radio checked={choice === value} /><span>{t(value)}</span></button>)}</div><footer><button className="profile-button profile-button--secondary" type="button" onClick={onCancel}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" onClick={onApply}>{t("应用预填结果")}</button></footer></section></div>;
+  return <div className="profile-confirm-backdrop profile-upload-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="profile-upload-modal" role="dialog" aria-modal="true" aria-labelledby="upload-title"><button className="profile-confirm__close" type="button" aria-label={t("关闭")} onClick={onClose}><FigmaIcon name="close" size={20} /></button><h2 id="upload-title">{t("上传资料")}</h2><p>{t("系统只预填资料中明确提到的信息，未提及的字段将保持为空")}</p><input ref={inputRef} className="profile-file-input" type="file" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png" onChange={(event) => { if (event.target.files) addFiles(event.target.files); event.target.value = ""; }} /><button className={`profile-dropzone ${dragging ? "is-dragging" : ""}`} type="button" onClick={() => inputRef.current?.click()} onDragEnter={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={(event) => { event.preventDefault(); setDragging(false); }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); setDragging(false); addFiles(event.dataTransfer.files); }}><img src={profileArt("empty-icon-file.png")} alt="" /><strong>{t(dragging ? "释放文件即可上传" : "拖放文件到此处，或点击选择")}</strong><span>{t("支持 PDF、PPT、Word、Excel、CSV、JPG、PNG 格式")}</span></button>{files.length > 0 && <div className="profile-upload-file-list">{files.map((file) => <UploadFileRow key={file.id} name={file.name} preview={file.preview} onRemove={() => removeFile(file.id)} />)}</div>}<footer><button className="profile-button profile-button--secondary" type="button" onClick={onClose}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" disabled={!files.length} onClick={() => onConfirm(files)}>{t("开始解析")}</button></footer></section></div>;
 }
 
 function ProfileActionDialog({ mode, profile, name, titleId, onNameChange, onClose, onRename, onDelete }: { mode: "rename" | "delete"; profile: Profile; name: string; titleId: string; onNameChange: (name: string) => void; onClose: () => void; onRename: (name: string) => void; onDelete: () => void }) {
@@ -672,7 +718,7 @@ function ProfileCard({ profile, onDetail, onCreateTask, onRename, onDuplicate, o
       <header>
         <strong title={profile.name} style={sharedTransitionStyle(`profile-title-${profile.id}`)}>{profile.name}</strong>
         <span>{t("更新于")} {t(profile.updated)}</span>
-        <small>{t("资料")} {profile.fileCount} {t("份")}</small>
+        <small>{t("资料")} {profile.files.length} {t("份")}</small>
       </header>
       <div className="profile-card__body">
         <div>
@@ -701,7 +747,7 @@ function ProfileCard({ profile, onDetail, onCreateTask, onRename, onDuplicate, o
   );
 }
 
-function ProfileDetail({ profile, onBack, onCreateTask, onEdit, onReparse, onRename, onDuplicate, onDelete }: { profile: Profile; onBack: () => void; onCreateTask?: (profile: Profile, taskType: ProfileTaskType) => void; onEdit: () => void; onReparse: () => void; onRename: (name: string) => void; onDuplicate: () => void; onDelete: () => void }) {
+function ProfileDetail({ profile, onBack, onCreateTask, onEdit, onReparse, onRemoveFile, onRename, onDuplicate, onDelete }: { profile: Profile; onBack: () => void; onCreateTask?: (profile: Profile, taskType: ProfileTaskType) => void; onEdit: () => void; onReparse: () => void; onRemoveFile: (id: string) => void; onRename: (name: string) => void; onDuplicate: () => void; onDelete: () => void }) {
   const { locale, t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const [dialog, setDialog] = useState<"rename" | "delete" | null>(null);
@@ -719,5 +765,5 @@ function ProfileDetail({ profile, onBack, onCreateTask, onEdit, onReparse, onRen
     { label: "参考品牌", value: profile.brands.length ? localizedList(profile.brands) : t("未填写"), fullWidth: true },
     { label: "视觉偏好", value: profile.visualPreference.trim() || t("未填写"), fullWidth: true },
   ];
-  return <main className="profile-region profile-editor-region profile-scene"><div className="profile-editor-shell profile-detail-shell" data-node-id="333:13015"><button className="profile-back" type="button" onClick={onBack}><FigmaIcon name="arrow-left" size={20} />{t("返回")}</button><div className="profile-detail-stage" style={sharedTransitionStyle(`profile-card-${profile.id}`)}><header className="profile-detail-header"><div><h1 title={profile.name} style={sharedTransitionStyle(`profile-title-${profile.id}`)}>{profile.name}</h1><p>{t("用于任务中的默认业务范围与生成边界")}</p></div><div><ProfileTaskCreateMenu profile={profile} onCreateTask={onCreateTask} /><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onEdit}>{t("编辑")}</button><span className="profile-detail-more" ref={menuRef}><button className="profile-icon-button" type="button" aria-label={t("更多")} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><FigmaIcon name="more-horizontal" size={20} /></button>{menuOpen && <span className="profile-detail-menu" role="menu"><button type="button" role="menuitem" onClick={() => { setName(profile.name); setDialog("rename"); setMenuOpen(false); }}><FigmaIcon name="modify" size={16} /><span>{t("重命名")}</span></button><button type="button" role="menuitem" onClick={() => { onDuplicate(); setMenuOpen(false); }}><FigmaIcon name="copy" size={16} /><span>{t("复制档案")}</span></button><button className="is-danger" type="button" role="menuitem" onClick={() => { setDialog("delete"); setMenuOpen(false); }}><FigmaIcon name="trash" size={16} /><span>{t("删除")}</span></button></span>}</span></div></header><section className="profile-detail-grid" data-node-id="333:13055">{cells.map(({ label, value, fullWidth }) => <div className={fullWidth ? "profile-detail-grid__full-width" : undefined} key={label}><span>{t(label)}</span><strong title={value}>{value}</strong></div>)}</section><section className="profile-source-card"><div><span>{t("资料包")}</span><strong>{t("已上传 {count} 份资料", { count: profile.fileCount })}</strong></div><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onReparse}>{t("重新上传并解析")}</button></section></div></div>{dialog && <ProfileActionDialog mode={dialog} profile={profile} name={name} titleId="profile-action-title" onNameChange={setName} onClose={() => setDialog(null)} onRename={onRename} onDelete={onDelete} />}</main>;
+  return <main className="profile-region profile-editor-region profile-scene"><div className="profile-editor-shell profile-detail-shell" data-node-id="333:13015"><button className="profile-back" type="button" onClick={onBack}><FigmaIcon name="arrow-left" size={20} />{t("返回")}</button><div className="profile-detail-stage" style={sharedTransitionStyle(`profile-card-${profile.id}`)}><header className="profile-detail-header"><div><h1 title={profile.name} style={sharedTransitionStyle(`profile-title-${profile.id}`)}>{profile.name}</h1><p>{t("用于任务中的默认业务范围与生成边界")}</p></div><div><ProfileTaskCreateMenu profile={profile} onCreateTask={onCreateTask} /><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onEdit}>{t("编辑")}</button><span className="profile-detail-more" ref={menuRef}><button className="profile-icon-button" type="button" aria-label={t("更多")} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><FigmaIcon name="more-horizontal" size={20} /></button>{menuOpen && <span className="profile-detail-menu" role="menu"><button type="button" role="menuitem" onClick={() => { setName(profile.name); setDialog("rename"); setMenuOpen(false); }}><FigmaIcon name="modify" size={16} /><span>{t("重命名")}</span></button><button type="button" role="menuitem" onClick={() => { onDuplicate(); setMenuOpen(false); }}><FigmaIcon name="copy" size={16} /><span>{t("复制档案")}</span></button><button className="is-danger" type="button" role="menuitem" onClick={() => { setDialog("delete"); setMenuOpen(false); }}><FigmaIcon name="trash" size={16} /><span>{t("删除")}</span></button></span>}</span></div></header><section className="profile-detail-grid" data-node-id="333:13055">{cells.map(({ label, value, fullWidth }) => <div className={fullWidth ? "profile-detail-grid__full-width" : undefined} key={label}><span>{t(label)}</span><strong title={value}>{value}</strong></div>)}</section><section className="profile-source-card"><div className="profile-source-card__header"><span>{t("资料包")}</span><button className="profile-button profile-button--secondary profile-button--small" type="button" onClick={onReparse}>{t("重新上传并解析")}</button></div>{profile.files.length ? <div className="profile-source-card__files">{profile.files.map((file) => <UploadFileRow key={file.id} name={file.name} preview={file.preview} onRemove={() => onRemoveFile(file.id)} />)}</div> : <span className="profile-detail__empty">{t("未上传资料")}</span>}</section></div></div>{dialog && <ProfileActionDialog mode={dialog} profile={profile} name={name} titleId="profile-action-title" onNameChange={setName} onClose={() => setDialog(null)} onRename={onRename} onDelete={onDelete} />}</main>;
 }

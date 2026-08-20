@@ -4,7 +4,7 @@ const iconByExtension: Record<string, string> = {
   html: "file-html.svg",
   log: "file-txt.svg",
   md: "file-txt.svg",
-  pdf: "file-pdf.svg",
+  pdf: "file.svg",
   pps: "file-ppt.svg",
   ppsx: "file-ppt.svg",
   ppt: "file-ppt.svg",

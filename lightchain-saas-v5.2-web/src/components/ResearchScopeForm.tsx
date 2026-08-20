@@ -74,9 +74,6 @@ export function ResearchScopeForm({
   onReset,
   onConfirm,
 }: ResearchScopeFormProps) {
-  const prefillBadge = profileLinked
-    ? "已从企业档案带入预填信息，可修改"
-    : "已按语言预选地区，可修改";
   const guidance = profileLinked
     ? "已关联业务偏好档案，已提供默认调研范围，所有选项仍可调整。"
     : "未关联业务偏好档案，已根据当前语言预选地区，其余选项请按需选择。";
@@ -106,7 +103,6 @@ export function ResearchScopeForm({
           <strong>确认调研范围</strong>
         </div>
         <div className="research-scope-badges" aria-label="表单状态">
-          {!confirmed ? <span className="research-scope-badge">{prefillBadge}</span> : null}
           <span className={`research-scope-badge research-scope-badge--${confirmed ? "confirmed" : "pending"}`}>
             {confirmed ? "已确认" : "待确认"}
           </span>
