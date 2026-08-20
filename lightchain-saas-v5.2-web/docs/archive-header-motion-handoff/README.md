@@ -5,7 +5,7 @@
 状态：与当前首页实现对齐
 
 适用区域：首页业务场景 Tab 右侧
-代码基线：当前 `src/components/ArchiveHeaderMotion.tsx`
+代码基线：`a9270ca` 的 `src/components/ArchiveHeaderMotion.tsx`
 
 > 1.x 版本的“双玻璃卡片 5 秒开合”方案已经废弃，不得再作为开发实现依据。
 
