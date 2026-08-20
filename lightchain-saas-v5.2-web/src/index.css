@@ -8087,8 +8087,8 @@ img.trend-direction-media__slide {
   border-radius: var(--radius-base);
   color: var(--text-on-brand-white);
   background: rgb(36 48 50 / 80%);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
 }
 
 .beta-toast--error {

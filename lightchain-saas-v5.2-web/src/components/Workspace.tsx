@@ -4,7 +4,7 @@ import { quickStartCardsByTab, taskWorkflowLabels, type TaskSourceLabel, type Ta
 import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { FeaturedCases, type FeaturedCase } from "./FeaturedCases";
-import { ArchiveHeaderMotion } from "./GlassMotion";
+import { ArchiveHeaderMotion } from "./ArchiveHeaderMotion";
 import { IconControl } from "./IconControl";
 import { QuickStartCard } from "./QuickStartCard";
 import { primaryPageEntrance, primaryPageEntranceItem, primaryPageEntranceMediaItem } from "../utils/pageMotion";

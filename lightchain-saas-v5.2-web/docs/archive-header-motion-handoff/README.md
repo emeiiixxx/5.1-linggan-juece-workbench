@@ -5,7 +5,7 @@
 状态：与当前首页实现对齐
 
 适用区域：首页业务场景 Tab 右侧
-代码基线：`43f9b13` 之后的 `src/components/GlassMotion.tsx`
+代码基线：当前 `src/components/ArchiveHeaderMotion.tsx`
 
 > 1.x 版本的“双玻璃卡片 5 秒开合”方案已经废弃，不得再作为开发实现依据。
 
@@ -15,11 +15,11 @@
 
 | 文件 | 用途 |
 | --- | --- |
-| `src/components/GlassMotion.tsx` | 当前生产参考实现，也是动效行为真源 |
-| `src/index.css` 中 `.archive-header-motion*` | 布局、标签玻璃样式和响应式规则 |
+| `src/components/ArchiveHeaderMotion.tsx` | 当前生产参考实现，也是动效行为真源 |
+| `src/index.css` 中 `.archive-header-motion*` | 布局、标签样式和响应式规则 |
 | `public/assets/figma-confirmed/archive-header-*.png` | 4 个业务场景 × 深浅主题，共 8 张主视觉 |
-| 本目录 `GlassMotion.tsx` | 方便独立阅读和迁移的参考组件 |
-| 本目录 `glass-motion.css` | 迁移所需的最小样式集合 |
+| 本目录 `ArchiveHeaderMotion.tsx` | 方便独立阅读和迁移的参考组件 |
+| 本目录 `archive-header-motion.css` | 迁移所需的最小样式集合 |
 
 录屏只用于肉眼比对，不作为参数来源。
 
@@ -85,4 +85,4 @@
 
 ## 7. 开发交付话术
 
-> 首页业务场景 Tab 右侧动效以本 v2.0 交付表和当前 `src/components/GlassMotion.tsx` 为准。Figma负责确认视觉，代码负责确认状态、参数与降级规则。请勿使用旧版双玻璃卡片方案。完成后按 Tab 映射、深浅主题、鼠标避让、reduced-motion、Safari 和 900px 响应式逐项验收。
+> 首页业务场景 Tab 右侧动效以本 v2.0 交付表和当前 `src/components/ArchiveHeaderMotion.tsx` 为准。Figma负责确认视觉，代码负责确认状态、参数与降级规则。请勿使用旧版双玻璃卡片方案。完成后按 Tab 映射、深浅主题、鼠标避让、reduced-motion、Safari 和 900px 响应式逐项验收。
