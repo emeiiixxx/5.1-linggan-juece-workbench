@@ -148,7 +148,7 @@ export default function App() {
 
   useEffect(() => {
     if (!taskLimitNotice) return;
-    const timer = window.setTimeout(() => setTaskLimitNotice(""), 3600);
+    const timer = window.setTimeout(() => setTaskLimitNotice(""), 3000);
     return () => window.clearTimeout(timer);
   }, [taskLimitNotice]);
 

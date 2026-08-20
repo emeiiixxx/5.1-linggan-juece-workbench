@@ -7950,7 +7950,7 @@ img.trend-direction-media__slide {
   }
 }
 
-/* Lightchain SaaS v5.1 Beta · Toast / Tone=Success, Layout=Default */
+/* Lightchain SaaS v5.1 Beta · Toast / Layout=Horizontal */
 .toast-viewport {
   position: fixed;
   z-index: 1500;
@@ -7974,7 +7974,9 @@ img.trend-direction-media__slide {
 }
 
 .beta-toast--error {
-  border-color: var(--border-error, #8f4545);
+  border-color: var(--border-weak);
+  color: var(--status-danger);
+  background: var(--surface-danger);
 }
 
 .beta-toast__content {
@@ -8001,6 +8003,11 @@ img.trend-direction-media__slide {
   display: block;
   width: 14px;
   height: 14px;
+}
+
+.beta-toast--error .beta-toast__icon > img {
+  width: 13px;
+  height: 13px;
 }
 
 .conversation-feedback-backdrop {
