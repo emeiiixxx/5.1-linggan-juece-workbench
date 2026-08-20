@@ -2584,6 +2584,13 @@ a:focus-visible {
   right: 2px;
 }
 
+.workspace-task-cache {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
 .workspace-task-cache[hidden] {
   display: none !important;
 }

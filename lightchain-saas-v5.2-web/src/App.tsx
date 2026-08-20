@@ -47,7 +47,7 @@ type PersistedWorkspaceState = {
 };
 
 const WORKSPACE_STORAGE_KEY = "lightchain:v5.2:workspace";
-const MAX_CONCURRENT_TASKS = 5;
+const MAX_CONCURRENT_TASKS = 10;
 
 const readPersistedWorkspace = (): PersistedWorkspaceState | null => {
   if (typeof window === "undefined") return null;
