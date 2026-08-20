@@ -1,95 +1,85 @@
-.glass-motion {
+.archive-header-motion {
   position: absolute;
   right: 0;
   bottom: 0;
   z-index: 2;
+  display: block;
   width: 240px;
   height: 172px;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
 }
 
-.glass-motion__back,
-.glass-motion__front {
+.archive-header-motion__image {
   position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform-origin: 50% 50%;
-  transform-style: preserve-3d;
-  -webkit-backface-visibility: hidden;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  transform: translateZ(0);
   backface-visibility: hidden;
+}
+
+.archive-header-motion__sensor {
+  position: absolute;
+  inset: -20px;
+  z-index: 4;
+  pointer-events: auto;
+}
+
+.archive-header-motion__tag {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.archive-header-motion__tag--top {
+  top: 24px;
+  right: 0;
+}
+
+.archive-header-motion__tag--bottom {
+  top: 119px;
+  left: 2px;
+}
+
+.archive-header-motion__tag-repel,
+.archive-header-motion__tag-surface {
   will-change: transform;
 }
 
-.glass-motion__back {
-  top: 20px;
-  right: 7.94px;
-  width: 184.128px;
-  height: 205.341px;
+.archive-header-motion__tag-surface {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  border: 1px solid var(--border-weak);
+  border-radius: var(--radius-max);
+  color: #fff;
+  background: rgb(23 27 28 / 56%);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  white-space: nowrap;
+  -webkit-backdrop-filter: blur(30px);
+  backdrop-filter: blur(30px);
 }
 
-.glass-motion__back-static,
-.glass-motion__front-static {
-  flex: none;
-  transform: translateZ(0) rotate(15deg);
-  transform-style: preserve-3d;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
+.archive-header-motion--light .archive-header-motion__tag-surface {
+  border-color: rgb(255 255 255 / 50%);
+  color: #3d484b;
+  background: rgb(255 255 255 / 60%);
 }
 
-.glass-motion__back-card {
-  position: relative;
-  width: 144px;
-  height: 174px;
-  overflow: hidden;
-  border-radius: 20px;
+.archive-header-motion--light .archive-header-motion__tag--top {
+  right: 2px;
 }
 
-.glass-motion__back-content {
-  position: absolute;
-  inset: 0;
-}
-
-.glass-motion__back-content img {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 144px;
-  height: 174px;
-  max-width: none;
-  transform: translateZ(0) scale(1.002);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-
-.glass-motion__front {
-  top: 40px;
-  left: 0;
-  width: 185.43px;
-  height: 205.973px;
-}
-
-.glass-motion__front-static {
-  position: relative;
-  width: 145.263px;
-  height: 174.316px;
-  overflow: hidden;
-  -webkit-backdrop-filter: blur(50px);
-  backdrop-filter: blur(50px);
-  -webkit-clip-path: path("M0 24C0 10.7452 10.7452 0 24 0H100.509C104.362 0 108.057 1.53045 110.781 4.25466L141.008 34.4822C143.733 37.2065 145.263 40.9013 145.263 44.7539V150.316C145.263 163.571 134.518 174.316 121.263 174.316H24C10.7452 174.316 0 163.571 0 150.316V24Z");
-  clip-path: path("M0 24C0 10.7452 10.7452 0 24 0H100.509C104.362 0 108.057 1.53045 110.781 4.25466L141.008 34.4822C143.733 37.2065 145.263 40.9013 145.263 44.7539V150.316C145.263 163.571 134.518 174.316 121.263 174.316H24C10.7452 174.316 0 163.571 0 150.316V24Z");
-}
-
-.glass-motion__front-card {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 145.263px;
-  height: 174.316px;
-  max-width: none;
-  transform: translateZ(0) scale(1.002);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
+@media (max-width: 900px) {
+  .archive-header-motion {
+    display: none;
+  }
 }
 

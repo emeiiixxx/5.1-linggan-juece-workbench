@@ -218,6 +218,17 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
     && commercialChoice
     && changeChoice,
   );
+  const taskRunning = ["analyzing", "directions-loading", "candidates-loading", "candidate-analysis", "generating"].includes(stage);
+  const pauseCurrentStep = () => {
+    if (stage === "analyzing") setStage("brief");
+    else if (stage === "directions-loading") {
+      setBriefReply("");
+      setStage("brief");
+    }
+    else if (stage === "candidates-loading") setStage("directions");
+    else if (stage === "candidate-analysis") setStage("candidate-confirmation");
+    else if (stage === "generating") setStage("matrix");
+  };
 
   useEffect(() => {
     if (stage !== "analyzing") return;
@@ -810,7 +821,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
                 </AssistantMessage>
 
                 <AssistantMessage className="apparel-result-suggestions">
-                  <ConversationTaskCompletion message="该任务已完成。" suggestions={resultSuggestions} onSuggestion={submitMessage} />
+                  <ConversationTaskCompletion message="该任务已完成。" suggestions={readOnly ? [] : resultSuggestions} onSuggestion={readOnly ? undefined : submitMessage} />
                 </AssistantMessage>
               </>
             )}
@@ -832,6 +843,8 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
           placeholder={composerPlaceholder[stage]}
           hint={stage === "directions" ? "请先从上方表单完成设计方向选择" : stage === "candidates" ? "请先从上方选择参考素材，或选择跳过" : undefined}
           disabled={!composerEnabled || stage === "directions" || stage === "candidates"}
+          isRunning={taskRunning}
+          onStop={pauseCurrentStep}
         />
         </> : null}
       </section>

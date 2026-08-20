@@ -53,11 +53,11 @@ export function ArchiveHeaderMotion({ theme, activeTab }: { theme: "dark" | "lig
   const activeImage = themeImages[activeTab] ?? themeImages[0];
 
   useEffect(() => {
-    themeImages.forEach((image) => {
+    Object.values(archiveHeaderImages).flat().forEach((image) => {
       const preloadImage = new Image();
       preloadImage.src = assetUrl(image);
     });
-  }, [themeImages]);
+  }, []);
 
   useGSAP(() => {
     const topRepel = topRepelRef.current;

@@ -326,7 +326,7 @@ export function TaskConversationComposer({
         <span>{hint}</span>
         <IconControl
           className={`composer__send conversation-composer__send ${isRunning ? "is-running" : ""}`}
-          label={isRunning ? "停止当前任务" : "发送"}
+          label={isRunning ? "暂停当前任务" : "发送"}
           tooltipPlacement="top"
           disabled={isRunning ? !onStop : disabled || (!value.trim() && !attachments.length)}
           onClick={isRunning ? onStop : submit}

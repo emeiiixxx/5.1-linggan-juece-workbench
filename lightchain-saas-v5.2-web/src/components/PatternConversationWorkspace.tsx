@@ -182,6 +182,17 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
   const [replyAttachments, setReplyAttachments] = useState<Partial<Record<PatternStage, TaskConversationAttachment[]>>>({});
   const [batchProgress, setBatchProgress] = useState(0);
   const [resultFollowUps, setResultFollowUps] = useState<Array<{ request: string; attachments: TaskConversationAttachment[]; response: string }>>([]);
+  const taskRunning = ["analyzing", "directions-loading", "candidates-loading", "candidate-analysis", "generating"].includes(stage);
+  const pauseCurrentStep = () => {
+    if (stage === "analyzing") setStage("brief");
+    else if (stage === "directions-loading") {
+      setBriefReply("");
+      setStage("brief");
+    }
+    else if (stage === "candidates-loading") setStage("directions");
+    else if (stage === "candidate-analysis") setStage("candidate-confirmation");
+    else if (stage === "generating") setStage("matrix");
+  };
   const feedEndRef = useRef<HTMLDivElement>(null);
   const completionReportedRef = useRef(initialComplete);
   const reduceMotion = useReducedMotion();
@@ -566,7 +577,7 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
                     return <figure key={item[0]}><div className="apparel-result-media"><button type="button" aria-label={`查看 PT ${item[0]} ${item[1]} 大图`} onClick={() => setPreviewResult(item[0])}><ProgressiveImage src={assetUrl(path)} alt={`PT ${item[0]} ${item[1]}`} style={{ objectPosition: `${44 + (index % 3) * 6}% center` }} /></button><ImageActionBar favorited={favoriteResults.includes(item[0])} onFavorite={() => setFavoriteResults((current) => current.includes(item[0]) ? current.filter((id) => id !== item[0]) : [...current, item[0]])} onDownload={() => downloadAsset(path, `PT-${item[0]}-${item[1]}.jpg`)} /></div></figure>;
                   })}</div>
                 </AssistantMessage>
-                <AssistantMessage><ConversationTaskCompletion message="该图案设计任务已完成。" suggestions={resultSuggestions} onSuggestion={submitMessage} /></AssistantMessage>
+                <AssistantMessage><ConversationTaskCompletion message="该图案设计任务已完成。" suggestions={readOnly ? [] : resultSuggestions} onSuggestion={readOnly ? undefined : submitMessage} /></AssistantMessage>
               </>
             )}
 
@@ -586,6 +597,8 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
           placeholder={placeholders[stage]}
           hint={stage === "directions" ? "请先从上方表单完成设计方向选择" : stage === "candidates" ? "请先从上方选择参考图片，或选择跳过" : undefined}
           disabled={!composerEnabled || stage === "directions" || stage === "candidates"}
+          isRunning={taskRunning}
+          onStop={pauseCurrentStep}
         />
         </> : null}
       </section>

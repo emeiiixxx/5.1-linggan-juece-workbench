@@ -1,6 +1,7 @@
-import { Activity, lazy, Suspense, useLayoutEffect, useState } from "react";
+import { Activity, lazy, Suspense, useEffect, useLayoutEffect, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
+import { Toast } from "./components/Toast";
 import { Workspace } from "./components/Workspace";
 import {
   allDemoTaskExamples,
@@ -34,6 +35,38 @@ type TaskRecord = {
   initialState?: "default" | "confirmation" | "complete" | "exception";
 };
 
+type PersistedWorkspaceState = {
+  version: 1;
+  theme: Theme;
+  sidebarExpanded: boolean;
+  selectedProfile: SelectedProfile | null;
+  selectedProject: SelectedProject | null;
+  createdProjects: SelectedProject[];
+  taskRecords: TaskRecord[];
+  activeTaskId: number | null;
+};
+
+const WORKSPACE_STORAGE_KEY = "lightchain:v5.2:workspace";
+const MAX_CONCURRENT_TASKS = 5;
+
+const readPersistedWorkspace = (): PersistedWorkspaceState | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PersistedWorkspaceState>;
+    if (parsed.version !== 1 || !Array.isArray(parsed.taskRecords)) return null;
+    return parsed as PersistedWorkspaceState;
+  } catch {
+    return null;
+  }
+};
+
+const stripTransientAttachmentUrls = (tasks: TaskRecord[]) => tasks.map((task) => ({
+  ...task,
+  attachments: task.attachments?.map(({ name }) => ({ name })),
+}));
+
 const workflowPageTitles: Record<TaskRecord["workflow"], string> = {
   "new-product": "新品企划",
   default: "客户提案",
@@ -60,14 +93,16 @@ const resolveTaskWorkflow = (task: TaskRecord): TaskWorkflow => {
 
 export default function App() {
   const appShellRef = useGsapStaggerEntrance<HTMLDivElement>(".topbar, .sidebar", { y: -8 });
-  const [theme, setTheme] = useState<Theme>("dark");
-  const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [initialWorkspace] = useState(readPersistedWorkspace);
+  const [theme, setTheme] = useState<Theme>(initialWorkspace?.theme ?? "dark");
+  const [sidebarExpanded, setSidebarExpanded] = useState(initialWorkspace?.sidebarExpanded ?? true);
   const [activeView, setActiveView] = useState<"workspace" | "preferences">("workspace");
-  const [selectedProfile, setSelectedProfile] = useState<SelectedProfile | null>(null);
-  const [selectedProject, setSelectedProject] = useState<SelectedProject | null>(null);
-  const [createdProjects, setCreatedProjects] = useState<SelectedProject[]>([]);
-  const [taskRecords, setTaskRecords] = useState<TaskRecord[]>(allDemoTaskExamples);
-  const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<SelectedProfile | null>(initialWorkspace?.selectedProfile ?? null);
+  const [selectedProject, setSelectedProject] = useState<SelectedProject | null>(initialWorkspace?.selectedProject ?? null);
+  const [createdProjects, setCreatedProjects] = useState<SelectedProject[]>(initialWorkspace?.createdProjects ?? []);
+  const [taskRecords, setTaskRecords] = useState<TaskRecord[]>(initialWorkspace?.taskRecords ?? allDemoTaskExamples);
+  const [activeTaskId, setActiveTaskId] = useState<number | null>(initialWorkspace?.activeTaskId ?? null);
+  const [taskLimitNotice, setTaskLimitNotice] = useState("");
   const [homeEntryKey, setHomeEntryKey] = useState(0);
   const [newTaskKey, setNewTaskKey] = useState(0);
   const [newTaskWorkflow, setNewTaskWorkflow] = useState<"new-product" | "default" | null>(null);
@@ -84,19 +119,44 @@ export default function App() {
     : activeTask
       ? workflowPageTitles[activeTask.workflow]
       : "灵感决策工作台";
+  const concurrentTaskCount = taskRecords.filter((task) => task.status !== "completed").length;
+
+  const rejectNewTaskWhenFull = () => {
+    if (concurrentTaskCount < MAX_CONCURRENT_TASKS) return false;
+    setTaskLimitNotice("当前任务数量已达上限，请稍后再试。");
+    return true;
+  };
 
   const transitionTaskFocus = (nextTaskId: number | null) => {
     if (activeTaskId !== null && nextTaskId === null) {
       setHomeEntryKey((value) => value + 1);
     }
-    const updatedAt = new Date().toISOString();
-    setTaskRecords((current) => current.map((task) => {
-      if (task.id === activeTaskId && task.id !== nextTaskId && task.status === "running") {
-        return { ...task, status: "pending", updatedAt };
-      }
-      return task;
-    }));
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const persistedState: PersistedWorkspaceState = {
+      version: 1,
+      theme,
+      sidebarExpanded,
+      selectedProfile,
+      selectedProject,
+      createdProjects,
+      taskRecords: stripTransientAttachmentUrls(taskRecords),
+      activeTaskId,
+    };
+    try {
+      window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(persistedState));
+    } catch {
+      // The prototype remains usable when storage is unavailable or full.
+    }
+  }, [activeTaskId, createdProjects, selectedProfile, selectedProject, sidebarExpanded, taskRecords, theme]);
+
+  useEffect(() => {
+    if (!taskLimitNotice) return;
+    const timer = window.setTimeout(() => setTaskLimitNotice(""), 3600);
+    return () => window.clearTimeout(timer);
+  }, [taskLimitNotice]);
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -128,6 +188,14 @@ export default function App() {
             setActiveTaskId(null);
             setNewTaskKey((value) => value + 1);
           }}
+          onStartNewTask={() => {
+            if (rejectNewTaskWhenFull()) return;
+            transitionTaskFocus(null);
+            setNewTaskWorkflow(null);
+            setActiveView("workspace");
+            setActiveTaskId(null);
+            setNewTaskKey((value) => value + 1);
+          }}
           onOpenPreferences={() => {
             transitionTaskFocus(null);
             setActiveTaskId(null);
@@ -141,7 +209,9 @@ export default function App() {
             ]);
             setSelectedProject(project);
           }}
+          createdProjects={createdProjects}
           onCreateTaskInProject={(project) => {
+            if (rejectNewTaskWhenFull()) return;
             transitionTaskFocus(null);
             setNewTaskWorkflow(null);
             setSelectedProject(project);
@@ -185,6 +255,7 @@ export default function App() {
             <BusinessProfile
               createRequestKey={createProfileRequestKey}
               onCreateTask={(profile, taskType: ProfileTaskType) => {
+                if (rejectNewTaskWhenFull()) return;
                 transitionTaskFocus(null);
                 setSelectedProfile({ id: profile.id, name: profile.name });
                 setNewTaskWorkflow(taskType === "new-product" ? "new-product" : "default");
@@ -200,6 +271,7 @@ export default function App() {
             theme={theme}
             active={activeView === "workspace"}
             activeTask={activeTask}
+            tasks={resolvedTaskRecords}
             homeEntryKey={homeEntryKey}
             onHomeReentry={() => setHomeEntryKey((value) => value + 1)}
             newTaskKey={newTaskKey}
@@ -230,6 +302,10 @@ export default function App() {
               ));
             }}
             onCreateTask={({ title, projectId, prompt, workflow, sourceLabel, attachments }) => {
+              if (concurrentTaskCount >= MAX_CONCURRENT_TASKS) {
+                setTaskLimitNotice("当前任务数量已达上限，请稍后再试。");
+                return false;
+              }
               const id = Date.now();
               const task: TaskRecord = {
                 id,
@@ -245,17 +321,15 @@ export default function App() {
               };
               setTaskRecords((current) => [
                 task,
-                ...current.map((currentTask) =>
-                  currentTask.id === activeTaskId && currentTask.status === "running"
-                    ? { ...currentTask, status: "pending" as const, updatedAt: task.updatedAt }
-                    : currentTask,
-                ),
+                ...current,
               ]);
               setActiveTaskId(id);
+              return true;
             }}
           />
         </Activity>
       </div>
+      <Toast message={taskLimitNotice} variant="error" />
     </div>
     </I18nProvider>
   );

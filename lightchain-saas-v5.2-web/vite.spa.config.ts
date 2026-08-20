@@ -4,5 +4,5 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
-  base: mode === "production" ? "/5.1-linggan-juece-workbench/" : "/",
+  base: mode === "production" ? "/5.2-linggan-juece-workbench/" : "/",
 }));

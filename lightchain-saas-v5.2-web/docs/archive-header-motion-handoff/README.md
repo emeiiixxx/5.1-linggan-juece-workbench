@@ -1,105 +1,88 @@
-# 灵感档案头图 Motion React 动效交付表
+# 首页业务场景 Tab 右侧动效交付表
 
-版本：1.0  
-状态：开发参考实现已接入  
-适用页面：新建任务页头部  
-实现技术：React 19 + Motion for React 12
+版本：2.0
 
-## 1. 文件清单
+状态：与当前首页实现对齐
+
+适用区域：首页业务场景 Tab 右侧
+代码基线：`43f9b13` 之后的 `src/components/GlassMotion.tsx`
+
+> 1.x 版本的“双玻璃卡片 5 秒开合”方案已经废弃，不得再作为开发实现依据。
+
+## 1. 真源与交付文件
+
+视觉外观以当前 Figma 节点为准；状态、参数和降级行为以代码为准。
 
 | 文件 | 用途 |
 | --- | --- |
-| `README.md` | 动效参数、播放规则和验收标准 |
-| `GlassMotion.tsx` | 可移植的 Motion React 参考组件 |
-| `glass-motion.css` | 组件所需的完整布局与渲染样式 |
+| `src/components/GlassMotion.tsx` | 当前生产参考实现，也是动效行为真源 |
+| `src/index.css` 中 `.archive-header-motion*` | 布局、标签玻璃样式和响应式规则 |
+| `public/assets/figma-confirmed/archive-header-*.png` | 4 个业务场景 × 深浅主题，共 8 张主视觉 |
+| 本目录 `GlassMotion.tsx` | 方便独立阅读和迁移的参考组件 |
+| 本目录 `glass-motion.css` | 迁移所需的最小样式集合 |
 
-该动效由两个独立透明图片图层组成。图片只负责视觉，位移和旋转全部由页面运行时控制，不使用 SVG 内嵌动画，也不使用 Canvas 或 Three.js。
+录屏只用于肉眼比对，不作为参数来源。
 
-## 2. 容器与图层
+## 2. 状态映射
 
-| 对象 | 定位/尺寸 | 静态状态 | 动画属性 | Transform origin |
+| activeTab | Tab | 主视觉文件名 | 上标签 | 下标签 |
 | --- | --- | --- | --- | --- |
-| 总容器 | 右下对齐；240 × 172 px；裁切溢出 | 不接收鼠标事件 | 无 | — |
-| 后卡动画层 | top 20 px；right 7.94 px；184.128 × 205.341 px | 内层固定旋转 15° | rotate、x、y | 50% 50% |
-| 后卡视觉层 | 144 × 174 px；圆角 20 px | `translateZ(0) scale(1.002)` | 无 | — |
-| 前卡动画层 | top 40 px；left 0；185.43 × 205.973 px | 内层固定旋转 15° | rotate、x、y | 50% 50% |
-| 前卡视觉层 | 145.263 × 174.316 px；按档案卡路径裁切 | `translateZ(0) scale(1.002)` | 无 | — |
+| 0 | 商品企划 | `product-planning` | 精准选品 | 市场洞察 |
+| 1 | 客户提案 | `client-proposal` | 高效沟通 | 创意提案 |
+| 2 | 服装设计 | `fashion-design` | 个性定制 | 潮流设计 |
+| 3 | 图案设计 | `pattern-design` | 视觉吸引 | 原创图案 |
 
-固定的 15° 基础旋转放在静态内层；运行时动画放在外层。两种 transform 不可合并在同一个 DOM 节点，否则 Motion 的行内 transform 会覆盖基础旋转。
+每个主视觉包含 dark / light 两张 PNG。原图为 480 × 344，按 240 × 172 CSS px 显示。
 
-## 3. 时间轴
+## 3. 动效参数
 
-单程时长为 5 秒，随后镜像返回；完整往返周期为 10 秒，无限循环。
-
-| 图层/属性 | 关键帧值 | 时间点 | 分段缓动 |
-| --- | --- | --- | --- |
-| 后卡 rotate | `[0, 0, 5, 5]` deg | `[0, 20%, 48.26%, 100%]` | linear / Figma spring / linear |
-| 后卡 x | `[0, 0, 1.397, 1.397]` px | `[0, 25.27%, 48.26%, 100%]` | linear / Figma spring / linear |
-| 后卡 y | `[0, 0, -15.964, -15.964]` px | `[0, 25.27%, 48.26%, 100%]` | linear / Figma spring / linear |
-| 前卡 rotate | `[0, 0, -20, -20]` deg | `[0, 20%, 48.26%, 100%]` | linear / Figma spring / linear |
-| 前卡 x | `[0, 0, -2.854, -2.854]` px | `[0, 25.42%, 48.26%, 100%]` | linear / Figma spring / linear |
-| 前卡 y | `[0, 0, -7.844, -7.844]` px | `[0, 25.42%, 48.26%, 100%]` | linear / Figma spring / linear |
-
-Figma spring 函数已经包含在 `GlassMotion.tsx` 中，以代码为准。
-
-## 4. 播放规则
-
-| 场景 | 行为 |
+| 对象 | 规则 |
 | --- | --- |
-| 组件进入页面 | 自动播放 |
-| 正常状态 | 5 秒单程，`repeat: Infinity`，`repeatType: "mirror"` |
-| `paused=true` | 停在当前画面，不继续更新 |
-| 系统开启“减少动态效果” | 停止动画并回到初始静态状态 |
-| 主题切换 | 保持同一时间轴，不依赖重新加载图片来重启动画 |
-| 页面交互 | 插画 `aria-hidden=true`、`pointer-events:none`，不阻挡 Tab 或鼠标操作 |
+| 总容器 | 240 × 172 px，首页头部右下对齐 |
+| 上标签自动漂浮 | `y: 0 → -6px`；3.9s；`sine.inOut`；yoyo；无限循环 |
+| 下标签自动漂浮 | `y: 0 → 6px`；4.4s；延迟 0.7s；`sine.inOut`；yoyo；无限循环 |
+| 鼠标避让范围 | 标签中心 96px 半径内生效 |
+| 最大避让距离 | 18px |
+| 上标签回位 | 0.46s；`power3.out` |
+| 下标签回位 | 0.5s；`power3.out` |
+| 标签表面 | 圆角胶囊；30px backdrop blur；深浅主题使用对应 Token/颜色 |
 
-## 5. 素材清单
+主视觉中的复杂玻璃质感已经由 PNG 保证。不要重新用 CSS、SVG 内嵌动画、GIF、Canvas 或 Three.js 猜测液态玻璃效果。
 
-| 图层 | 当前项目源文件 | 规格 | 用法 |
-| --- | --- | --- | --- |
-| 后卡 | `public/assets/figma-icons/glass-motion-56659-back-v2@2x.png` | 288 × 348，RGBA PNG | 显示为 144 × 174 px |
-| 前卡 | `public/assets/figma-icons/glass-motion-56659-front-base@2x.png` | 291 × 349，RGBA PNG | 显示为 145.263 × 174.316 px |
+## 4. 播放与降级规则
 
-素材要求：保留透明通道和 2× 清晰度；不要把动画写进 SVG/GIF；不要在素材内烘焙运行时位移或旋转。
+- 进入首页后自动播放标签漂浮。
+- 只响应鼠标；触屏和手写笔不触发避让。
+- 鼠标离开感应区后标签回到自动漂浮轨迹。
+- 首次挂载时预加载深浅主题全部 8 张图片。
+- Safari 为避免透明图片交叉淡入闪烁，当前方案直接切换预加载后的活动图片，不做多图 opacity crossfade。
+- 系统开启“减少动态效果”后，自动漂浮和鼠标避让均停止，显示稳定静态画面。
+- 插画为装饰内容，`aria-hidden=true`，不进入 Tab 顺序。
+- 900px 及以下隐藏整组右侧动效；这是当前产品规则，不是浏览器异常。
 
-## 6. 前端接入
+## 5. 开发接入
 
-安装依赖：
+当前参考实现使用：
 
-```bash
-npm install motion
-```
+- GSAP：自动漂浮、鼠标避让和回位。
+- Motion for React：只读取 `prefers-reduced-motion`。
+- React props：`theme: "dark" | "light"`、`activeTab: number`。
 
-引入组件和 CSS，并把正式项目中的素材 URL 传入：
+正式项目已有 GSAP 时应直接迁移参数。若没有 GSAP，可用 Web Animations API 或 CSS keyframes 实现自动漂浮，但鼠标避让仍需运行时插值；替换技术不能改变上述行为和降级规则。
 
-```tsx
-import { ArchiveHeaderMotion } from "./GlassMotion";
-import "./glass-motion.css";
+## 6. 验收清单
 
-<ArchiveHeaderMotion
-  theme="dark"
-  backImageSrc="/assets/archive-back@2x.png"
-  frontImageSrc="/assets/archive-front@2x.png"
-/>
-```
+- [ ] 4 个 Tab 的图片和两条标签文案映射正确。
+- [ ] 深浅主题均使用对应素材，首次主题切换不出现空白或闪图。
+- [ ] 上下标签的方向、幅度、时长和错峰符合参数表。
+- [ ] 鼠标接近时标签远离指针，离开后自然回位，没有跳变。
+- [ ] 触屏设备不产生意外位移。
+- [ ] reduced-motion 下完全静止。
+- [ ] Chrome、Safari、Firefox 连续切换 Tab 时无闪烁、锯齿和布局抖动。
+- [ ] 动效不遮挡标题、Tab、输入框或其他交互区域。
+- [ ] 900px 及以下隐藏，宽屏保持 240 × 172 比例。
+- [ ] 装饰内容不进入无障碍树或键盘焦点顺序。
 
-如果正式项目没有 Motion for React，可用 CSS keyframes 还原同一组关键帧；不可把实现替换回依赖外链 SVG 内部自动播放的方案。
+## 7. 开发交付话术
 
-## 7. 验收清单
-
-- [ ] Chrome、Safari、Firefox 中均能自动播放并持续往返。
-- [ ] 前后卡运动方向、幅度和停留时间与交付表一致。
-- [ ] 动画过程中卡片边缘无闪烁、锯齿或裁切跳动。
-- [ ] 深色和浅色主题切换时动画不中断、不重新闪现。
-- [ ] 开启 macOS/iOS“减少动态效果”后显示稳定静态画面。
-- [ ] 动画仅更新 transform，不触发页面布局重排。
-- [ ] 插画不遮挡标题、Tab、输入框或其他交互热区。
-- [ ] 窄屏、缩放和高分屏下素材比例保持一致。
-
-## 8. 最终交付包建议
-
-1. Figma 源组件节点链接。
-2. 本文件夹中的三个文件。
-3. 两张透明 2× 图片素材。
-4. 一段完整 10 秒往返录屏，仅作为视觉比对，不作为参数来源。
-
+> 首页业务场景 Tab 右侧动效以本 v2.0 交付表和当前 `src/components/GlassMotion.tsx` 为准。Figma负责确认视觉，代码负责确认状态、参数与降级规则。请勿使用旧版双玻璃卡片方案。完成后按 Tab 映射、深浅主题、鼠标避让、reduced-motion、Safari 和 900px 响应式逐项验收。

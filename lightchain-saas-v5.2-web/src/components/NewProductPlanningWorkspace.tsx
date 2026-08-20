@@ -997,7 +997,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
       const messageId = pendingResultGeneration.messageId;
       setPendingResultGeneration(null);
       setAdditionalMessages((current) => current.map((message) => message.id === messageId
-        ? { ...message, response: "已停止本轮 AI 改款生成。你可以继续修改要求后重新发送。", isGenerating: false }
+        ? { ...message, response: "已暂停本轮 AI 改款生成。你可以继续修改要求后重新发送。", isGenerating: false }
         : message));
     } else if (stage === "research") setStage("scope");
     else if (stage === "structure-planning") setStage("directions");
@@ -1303,8 +1303,8 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 <AssistantMessage>
                   <ConversationTaskCompletion
                     message="任务已完成。"
-                    suggestions={["分析企划中采用的面料与工艺细节", "基于这份企划制作客户提案", "整理确认款的后续开发清单"]}
-                    onSuggestion={submitCompletionSuggestion}
+                    suggestions={readOnly ? [] : ["分析企划中采用的面料与工艺细节", "基于这份企划制作客户提案", "整理确认款的后续开发清单"]}
+                    onSuggestion={readOnly ? undefined : submitCompletionSuggestion}
                   />
                 </AssistantMessage>
               </>

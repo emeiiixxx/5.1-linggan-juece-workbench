@@ -126,7 +126,7 @@ export function TopBar({ theme, onToggleTheme }: TopBarProps) {
                 </button>
               ))}
             </div>
-            <p className="credits-dialog__note">确认购买后积分将立即到账，并返回当前任务继续操作。</p>
+            <p className="credits-dialog__note">确认购买后积分将立即到账，并从当前任务最后一个已成功确认的节点继续。</p>
             <footer className="credits-dialog__actions">
               <Button variant="secondary" onClick={() => setCreditsOpen(false)}>取消</Button>
               <Button variant="primary" onClick={() => { setCreditBalance((balance) => balance + selectedCreditPackage); window.dispatchEvent(new CustomEvent("lightchain:credits-purchased", { detail: { amount: selectedCreditPackage } })); setCreditsOpen(false); }}>确认购买</Button>

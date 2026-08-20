@@ -33,9 +33,11 @@ type SidebarProps = {
   activeView?: "workspace" | "preferences";
   activeTaskId?: number | null;
   onOpenWorkspace?: () => void;
+  onStartNewTask?: () => void;
   onOpenPreferences?: () => void;
   createProjectRequestKey?: number;
   onProjectCreated?: (project: { id: number; name: string }) => void;
+  createdProjects?: { id: number; name: string }[];
   onCreateTaskInProject?: (project: { id: number; name: string }) => void;
   createdTask?: {
     id: number;
@@ -47,7 +49,9 @@ type SidebarProps = {
     updatedAt: string;
   } | null;
   taskRecords?: {
+    id: number;
     title: string;
+    projectId: number | null;
     workflow: TaskWorkflow;
     sourceLabel?: TaskSourceLabel;
     status: TaskStatus;
@@ -109,9 +113,11 @@ export function Sidebar({
   activeView = "workspace",
   activeTaskId = null,
   onOpenWorkspace,
+  onStartNewTask,
   onOpenPreferences,
   createProjectRequestKey = 0,
   onProjectCreated,
+  createdProjects = [],
   onCreateTaskInProject,
   createdTask,
   taskRecords = [],
@@ -126,16 +132,30 @@ export function Sidebar({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [collapsedMenu, setCollapsedMenu] = useState<"recent" | null>(null);
-  const [groups, setGroups] = useState(() =>
-    projectGroups.map((group, groupIndex) => ({
+  const [groups, setGroups] = useState(() => {
+    const initialGroups = projectGroups.map((group, groupIndex) => ({
       id: groupIndex,
       ...group,
       items: [...group.items],
       expanded: groupIndex === 0 && group.items.length > 0,
       showAll: false,
-    })),
-  );
-  const [tasks, setTasks] = useState(() => [...taskItems]);
+    }));
+    createdProjects.forEach((project) => {
+      if (!initialGroups.some((group) => group.id === project.id)) {
+        initialGroups.unshift({ id: project.id, title: project.name, items: [], expanded: true, showAll: false });
+      }
+    });
+    taskRecords.forEach((task) => {
+      if (task.projectId === null) return;
+      const group = initialGroups.find((item) => item.id === task.projectId);
+      if (group && !group.items.includes(task.title)) group.items.unshift(task.title);
+    });
+    return initialGroups;
+  });
+  const [tasks, setTasks] = useState(() => [
+    ...taskRecords.filter((task) => task.projectId === null).map((task) => task.title),
+    ...taskItems,
+  ].filter((title, index, items) => items.indexOf(title) === index));
   const [selectedRow, setSelectedRow] = useState<SelectedRow | null>(null);
   const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null);
   const [dialog, setDialog] = useState<DialogState | null>(null);
@@ -155,10 +175,18 @@ export function Sidebar({
   const [collapsedFlyoutMaxHeight, setCollapsedFlyoutMaxHeight] = useState<number>();
   const lastCreatedTaskIdRef = useRef<number | null>(null);
   const createdTaskIdsRef = useRef(new Map<string, number>(
-    allDemoTaskExamples.map((task) => [`${task.projectId ?? "task"}:${task.title}`, task.id]),
+    taskRecords.map((task) => [`${task.projectId ?? "task"}:${task.title}`, task.id] as [string, number]),
   ));
   const taskSidebarMetaRef = useRef(new Map<string, TaskSidebarMeta>(
-    Object.entries(initialTaskSidebarMeta),
+    [
+      ...Object.entries(initialTaskSidebarMeta),
+      ...taskRecords.map((task) => [task.title, {
+        workflow: task.workflow,
+        sourceLabel: task.sourceLabel,
+        status: task.status,
+        updatedAt: task.updatedAt,
+      }] as [string, TaskSidebarMeta]),
+    ],
   ));
   const taskRecordMeta = new Map<string, TaskSidebarMeta>(taskRecords.map((task) => [
     task.title,
@@ -227,6 +255,11 @@ export function Sidebar({
   }, [createdTask]);
 
   const openNewTask = () => {
+    setSelectedRow(null);
+    onStartNewTask?.();
+  };
+
+  const returnHome = () => {
     setSelectedRow(null);
     onOpenWorkspace?.();
   };
@@ -1088,7 +1121,7 @@ export function Sidebar({
                 variant="bare"
                 label={t("返回首页")}
                 tooltipPlacement="bottom"
-                onClick={openNewTask}
+                onClick={returnHome}
               >
                 <FigmaIcon name="chevron-left" size={16} />
               </IconControl>

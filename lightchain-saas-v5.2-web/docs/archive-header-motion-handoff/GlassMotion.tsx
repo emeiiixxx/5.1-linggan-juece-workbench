@@ -1,134 +1,152 @@
-import { useEffect } from "react";
-import { motion, useAnimationControls, useReducedMotion } from "motion/react";
+import { useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useReducedMotion } from "motion/react";
+import { gsap } from "gsap";
 
-const figmaSpring = (value: number) =>
-  1 -
-  Math.exp(-value * 7.5232) *
-    (Math.cos(value * 8.8463) + 0.8504 * Math.sin(value * 8.8463));
+const images = {
+  dark: [
+    "archive-header-product-planning.png",
+    "archive-header-client-proposal.png",
+    "archive-header-fashion-design.png",
+    "archive-header-pattern-design.png",
+  ],
+  light: [
+    "archive-header-product-planning-light.png",
+    "archive-header-client-proposal-light.png",
+    "archive-header-fashion-design-light.png",
+    "archive-header-pattern-design-light.png",
+  ],
+} as const;
 
-type GlassMotionProps = {
-  backImageSrc: string;
-  frontImageSrc: string;
-  paused?: boolean;
-  theme?: "dark" | "light";
+const labels = [
+  { top: "精准选品", bottom: "市场洞察" },
+  { top: "高效沟通", bottom: "创意提案" },
+  { top: "个性定制", bottom: "潮流设计" },
+  { top: "视觉吸引", bottom: "原创图案" },
+] as const;
+
+type QuickSetters = {
+  topX: (value: number) => void;
+  topY: (value: number) => void;
+  bottomX: (value: number) => void;
+  bottomY: (value: number) => void;
 };
 
-export function ArchiveHeaderMotion(props: GlassMotionProps) {
-  return <GlassMotion {...props} />;
-}
+type LabelCenters = {
+  top: { x: number; y: number };
+  bottom: { x: number; y: number };
+};
 
-export function GlassMotion({
-  backImageSrc,
-  frontImageSrc,
-  paused = false,
-  theme = "dark",
-}: GlassMotionProps) {
+type ArchiveHeaderMotionProps = {
+  theme: "dark" | "light";
+  activeTab: number;
+  assetBaseUrl: string;
+  translate?: (value: string) => string;
+};
+
+export function ArchiveHeaderMotion({
+  theme,
+  activeTab,
+  assetBaseUrl,
+  translate = (value) => value,
+}: ArchiveHeaderMotionProps) {
   const reduceMotion = useReducedMotion();
-  const backControls = useAnimationControls();
-  const frontControls = useAnimationControls();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const topRepelRef = useRef<HTMLDivElement>(null);
+  const topFloatRef = useRef<HTMLDivElement>(null);
+  const bottomRepelRef = useRef<HTMLDivElement>(null);
+  const bottomFloatRef = useRef<HTMLDivElement>(null);
+  const quickSettersRef = useRef<QuickSetters | null>(null);
+  const labelCentersRef = useRef<LabelCenters | null>(null);
+  const activeLabels = labels[activeTab] ?? labels[0];
+  const activeImage = images[theme][activeTab] ?? images[theme][0];
+  const assetUrl = (fileName: string) => `${assetBaseUrl.replace(/\/$/, "")}/${fileName}`;
 
   useEffect(() => {
-    if (reduceMotion) {
-      backControls.stop();
-      frontControls.stop();
-      backControls.set({ rotate: 0, x: 0, y: 0 });
-      frontControls.set({ rotate: 0, x: 0, y: 0 });
-      return;
-    }
-
-    if (paused) {
-      backControls.stop();
-      frontControls.stop();
-      return;
-    }
-
-    void backControls.start({
-      rotate: [0, 0, 5, 5],
-      x: [0, 0, 1.397, 1.397],
-      y: [0, 0, -15.964, -15.964],
+    Object.values(images).flat().forEach((fileName) => {
+      const image = new Image();
+      image.src = assetUrl(fileName);
     });
-    void frontControls.start({
-      rotate: [0, 0, -20, -20],
-      x: [0, 0, -2.854, -2.854],
-      y: [0, 0, -7.844, -7.844],
-    });
-  }, [backControls, frontControls, paused, reduceMotion]);
+  }, [assetBaseUrl]);
+
+  useLayoutEffect(() => {
+    const topRepel = topRepelRef.current;
+    const topFloat = topFloatRef.current;
+    const bottomRepel = bottomRepelRef.current;
+    const bottomFloat = bottomFloatRef.current;
+    if (!rootRef.current || !topRepel || !topFloat || !bottomRepel || !bottomFloat) return;
+
+    const context = gsap.context(() => {
+      gsap.set([topRepel, topFloat, bottomRepel, bottomFloat], { x: 0, y: 0, force3D: true });
+      if (reduceMotion) return;
+
+      gsap.to(topFloat, { y: -6, duration: 3.9, ease: "sine.inOut", repeat: -1, yoyo: true });
+      gsap.to(bottomFloat, { y: 6, duration: 4.4, delay: 0.7, ease: "sine.inOut", repeat: -1, yoyo: true });
+
+      quickSettersRef.current = {
+        topX: gsap.quickTo(topRepel, "x", { duration: 0.46, ease: "power3.out" }),
+        topY: gsap.quickTo(topRepel, "y", { duration: 0.46, ease: "power3.out" }),
+        bottomX: gsap.quickTo(bottomRepel, "x", { duration: 0.5, ease: "power3.out" }),
+        bottomY: gsap.quickTo(bottomRepel, "y", { duration: 0.5, ease: "power3.out" }),
+      };
+    }, rootRef);
+
+    return () => {
+      quickSettersRef.current = null;
+      context.revert();
+    };
+  }, [reduceMotion]);
+
+  const captureCenters = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse") return;
+    const top = topRepelRef.current?.getBoundingClientRect();
+    const bottom = bottomRepelRef.current?.getBoundingClientRect();
+    if (!top || !bottom) return;
+    labelCentersRef.current = {
+      top: { x: top.left + top.width / 2, y: top.top + top.height / 2 },
+      bottom: { x: bottom.left + bottom.width / 2, y: bottom.top + bottom.height / 2 },
+    };
+  };
+
+  const repel = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse" || !labelCentersRef.current || !quickSettersRef.current) return;
+    const vector = (center: { x: number; y: number }, fallbackY: number) => {
+      const dx = center.x - event.clientX;
+      const dy = center.y - event.clientY;
+      const distance = Math.hypot(dx, dy);
+      const magnitude = 18 * Math.max(0, 1 - distance / 96);
+      if (distance < 0.001) return { x: 0, y: fallbackY * magnitude };
+      return { x: (dx / distance) * magnitude, y: (dy / distance) * magnitude };
+    };
+    const top = vector(labelCentersRef.current.top, -1);
+    const bottom = vector(labelCentersRef.current.bottom, 1);
+    quickSettersRef.current.topX(top.x);
+    quickSettersRef.current.topY(top.y);
+    quickSettersRef.current.bottomX(bottom.x);
+    quickSettersRef.current.bottomY(bottom.y);
+  };
+
+  const settle = () => {
+    labelCentersRef.current = null;
+    quickSettersRef.current?.topX(0);
+    quickSettersRef.current?.topY(0);
+    quickSettersRef.current?.bottomX(0);
+    quickSettersRef.current?.bottomY(0);
+  };
 
   return (
-    <div
-      className={`glass-motion glass-motion--${theme}`}
-      data-motion-runtime="motion-react"
-      aria-hidden="true"
-    >
-      <motion.div
-        className="glass-motion__back"
-        initial={{ rotate: 0, x: 0, y: 0 }}
-        animate={backControls}
-        transition={{
-          rotate: {
-            duration: 5,
-            times: [0, 0.2, 0.4826, 1],
-            ease: ["linear", figmaSpring, "linear"],
-            repeat: Infinity,
-            repeatType: "mirror",
-          },
-          x: {
-            duration: 5,
-            times: [0, 0.2527, 0.4826, 1],
-            ease: ["linear", figmaSpring, "linear"],
-            repeat: Infinity,
-            repeatType: "mirror",
-          },
-          y: {
-            duration: 5,
-            times: [0, 0.2527, 0.4826, 1],
-            ease: ["linear", figmaSpring, "linear"],
-            repeat: Infinity,
-            repeatType: "mirror",
-          },
-        }}
-      >
-        <div className="glass-motion__back-static">
-          <div className="glass-motion__back-card">
-            <div className="glass-motion__back-content">
-              <img src={backImageSrc} alt="" />
-            </div>
-          </div>
+    <div ref={rootRef} className={`archive-header-motion archive-header-motion--${theme}`} aria-hidden="true">
+      <img className="archive-header-motion__image" src={assetUrl(activeImage)} alt="" />
+      <div className="archive-header-motion__sensor" onPointerEnter={captureCenters} onPointerMove={repel} onPointerLeave={settle} />
+      <div className="archive-header-motion__tag archive-header-motion__tag--top">
+        <div ref={topRepelRef} className="archive-header-motion__tag-repel">
+          <div ref={topFloatRef} className="archive-header-motion__tag-surface"><span>{translate(activeLabels.top)}</span></div>
         </div>
-      </motion.div>
-
-      <motion.div
-        className="glass-motion__front"
-        initial={{ rotate: 0, x: 0, y: 0 }}
-        animate={frontControls}
-        transition={{
-          rotate: {
-            duration: 5,
-            times: [0, 0.2, 0.4826, 1],
-            ease: ["linear", figmaSpring, "linear"],
-            repeat: Infinity,
-            repeatType: "mirror",
-          },
-          x: {
-            duration: 5,
-            times: [0, 0.2542, 0.4826, 1],
-            ease: ["linear", figmaSpring, "linear"],
-            repeat: Infinity,
-            repeatType: "mirror",
-          },
-          y: {
-            duration: 5,
-            times: [0, 0.2542, 0.4826, 1],
-            ease: ["linear", figmaSpring, "linear"],
-            repeat: Infinity,
-            repeatType: "mirror",
-          },
-        }}
-      >
-        <div className="glass-motion__front-static">
-          <img className="glass-motion__front-card" src={frontImageSrc} alt="" />
+      </div>
+      <div className="archive-header-motion__tag archive-header-motion__tag--bottom">
+        <div ref={bottomRepelRef} className="archive-header-motion__tag-repel">
+          <div ref={bottomFloatRef} className="archive-header-motion__tag-surface"><span>{translate(activeLabels.bottom)}</span></div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

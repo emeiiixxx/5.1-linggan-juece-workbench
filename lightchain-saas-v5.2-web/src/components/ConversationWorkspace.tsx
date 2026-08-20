@@ -860,7 +860,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
       setCustomerAiRevisionMessages((current) => current.map((message) => message.isGenerating ? {
         ...message,
         isGenerating: false,
-        response: "本次修改已停止，已生成的图片不会被覆盖。",
+        response: "本次修改已暂停，已生成的图片不会被覆盖。你可以调整要求后继续。",
       } : message));
       return;
     }
@@ -1724,8 +1724,8 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                 >
                                   <ConversationTaskCompletion
                                     message="任务已完成。"
-                                    suggestions={["基于这份提案生成客户演示稿", "整理确认款的后续开发清单", "为这份提案生成客户跟进邮件"]}
-                                    onSuggestion={submitCompletionSuggestion}
+                                    suggestions={readOnly ? [] : ["基于这份提案生成客户演示稿", "整理确认款的后续开发清单", "为这份提案生成客户跟进邮件"]}
+                                    onSuggestion={readOnly ? undefined : submitCompletionSuggestion}
                                   />
                                 </motion.article>
                               ) : null}

@@ -261,10 +261,11 @@ function ComposerEntityMenu<T extends ComposerMenuOption>({
   );
 }
 
-export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, onHomeReentry, newTaskKey = 0, newTaskWorkflow = null, selectedProfile, onSelectedProfileChange, onCreateProfile, selectedProject, createdProjects = [], onSelectedProjectChange, onCreateProject, onTaskStatusChange, onCreateTask }: {
+export function Workspace({ theme, active = true, activeTask, tasks = [], homeEntryKey = 0, onHomeReentry, newTaskKey = 0, newTaskWorkflow = null, selectedProfile, onSelectedProfileChange, onCreateProfile, selectedProject, createdProjects = [], onSelectedProjectChange, onCreateProject, onTaskStatusChange, onCreateTask }: {
   theme: "dark" | "light";
   active?: boolean;
   activeTask?: WorkspaceTask | null;
+  tasks?: readonly WorkspaceTask[];
   homeEntryKey?: number;
   onHomeReentry?: () => void;
   newTaskKey?: number;
@@ -277,7 +278,7 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
   onSelectedProjectChange?: (project: ProjectOption | null) => void;
   onCreateProject?: () => void;
   onTaskStatusChange?: (taskId: number, status: "running" | "completed") => void;
-  onCreateTask?: (task: { title: string; projectId: number | null; prompt: string; attachments?: { name: string; previewUrl?: string }[]; workflow: TaskWorkflow; sourceLabel: TaskSourceLabel }) => void;
+  onCreateTask?: (task: { title: string; projectId: number | null; prompt: string; attachments?: { name: string; previewUrl?: string }[]; workflow: TaskWorkflow; sourceLabel: TaskSourceLabel }) => boolean;
 }) {
   const { locale, t } = useI18n();
   const [activeTab, setActiveTab] = useState(0);
@@ -285,6 +286,7 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
   const [productPlanningMenuOpen, setProductPlanningMenuOpen] = useState(false);
   const [quickStartOpen, setQuickStartOpen] = useState(true);
   const [selectedFeaturedCase, setSelectedFeaturedCase] = useState<FeaturedCase | null>(null);
+  const [mountedTaskIds, setMountedTaskIds] = useState<number[]>(() => activeTask ? [activeTask.id] : []);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
@@ -310,6 +312,12 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
   const activeTaskId = activeTask?.id ?? null;
+  const taskIdsToRender = activeTask && !mountedTaskIds.includes(activeTask.id)
+    ? [...mountedTaskIds, activeTask.id]
+    : mountedTaskIds;
+  const mountedTasks = taskIdsToRender
+    .map((taskId) => tasks.find((task) => task.id === taskId))
+    .filter((task): task is WorkspaceTask => Boolean(task));
   const isPlanMode = activeTab === 0 && productPlanningType === "plan";
   const activeQuickStartCards = quickStartCardsByTab[activeTab] ?? quickStartCardsByTab[0];
   const reduceMotion = useReducedMotion();
@@ -443,6 +451,11 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
   }, [activeTask]);
 
   useEffect(() => {
+    if (!activeTask) return;
+    setMountedTaskIds((current) => current.includes(activeTask.id) ? current : [...current, activeTask.id]);
+  }, [activeTask]);
+
+  useEffect(() => {
     if (!homeVisible) return;
     if (reduceMotion) {
       homeEntranceControls.set("visible");
@@ -512,14 +525,15 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
     const taskAttachments = workflow !== "plan"
       ? attachments.map(({ name, previewUrl }) => ({ name, previewUrl }))
       : undefined;
-    onCreateTask?.({
+    const created = onCreateTask?.({
       title,
       projectId: selectedProject?.id ?? null,
       prompt: taskMessage,
       attachments: taskAttachments,
       workflow,
       sourceLabel: taskWorkflowLabels[workflow],
-    });
+    }) ?? false;
+    if (!created) return false;
     if (workflow === "plan") attachments.forEach((attachment) => {
       if (attachment.previewUrl) {
         URL.revokeObjectURL(attachment.previewUrl);
@@ -527,20 +541,19 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
       }
     });
     setAttachments([]);
+    return true;
   };
 
   const send = () => {
     const taskMessage = message.trim();
     if (!taskMessage) return;
-    createTask(taskMessage, activeTab);
-    setMessage("");
+    if (createTask(taskMessage, activeTab)) setMessage("");
   };
 
   const sendPlan = () => {
     const taskMessage = planPromptRef.current.trim();
     if (!taskMessage) return;
-    createTask(taskMessage, 0);
-    planPromptRef.current = "";
+    if (createTask(taskMessage, 0)) planPromptRef.current = "";
   };
 
   const addAttachments = (event: ChangeEvent<HTMLInputElement>, kind: Attachment["kind"]) => {
@@ -648,9 +661,11 @@ export function Workspace({ theme, active = true, activeTask, homeEntryKey = 0, 
 
   return (
     <Suspense fallback={<main className="workspace-region" aria-busy="true" />}>
-    {activeTask ? (
-      <TaskConversation key={activeTaskId} task={activeTask} onTaskStatusChange={onTaskStatusChange} />
-    ) : null}
+    {mountedTasks.map((task) => (
+      <div className="workspace-task-cache" hidden={activeTaskId !== task.id} key={task.id}>
+        <TaskConversation task={task} onTaskStatusChange={onTaskStatusChange} />
+      </div>
+    ))}
     <Activity mode={!activeTask && selectedFeaturedCase ? "visible" : "hidden"} name="featured-case-preview">
       {selectedFeaturedCase ? (
         <section className="featured-case-preview" aria-label={`${t("只读案例")}：${t(selectedFeaturedCase.title)}`}>
