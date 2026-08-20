@@ -3568,12 +3568,38 @@ a:focus-visible {
   height: 100%;
 }
 
+.featured-case-preview__action-region {
+  position: absolute;
+  right: 64px;
+  bottom: 24px;
+  left: 0;
+  z-index: 13;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.featured-case-preview:has(.workspace-region--conversation.has-detail-panel) .featured-case-preview__action-region {
+  right: 352px;
+}
+
+.featured-case-preview:has(.task-detail-panel.is-reference-expanded) .featured-case-preview__action-region {
+  right: 424px;
+}
+
+.profile-button.featured-case-preview__reuse {
+  min-width: 0;
+  border-radius: var(--radius-max);
+  box-shadow: var(--shadow-xl);
+  pointer-events: auto;
+}
+
 .featured-case-preview__content .workspace-region--conversation.is-read-only .conversation-feed {
   padding-top: 84px;
 }
 
 .workspace-region--conversation.is-read-only .conversation-stage {
-  --conversation-composer-clearance: 48px;
+  --conversation-composer-clearance: 96px;
 }
 
 .workspace-region--conversation.is-read-only .conversation-suggestion-list,

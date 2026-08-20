@@ -30,6 +30,7 @@ const copy: Record<string, Translation> = {
   "展开菜单": { ja: "メニューを開く", en: "Expand menu" },
   "工作台入口": { ja: "ワークスペースメニュー", en: "Workspace navigation" },
   "新建任务": { ja: "新規タスク", en: "New Task" },
+  "复制初始输入新建任务": { ja: "最初の入力をコピーして新規タスクを作成", en: "Reuse Initial Prompt" },
   "业务偏好档案": { ja: "ビジネスプロファイル", en: "Business Profile" },
   "企业偏好档案": { ja: "ビジネスプロファイル", en: "Business Profile" },
   "项目": { ja: "プロジェクト", en: "Projects" },

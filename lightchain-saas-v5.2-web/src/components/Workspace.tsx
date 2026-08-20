@@ -31,6 +31,11 @@ const PlanConversationWorkspace = lazy(() =>
 const tabs = ["商品企划", "客户提案", "服装设计", "图案设计"] as const;
 const compactEnglishTabs = ["Planning", "Proposal", "Apparel", "Pattern"] as const;
 type ProductPlanningType = "new-product" | "plan";
+type PendingFeaturedCaseReuse = {
+  prompt: string;
+  tab: number;
+  planningType?: ProductPlanningType;
+};
 const productPlanningOptions: { value: ProductPlanningType; label: TaskSourceLabel; icon: string }[] = [
   { value: "new-product", label: "新品企划", icon: "apparel-design-menu" },
   { value: "plan", label: "企划案", icon: "plan" },
@@ -286,6 +291,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
   const [productPlanningMenuOpen, setProductPlanningMenuOpen] = useState(false);
   const [quickStartOpen, setQuickStartOpen] = useState(true);
   const [selectedFeaturedCase, setSelectedFeaturedCase] = useState<FeaturedCase | null>(null);
+  const [pendingFeaturedCaseReuse, setPendingFeaturedCaseReuse] = useState<PendingFeaturedCaseReuse | null>(null);
   const [mountedTaskIds, setMountedTaskIds] = useState<number[]>(() => activeTask ? [activeTask.id] : []);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
@@ -603,11 +609,16 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
     }
   };
 
-  const fillComposerFromQuickStart = (text: string, targetPlanningType?: ProductPlanningType) => {
-    const shouldFillPlan = activeTab === 0
+  const fillComposerDraft = (text: string, targetTab = activeTab, targetPlanningType?: ProductPlanningType) => {
+    const shouldFillPlan = targetTab === 0
       && (targetPlanningType ?? productPlanningType) === "plan";
 
-    if (activeTab === 0 && targetPlanningType) {
+    if (targetTab !== activeTab) {
+      setActiveTab(targetTab);
+      onSelectedProfileChange?.(null);
+    }
+
+    if (targetTab === 0 && targetPlanningType) {
       setProductPlanningType(targetPlanningType);
       setProductPlanningMenuOpen(false);
     }
@@ -623,6 +634,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
       return;
     }
 
+    setMessage("");
     planPromptRef.current = text;
     planHasUserDraftRef.current = true;
     savedPlanEditorHtmlRef.current = text;
@@ -641,6 +653,41 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
       selection?.addRange(range);
     });
   };
+
+  const reuseFeaturedCasePrompt = () => {
+    if (!selectedFeaturedCase) return;
+
+    const target = selectedFeaturedCase.workflow === "new-product"
+      ? { tab: 0, planningType: "new-product" as const }
+      : selectedFeaturedCase.workflow === "plan"
+        ? { tab: 0, planningType: "plan" as const }
+        : selectedFeaturedCase.workflow === "default"
+          ? { tab: 1 }
+          : selectedFeaturedCase.workflow === "apparel"
+            ? { tab: 2 }
+            : { tab: 3 };
+
+    const prompt = selectedFeaturedCase.prompt;
+    setPendingFeaturedCaseReuse({
+      prompt,
+      tab: target.tab,
+      planningType: "planningType" in target ? target.planningType : undefined,
+    });
+    setSelectedFeaturedCase(null);
+    setProductPlanningMenuOpen(false);
+    setProfileMenuOpen(false);
+    setProjectMenuOpen(false);
+    setAttachmentMenuOpen(false);
+    onHomeReentry?.();
+  };
+
+  useEffect(() => {
+    if (!pendingFeaturedCaseReuse || selectedFeaturedCase || activeTask) return;
+
+    const draft = pendingFeaturedCaseReuse;
+    setPendingFeaturedCaseReuse(null);
+    fillComposerDraft(draft.prompt, draft.tab, draft.planningType);
+  }, [activeTask, pendingFeaturedCaseReuse, selectedFeaturedCase]);
 
   const selectPlanEditorContext = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key.toLowerCase() !== "a" || (!event.metaKey && !event.ctrlKey) || event.altKey) return;
@@ -690,6 +737,16 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
               }}
               readOnly
             />
+          </div>
+          <div className="featured-case-preview__action-region">
+            <button
+              type="button"
+              className="profile-button profile-button--primary featured-case-preview__reuse"
+              data-node-id="831:50891"
+              onClick={reuseFeaturedCasePrompt}
+            >
+              {t("复制初始输入新建任务")}
+            </button>
           </div>
         </section>
       ) : null}
@@ -1153,8 +1210,9 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
                     typeLabel={activeTab === 0
                       ? t(taskWorkflowLabels[card.workflow])
                       : undefined}
-                    onSelect={(text) => fillComposerFromQuickStart(
+                    onSelect={(text) => fillComposerDraft(
                       text,
+                      activeTab,
                       card.workflow === "new-product" || card.workflow === "plan" ? card.workflow : undefined,
                     )}
                     key={`${card.workflow}-${card.text}-${index}`}
