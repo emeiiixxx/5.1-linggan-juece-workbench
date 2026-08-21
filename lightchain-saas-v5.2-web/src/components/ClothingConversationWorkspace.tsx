@@ -98,7 +98,6 @@ const quantityOptions = ["完整系列开发（8款）", "快速出4款查看效
 const styleOptions = ["延续经典", "融入机车元素", "轻奢商务", "其他，请输入说明"];
 const commercialOptions = ["轻奢品质", "商业试穿", "快反平价"];
 const changeOptions = ["微调", "中等改动", "大幅重组"];
-const resultSuggestions = ["把系列图总结成开款报告", "分析可持续丹宁面料", "将这些图片制作成 PDF"];
 
 function LoadingTask({ title, lines }: { title: string; lines: string[] }) {
   const [expanded, setExpanded] = useState(true);
@@ -820,8 +819,8 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
                   </div>
                 </AssistantMessage>
 
-                <AssistantMessage className="apparel-result-suggestions">
-                  <ConversationTaskCompletion message="该任务已完成。" suggestions={readOnly ? [] : resultSuggestions} onSuggestion={readOnly ? undefined : submitMessage} />
+                <AssistantMessage>
+                  <ConversationTaskCompletion />
                 </AssistantMessage>
               </>
             )}

@@ -552,7 +552,7 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
                   {exportFormat.includes("PPT") ? <div className="plan-delivery-card"><span className="plan-file-icons"><span className="plan-file-icon"><img src={planFileIcons.PPT} alt="" /></span></span><strong>{planName}.ppt</strong><div><button type="button" onClick={downloadPptPlan}>下载</button></div></div> : null}
                   {exportFormat.includes("HTML") ? <div className="plan-delivery-card"><span className="plan-file-icons"><span className="plan-file-icon"><img src={planFileIcons.HTML} alt="" /></span></span><strong>{planName}.html</strong><div><button type="button" onClick={previewPlan}>在线查看</button><button type="button" onClick={downloadHtmlPlan}>下载</button></div></div> : null}
                 </div>
-                <ConversationTaskCompletion message="该任务已完成。" suggestions={[]} />
+                <ConversationTaskCompletion />
               </AssistantMessage>
             ) : null}
             <div ref={feedEndRef} />

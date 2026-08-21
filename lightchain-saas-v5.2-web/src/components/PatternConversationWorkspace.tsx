@@ -75,7 +75,6 @@ const patternPlan = [
   ["08", "盛放主视觉", "花朵放大 + 局部叠印", "大尺度定位花型，用于连衣裙或上衣主视觉。"],
 ] as const;
 const phaseTitles = ["商业基础花型", "风格识别花型", "形象定位花型"] as const;
-const resultSuggestions = ["把这8款整理成花型开发报告", "输出四方连续打样图", "生成这组图案的配色变体"];
 
 function patternAsset(index: number) {
   return patternAssets[index % patternAssets.length];
@@ -577,7 +576,7 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
                     return <figure key={item[0]}><div className="apparel-result-media"><button type="button" aria-label={`查看 PT ${item[0]} ${item[1]} 大图`} onClick={() => setPreviewResult(item[0])}><ProgressiveImage src={assetUrl(path)} alt={`PT ${item[0]} ${item[1]}`} style={{ objectPosition: `${44 + (index % 3) * 6}% center` }} /></button><ImageActionBar favorited={favoriteResults.includes(item[0])} onFavorite={() => setFavoriteResults((current) => current.includes(item[0]) ? current.filter((id) => id !== item[0]) : [...current, item[0]])} onDownload={() => downloadAsset(path, `PT-${item[0]}-${item[1]}.jpg`)} /></div></figure>;
                   })}</div>
                 </AssistantMessage>
-                <AssistantMessage><ConversationTaskCompletion message="该图案设计任务已完成。" suggestions={readOnly ? [] : resultSuggestions} onSuggestion={readOnly ? undefined : submitMessage} /></AssistantMessage>
+                <AssistantMessage><ConversationTaskCompletion /></AssistantMessage>
               </>
             )}
 

@@ -911,17 +911,6 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     }]);
   };
 
-  const submitCompletionSuggestion = (suggestion: string) => {
-    onTaskProgress?.();
-    setFollowUp("");
-    setAdditionalMessages((current) => [...current, {
-      id: `completion-follow-up-${Date.now()}`,
-      request: suggestion,
-      attachments: [],
-      response: `已收到你的追加要求：“${suggestion}”。我会基于当前新品企划案继续处理，并保留已确认的调研依据、视觉方向和款式结果。`,
-    }]);
-  };
-
   const placeholder: Record<PlanningStage, string> = {
     analyzing: "Agent 正在解析新品企划需求，请稍候...",
     brief: "补充条件，或回复“满意，请继续”...",
@@ -1410,7 +1399,6 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 <AssistantMessage>
                   <ConversationTaskCompletion
                     message={<>新品企划案已完成，已写入 {selectedResults.length} 张你确认的 AI 款式图，并保留调研依据、视觉方向和商品结构。所有内容只读；需要修改时请在输入框提出，系统会生成新版本并只重跑受影响步骤。</>}
-                    suggestions={[]}
                   >
                     <DownloadableFile
                       name="新品企划案.html"
@@ -1419,13 +1407,6 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                       onPreview={() => setReportPreview({ name: "新品企划案.html", html: newProductPlanHtml })}
                     />
                   </ConversationTaskCompletion>
-                </AssistantMessage>
-                <AssistantMessage>
-                  <ConversationTaskCompletion
-                    message="任务已完成。"
-                    suggestions={readOnly ? [] : ["分析企划中采用的面料与工艺细节", "基于这份企划制作客户提案", "整理确认款的后续开发清单"]}
-                    onSuggestion={readOnly ? undefined : submitCompletionSuggestion}
-                  />
                 </AssistantMessage>
               </>
             ) : null}

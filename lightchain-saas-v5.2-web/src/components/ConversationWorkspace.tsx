@@ -714,16 +714,6 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     setFollowUp("");
   };
 
-  const submitCompletionSuggestion = (suggestion: string) => {
-    onTaskProgress?.();
-    setFollowUp("");
-    setAdditionalMessages((current) => [...current, {
-      request: suggestion,
-      attachments: [],
-      response: `已收到你的追加要求：“${suggestion}”。我会基于当前客户提案继续处理，并保留已确认的客户需求、市场依据、视觉方向和 AI 改款结果。`,
-    }]);
-  };
-
   const useSeasonQuickReply = (message: "继续" | "跳过" | "没有补充，继续" | "确认需求，继续") => {
     if (message !== "跳过") {
       setScopeEntryMessage(message);
@@ -1705,28 +1695,12 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                                 >
                                   <ConversationTaskCompletion
                                     message={<>正式客户提案已完成，已写入 {selectedAiResultIds.length} 张确认后的 AI 改款图，并保留客户需求、市场与趋势依据、视觉方向和方案对比。未包含内部 Design Brief、BOM、打样、MOQ、成本、交期或供应链计划。</>}
-                                    suggestions={[]}
                                   >
                                     <ConversationFileCard icon="html" name="正式客户提案.html" description="刚刚 · 统一HTML查看器 · 可下载HTML/PPT/PDF · 不支持在线编辑">
                                       <button type="button" onClick={() => openTrendPreview("proposal")}>在线查看</button>
                                       <DownloadFormatMenu onSelect={(format) => downloadCustomerProposalFile("proposal", format.toUpperCase() as TrendDownloadFormat, selectedTrendIds, selectedAiResultIds, locale, displayedCustomerAiResults)} />
                                     </ConversationFileCard>
                                   </ConversationTaskCompletion>
-                                </motion.article>
-                              ) : null}
-                              {customerProposalStage === "complete" ? (
-                                <motion.article
-                                  className="conversation-message conversation-message--assistant customer-proposal-handoff-message"
-                                  data-message-actions="true"
-                                  initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : 0.08, ease: revealEase }}
-                                >
-                                  <ConversationTaskCompletion
-                                    message="任务已完成。"
-                                    suggestions={readOnly ? [] : ["基于这份提案生成客户演示稿", "整理确认款的后续开发清单", "为这份提案生成客户跟进邮件"]}
-                                    onSuggestion={readOnly ? undefined : submitCompletionSuggestion}
-                                  />
                                 </motion.article>
                               ) : null}
                           </motion.div>

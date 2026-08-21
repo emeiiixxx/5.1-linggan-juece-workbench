@@ -5,7 +5,7 @@ import { assetUrl } from "../utils/assets";
 import { gsap, gsapMotion, useGSAP } from "../motion/gsap";
 import { FigmaIcon } from "./FigmaIcon";
 import { IconControl } from "./IconControl";
-import { Button, OutlineToggleButton, SuggestionButton } from "./Button";
+import { Button, OutlineToggleButton } from "./Button";
 import { translateSystemCopy, useI18n } from "../i18n";
 import { useModalFocus } from "../hooks/useModalFocus";
 import { Toast } from "./Toast";
@@ -963,28 +963,18 @@ export function TaskDetailPanel({
 
 export function ConversationTaskCompletion({
   message,
-  suggestions,
-  onSuggestion,
   children,
 }: {
-  message: ReactNode;
-  suggestions: readonly string[];
-  onSuggestion?: (suggestion: string) => void;
+  message?: ReactNode;
   children?: ReactNode;
 }) {
+  const { t } = useI18n();
+
   return (
-    <div className="conversation-task-completion" data-message-copy={suggestions.length ? "disabled" : undefined}>
-      <p>{message}</p>
+    <div className="conversation-task-completion">
+      {message ? <p>{message}</p> : null}
       {children}
-      {suggestions.length ? (
-        <div className="conversation-suggestion-list" aria-label="推荐后续任务">
-          {suggestions.map((suggestion) => (
-            <SuggestionButton onClick={onSuggestion ? () => onSuggestion(suggestion) : undefined} key={suggestion}>
-              {suggestion}
-            </SuggestionButton>
-          ))}
-        </div>
-      ) : null}
+      <p>{t("该任务已完成。")}</p>
     </div>
   );
 }

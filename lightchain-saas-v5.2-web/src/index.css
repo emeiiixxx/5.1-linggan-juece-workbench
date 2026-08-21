@@ -3864,7 +3864,6 @@ a:focus-visible {
   --conversation-composer-clearance: 96px;
 }
 
-.workspace-region--conversation.is-read-only .conversation-suggestion-list,
 .workspace-region--conversation.is-read-only .conversation-quick-actions,
 .workspace-region--conversation.is-read-only .image-action-bar,
 .workspace-region--conversation.is-read-only .image-selection-actions,
@@ -5206,14 +5205,6 @@ a:focus-visible {
   object-fit: cover;
 }
 
-.conversation-suggestion-list {
-  display: flex;
-  width: 100%;
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 8px;
-}
-
 .conversation-task-completion {
   display: flex;
   width: 100%;
@@ -5224,38 +5215,6 @@ a:focus-visible {
 .conversation-task-completion > p {
   width: 100%;
   margin: 0;
-}
-
-.conversation-task-completion > .conversation-suggestion-list {
-  margin: 0;
-}
-
-.conversation-task-completion > .conversation-suggestion-list > .conversation-suggestion-button {
-  margin: 0;
-}
-
-.conversation-suggestion-button {
-  width: fit-content;
-  max-width: 100%;
-  min-width: 40px;
-  height: 40px;
-  min-height: 40px;
-  justify-content: flex-start;
-  padding-inline: 16px;
-  border-radius: var(--radius-base);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 22px;
-  white-space: nowrap;
-  text-align: left;
-}
-
-.conversation-suggestion-button > span:first-child {
-  min-width: 0;
-}
-
-.conversation-suggestion-button > .figma-icon {
-  flex: 0 0 20px;
 }
 
 .apparel-composer {

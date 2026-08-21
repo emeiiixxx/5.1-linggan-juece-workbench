@@ -33,15 +33,6 @@ export function QuickReplyButton({ children, ...props }: Omit<ButtonProps, "vari
   );
 }
 
-export function SuggestionButton({ children, className = "", ...props }: Omit<ButtonProps, "variant" | "size">) {
-  return (
-    <Button className={`conversation-suggestion-button ${className}`} variant="outline" size="medium" {...props}>
-      <span>{children}</span>
-      <FigmaIcon name="arrow-down-right" size={20} />
-    </Button>
-  );
-}
-
 export function OutlineToggleButton({
   children,
   className = "",
