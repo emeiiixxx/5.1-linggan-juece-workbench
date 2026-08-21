@@ -5,7 +5,7 @@ import { gsap } from "gsap";
 const images = {
   dark: [
     "archive-header-product-planning.png",
-    "archive-header-client-proposal.png",
+    "archive-header-client-proposal-dark.png",
     "archive-header-fashion-design.png",
     "archive-header-pattern-design.png",
   ],

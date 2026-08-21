@@ -7,7 +7,7 @@ import { assetUrl } from "../utils/assets";
 const archiveHeaderImages = {
   dark: [
     "assets/figma-confirmed/archive-header-product-planning.png",
-    "assets/figma-confirmed/archive-header-client-proposal.png",
+    "assets/figma-confirmed/archive-header-client-proposal-dark.png",
     "assets/figma-confirmed/archive-header-fashion-design.png",
     "assets/figma-confirmed/archive-header-pattern-design.png",
   ],

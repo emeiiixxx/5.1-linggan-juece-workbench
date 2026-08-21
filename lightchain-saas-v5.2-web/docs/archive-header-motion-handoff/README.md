@@ -5,7 +5,7 @@
 状态：与当前首页实现对齐
 
 适用区域：首页业务场景 Tab 右侧
-代码基线：`a9270ca` 的 `src/components/ArchiveHeaderMotion.tsx`
+代码基线：Git 仓库 `main` 分支最新版本的 `src/components/ArchiveHeaderMotion.tsx`
 
 > 1.x 版本的“双玻璃卡片 5 秒开合”方案已经废弃，不得再作为开发实现依据。
 
@@ -17,7 +17,7 @@
 | --- | --- |
 | `src/components/ArchiveHeaderMotion.tsx` | 当前生产参考实现，也是动效行为真源 |
 | `src/index.css` 中 `.archive-header-motion*` | 布局、标签样式和响应式规则 |
-| `public/assets/figma-confirmed/archive-header-*.png` | 4 个业务场景 × 深浅主题，共 8 张主视觉 |
+| `public/assets/figma-confirmed/archive-header-*.png` | 4 个业务场景 × 深浅主题，共 8 张主视觉；客户提案暗黑图为 `archive-header-client-proposal-dark.png` |
 | 本目录 `ArchiveHeaderMotion.tsx` | 方便独立阅读和迁移的参考组件 |
 | 本目录 `archive-header-motion.css` | 迁移所需的最小样式集合 |
 
@@ -25,12 +25,12 @@
 
 ## 2. 状态映射
 
-| activeTab | Tab | 主视觉文件名 | 上标签 | 下标签 |
-| --- | --- | --- | --- | --- |
-| 0 | 商品企划 | `product-planning` | 精准选品 | 市场洞察 |
-| 1 | 客户提案 | `client-proposal` | 高效沟通 | 创意提案 |
-| 2 | 服装设计 | `fashion-design` | 个性定制 | 潮流设计 |
-| 3 | 图案设计 | `pattern-design` | 视觉吸引 | 原创图案 |
+| activeTab | Tab | dark 图片 | light 图片 | 上标签 | 下标签 |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 商品企划 | `archive-header-product-planning.png` | `archive-header-product-planning-light.png` | 精准选品 | 市场洞察 |
+| 1 | 客户提案 | `archive-header-client-proposal-dark.png` | `archive-header-client-proposal-light.png` | 高效沟通 | 创意提案 |
+| 2 | 服装设计 | `archive-header-fashion-design.png` | `archive-header-fashion-design-light.png` | 个性定制 | 潮流设计 |
+| 3 | 图案设计 | `archive-header-pattern-design.png` | `archive-header-pattern-design-light.png` | 视觉吸引 | 原创图案 |
 
 每个主视觉包含 dark / light 两张 PNG。原图为 480 × 344，按 240 × 172 CSS px 显示。
 
