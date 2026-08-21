@@ -30,6 +30,7 @@ type TaskConversationComposerProps = {
   placeholder: string;
   ariaLabel: string;
   hint?: string;
+  points?: number;
   disabled?: boolean;
   isRunning?: boolean;
   onStop?: () => void;
@@ -48,6 +49,7 @@ export function TaskConversationComposer({
   placeholder,
   ariaLabel,
   hint = "Enter 发送 · Shift + Enter 换行",
+  points,
   disabled = false,
   isRunning = false,
   onStop,
@@ -324,7 +326,15 @@ export function TaskConversationComposer({
           <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple tabIndex={-1} aria-label="选择要上传的图片" onChange={(event) => addAttachments(event, "image")} />
         </div>
         </div>
-        <span>{hint}</span>
+        <div className="conversation-composer__send-meta">
+          <span>{hint}</span>
+          {points !== undefined ? (
+            <span className="conversation-composer__points" aria-label={`${points} 积分`}>
+              <FigmaIcon name="points-star" size={16} />
+              <span>{points}</span>
+            </span>
+          ) : null}
+        </div>
         <IconControl
           className={`composer__send conversation-composer__send ${isRunning ? "is-running" : ""}`}
           label={isRunning ? "暂停当前任务" : "发送"}

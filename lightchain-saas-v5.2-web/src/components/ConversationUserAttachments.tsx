@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { FigmaIcon } from "./FigmaIcon";
+import { assetUrl } from "../utils/assets";
+import { fileIconAssetPath } from "../utils/fileIcon";
 import { ImageLightbox } from "./ImageSelection";
 import { TagChip } from "./TagChip";
 
@@ -26,7 +27,7 @@ export function ConversationUserAttachments({
             label={attachment.name}
             leftSlot={attachment.previewUrl
               ? <img src={attachment.previewUrl} alt="" />
-              : <FigmaIcon name="file" size={16} />}
+              : <img src={assetUrl(fileIconAssetPath(attachment.name))} alt="" />}
             title={attachment.previewUrl ? `放大查看：${attachment.name}` : attachment.name}
             onClick={attachment.previewUrl ? () => setPreview(attachment) : undefined}
             key={`${attachment.name}-${attachment.previewUrl ?? "file"}-${index}`}

@@ -6223,6 +6223,12 @@ button.selection-card:not(:disabled):active { transform: scale(0.995); }
   display: inline-flex;
 }
 
+.new-product-structure-revision {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
 .conversation-streaming-text {
   white-space: inherit;
 }
@@ -9523,13 +9529,30 @@ img.trend-direction-media__slide {
   flex: 0 0 15px;
 }
 
-.conversation-composer > span {
+.conversation-composer__send-meta {
   position: absolute;
   right: 64px;
   bottom: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: var(--text-disabled);
   font-size: 12px;
   line-height: 16px;
+}
+
+.conversation-composer__points {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-placeholder);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.conversation-composer__points .figma-icon {
+  color: currentColor;
 }
 
 .task-detail-rail {

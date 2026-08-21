@@ -55,6 +55,22 @@ type PlanningStage =
 
 type ExceptionDemoStage = "ready" | "network" | "reconnecting" | "credits";
 
+function normalizeUserIntent(value: string) {
+  return value
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+function isStructureContinueIntent(value: string, attachmentCount: number) {
+  if (attachmentCount > 0) return false;
+  const normalized = normalizeUserIntent(value);
+  if (!normalized) return false;
+  if (/(不满意|修改|调整|重做|重新|补充|先不|暂不|不要|别继续|不继续)/.test(normalized)) return false;
+  return /^(?:好(?:的)?(?:那)?|可以|确认|满意|没问题|那就)?(?:请|并)?(?:继续|继续下一步|下一步|进入下一步|继续生成|继续生成ai改款|生成ai改款|开始生成ai改款)(?:吧|即可)?$/.test(normalized)
+    || ["continue", "proceed", "next", "続ける", "続行"].includes(normalized);
+}
+
 const revealEase = [0.22, 1, 0.36, 1] as const;
 const directions = [
   {
@@ -235,6 +251,12 @@ type AdditionalMessage = {
   request: string;
   attachments: TaskConversationAttachment[];
   response: string;
+  structureRevisionFlow?: boolean;
+  structureRevision?: {
+    name: string;
+    description: string;
+    html: string;
+  };
   resultBatchId?: string;
   resultGeneration?: boolean;
   isGenerating?: boolean;
@@ -246,6 +268,12 @@ type PendingResultGeneration = {
   sourceBatchId: string;
   selectedItemIds: string[];
   selectedItemLabels: string[];
+};
+
+type PendingStructureRevision = {
+  messageId: string;
+  response: string;
+  revision: NonNullable<AdditionalMessage["structureRevision"]>;
 };
 
 const initialResultBatch: GeneratedResultBatch = {
@@ -562,6 +590,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   );
   const [resultBatches, setResultBatches] = useState<GeneratedResultBatch[]>([initialResultBatch]);
   const [pendingResultGeneration, setPendingResultGeneration] = useState<PendingResultGeneration | null>(null);
+  const [pendingStructureRevision, setPendingStructureRevision] = useState<PendingStructureRevision | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [referencePreviewId, setReferencePreviewId] = useState<string | null>(null);
   const [previewReadOnly, setPreviewReadOnly] = useState(false);
@@ -661,6 +690,22 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     }, reduceMotion ? 600 : 2200);
     return () => window.clearTimeout(timer);
   }, [pendingResultGeneration, reduceMotion, resultBatches]);
+
+  useEffect(() => {
+    if (!pendingStructureRevision) return;
+    const timer = window.setTimeout(() => {
+      setAdditionalMessages((current) => current.map((message) => message.id === pendingStructureRevision.messageId
+        ? {
+            ...message,
+            response: pendingStructureRevision.response,
+            structureRevision: pendingStructureRevision.revision,
+            isGenerating: false,
+          }
+        : message));
+      setPendingStructureRevision(null);
+    }, reduceMotion ? 600 : 2200);
+    return () => window.clearTimeout(timer);
+  }, [pendingStructureRevision, reduceMotion]);
 
   useEffect(() => {
     if (stage !== "complete" || completionReportedRef.current) return;
@@ -763,16 +808,38 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
       continueFromBrief(value, submittedAttachments, false);
       return;
     }
-    const normalizedValue = value.toLocaleLowerCase().replace(/[\s，。！!、]/g, "");
-    const confirmsStructure = [
-      "继续",
-      "继续生成",
-      "继续生成ai改款",
-      "确认继续",
-      "确认并继续",
-    ].includes(normalizedValue);
-    if (stage === "structure" && !submittedAttachments.length && confirmsStructure) {
+    if (stage === "structure" && isStructureContinueIntent(value, submittedAttachments.length)) {
       continueToAiGeneration();
+      return;
+    }
+    if (stage === "structure") {
+      const revisionNumber = additionalMessages.filter((message) => message.structureRevision).length + 1;
+      const revisionTitle = `商品结构规划（修订 ${revisionNumber}）`;
+      const revisionName = `${revisionTitle}.html`;
+      const revisionHtml = productStructureHtml
+        .replaceAll("商品结构规划", revisionTitle)
+        .replace(
+          "把已确认的视觉方向转换为可讨论的品类组合、款式角色、价格梯度、上市波段与渠道分工，并清楚标注当前数据缺口。",
+          "已根据本轮修改意见重新整理品类组合、款式角色、价格梯度、上市波段与渠道分工，并继续保留数据缺口与待确认假设。",
+        );
+      const messageId = `structure-revision-${Date.now()}`;
+      const completedResponse = value
+        ? `已根据你的修改意见“${value}”重新生成商品结构规划，请确认最新修订版。`
+        : `已根据你补充的 ${submittedAttachments.length} 份资料重新生成商品结构规划，请确认最新修订版。`;
+      const revision = {
+        name: revisionName,
+        description: `刚刚 · 修订 ${revisionNumber} · 已合并本轮修改意见与补充资料`,
+        html: revisionHtml,
+      };
+      setAdditionalMessages((current) => [...current, {
+        id: messageId,
+        request: value,
+        attachments: submittedAttachments,
+        response: "正在调用商品结构规划工具，根据本轮修改意见重新计算商品组合与渠道分工。",
+        structureRevisionFlow: true,
+        isGenerating: true,
+      }]);
+      setPendingStructureRevision({ messageId, response: completedResponse, revision });
       return;
     }
     if (stage === "results") {
@@ -862,14 +929,14 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     research: "Agent 正在完成多来源调研与视觉方向整理...",
     directions: "请在上方选择视觉方向，支持多选...",
     "structure-planning": "Agent 正在调用工具完成商品结构规划...",
-    structure: "确认商品结构，或继续补充经营约束...",
+    structure: "不满意可输入修改意见；满意请点击“继续生成 AI 改款”...",
     "ai-generating": "Agent 正在生成专业改款提示词与 AI 款式图...",
     results: "选择用于企划的图片，或输入修改要求...",
     "plan-generating": "Agent 正在写入新品企划案，请稍候...",
     complete: "任务已完成，可提出修改意见或追加任务...",
   };
 
-  const composerRunning = Boolean(pendingResultGeneration) || ["analyzing", "research", "structure-planning", "ai-generating", "plan-generating"].includes(stage);
+  const composerRunning = Boolean(pendingResultGeneration) || Boolean(pendingStructureRevision) || ["analyzing", "research", "structure-planning", "ai-generating", "plan-generating"].includes(stage);
   const exceptionNotice = useMemo(() => exceptionDemoStage === "network"
     ? {
         message: "网络异常，重连中...",
@@ -999,6 +1066,12 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
       setAdditionalMessages((current) => current.map((message) => message.id === messageId
         ? { ...message, response: "已暂停本轮 AI 改款生成。你可以继续修改要求后重新发送。", isGenerating: false }
         : message));
+    } else if (pendingStructureRevision) {
+      const messageId = pendingStructureRevision.messageId;
+      setPendingStructureRevision(null);
+      setAdditionalMessages((current) => current.map((message) => message.id === messageId
+        ? { ...message, response: "已暂停本轮商品结构修订。你可以调整修改意见后重新发送。", isGenerating: false }
+        : message));
     } else if (stage === "research") setStage("scope");
     else if (stage === "structure-planning") setStage("directions");
     else if (stage === "ai-generating") setStage("structure");
@@ -1047,6 +1120,13 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
       </section>
     );
   };
+
+  const latestStructureRevision = [...additionalMessages]
+    .reverse()
+    .find((message) => message.structureRevision);
+  const latestStructureRevisionId = latestStructureRevision?.id;
+  const activeProductStructureName = latestStructureRevision?.structureRevision?.name ?? "商品结构规划.html";
+  const activeProductStructureHtml = latestStructureRevision?.structureRevision?.html ?? productStructureHtml;
 
   return (
     <motion.main className={`workspace-region workspace-region--conversation new-product-workspace ${detailPanelOpen ? "has-detail-panel" : ""} ${readOnly ? "is-read-only" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
@@ -1218,13 +1298,53 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                   html={productStructureHtml}
                   onPreview={() => setReportPreview({ name: "商品结构规划.html", html: productStructureHtml })}
                 />
-                {stage === "structure" ? (
+                {stage === "structure" && !latestStructureRevisionId && !pendingStructureRevision ? (
                   <div className="conversation-quick-action">
                     <BusinessButton points={10} onClick={() => { onTaskProgress?.(); continueToAiGeneration(); }}>继续生成 AI 改款</BusinessButton>
                   </div>
                 ) : null}
               </AssistantMessage>
             ) : null}
+
+            {additionalMessages.filter((message) => message.structureRevisionFlow).map((message, index) => (
+              <ConversationFollowUpExchange
+                request={message.request}
+                attachments={message.attachments}
+                response={message.response}
+                key={message.id || `${message.request}-${index}`}
+              >
+                {message.isGenerating && message.id === pendingStructureRevision?.messageId ? (
+                  <div className="new-product-structure-revision">
+                    <NewProductLoadingTask
+                      title="重新规划商品结构"
+                      lines={["读取本轮修改意见与补充资料", "重新计算品类、款数与款式角色", "更新价格梯度、上市波段与渠道分工", "生成新的商品结构规划报告"]}
+                    />
+                  </div>
+                ) : message.structureRevision ? (
+                  <div className="new-product-structure-revision">
+                    <NewProductLoadingTask
+                      title="重新规划商品结构"
+                      complete
+                      lines={["读取本轮修改意见与补充资料", "重新计算品类、款数与款式角色", "更新价格梯度、上市波段与渠道分工", "生成新的商品结构规划报告"]}
+                    />
+                    <DownloadableFile
+                      name={message.structureRevision.name}
+                      description={message.structureRevision.description}
+                      html={message.structureRevision.html}
+                      onPreview={() => setReportPreview({
+                        name: message.structureRevision!.name,
+                        html: message.structureRevision!.html,
+                      })}
+                    />
+                    {stage === "structure" && message.id === latestStructureRevisionId && !pendingStructureRevision ? (
+                      <div className="conversation-quick-action">
+                        <BusinessButton points={10} onClick={() => { onTaskProgress?.(); continueToAiGeneration(); }}>继续生成 AI 改款</BusinessButton>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </ConversationFollowUpExchange>
+            ))}
 
             {["ai-generating", "results", "plan-generating", "complete"].includes(stage) ? (
               <AssistantMessage actions={false}>
@@ -1309,7 +1429,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 </AssistantMessage>
               </>
             ) : null}
-            {additionalMessages.filter((message) => !message.resultGeneration).map((message, index) => (
+            {additionalMessages.filter((message) => !message.resultGeneration && !message.structureRevisionFlow).map((message, index) => (
               <ConversationFollowUpExchange
                 request={message.request}
                 attachments={message.attachments}
@@ -1323,7 +1443,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
         {!readOnly ? <>
         <div className="conversation-bottom-fade" aria-hidden="true" />
-        <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} hint={exceptionDemoStage === "reconnecting" ? "Agent 正在重新解析，请稍候..." : stage === "scope" ? "请先完成调研范围确认" : stage === "directions" ? "请先从上方表单完成视觉方向选择" : stage === "results" ? "生成企划将扣除 999 积分" : undefined} disabled={stage === "scope" || stage === "directions" || exceptionDemoStage === "reconnecting" || Boolean(exceptionNotice)} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} focusRequest={composerFocusRequest} exceptionNotice={exceptionNotice} />
+        <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} hint={exceptionDemoStage === "reconnecting" ? "Agent 正在重新解析，请稍候..." : stage === "scope" ? "请先完成调研范围确认" : stage === "directions" ? "请先从上方表单完成视觉方向选择" : stage === "structure" ? "不满意可输入修改意见 · 满意请点击上方按钮" : stage === "results" ? "生成企划将扣除 999 积分" : undefined} points={stage === "structure" ? 10 : undefined} disabled={stage === "scope" || stage === "directions" || exceptionDemoStage === "reconnecting" || Boolean(exceptionNotice)} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} focusRequest={composerFocusRequest} exceptionNotice={exceptionNotice} />
         </> : null}
       </section>
 
@@ -1337,7 +1457,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 <TaskArtifactRow kind="file" onClick={() => setReportPreview({ name: "调研与视觉方向报告.html", html: researchReportHtml })}>调研与视觉方向报告.html</TaskArtifactRow>
               ) : null}
               {productStructureReady ? (
-                <TaskArtifactRow kind="file" onClick={() => setReportPreview({ name: "商品结构规划.html", html: productStructureHtml })}>商品结构规划.html</TaskArtifactRow>
+                <TaskArtifactRow kind="file" onClick={() => setReportPreview({ name: activeProductStructureName, html: activeProductStructureHtml })}>{activeProductStructureName}</TaskArtifactRow>
               ) : null}
               {aiResultsReady ? (
                 <TaskArtifactRow kind="file" onClick={() => setReportPreview({ name: "AI 改款结果.html", html: aiResultsHtml })}>AI 改款结果.html</TaskArtifactRow>
