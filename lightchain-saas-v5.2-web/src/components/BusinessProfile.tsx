@@ -368,7 +368,7 @@ function SelectField({ label, required, values, placeholder, options, onChange, 
   );
 }
 
-function UploadPanel({ files, parsed = false, onSelect, onRemove }: { files: LocalUpload[]; parsed?: boolean; onSelect: () => void; onRemove: (id: string) => void }) {
+function UploadPanel({ files, parsed = false, parsing = false, onSelect, onRemove }: { files: LocalUpload[]; parsed?: boolean; parsing?: boolean; onSelect: () => void; onRemove: (id: string) => void }) {
   const { t } = useI18n();
   return (
     <section className="profile-upload-panel">
@@ -376,8 +376,8 @@ function UploadPanel({ files, parsed = false, onSelect, onRemove }: { files: Loc
         <strong>{t("上传资料包，自动预填档案")}</strong>
         <span>{t("支持商品企划、品牌资料、销售复盘、客户提案等")}<br />{t("支持 PDF、PPT、Word、Excel、CSV、JPG、PNG 格式")}</span>
       </div>
-      <button type="button" className="profile-button profile-button--primary profile-button--small" onClick={onSelect}>{t(parsed ? "重新上传并解析" : "选择资料")}</button>
-      {files.map((file) => <UploadFileRow key={file.id} name={file.name} preview={file.preview} onRemove={parsed ? undefined : () => onRemove(file.id)} />)}
+      <button type="button" className="profile-button profile-button--primary profile-button--small" disabled={parsing} aria-busy={parsing} onClick={onSelect}>{t(parsing ? "解析中…" : parsed ? "重新上传并解析" : "选择资料")}</button>
+      {files.map((file) => <UploadFileRow key={file.id} name={file.name} preview={file.preview} onRemove={parsed || parsing ? undefined : () => onRemove(file.id)} />)}
     </section>
   );
 }
@@ -567,7 +567,7 @@ function CreatePage({ form, setForm, files, complete, canSave, parsing, editing,
       <motion.button className="profile-back profile-back--edge" type="button" onClick={onBack} variants={primaryPageEntranceItem} initial={reduceMotion || !animateEntry ? false : "hidden"} animate="visible"><FigmaIcon name="arrow-left" size={20} />{t("返回")}</motion.button>
       <motion.div className="profile-editor-shell" data-node-id={parsing ? "328:5431" : "301:68938"} variants={primaryPageEntrance} initial={reduceMotion || !animateEntry ? false : "hidden"} animate="visible">
       <motion.header className="profile-editor-header" variants={primaryPageEntranceItem}><h1>{t(editing ? "编辑业务偏好档案" : "创建业务偏好档案")}</h1><p>{t("保存不同任务中重复使用的业务范围，系统将在任务开始时自动应用")}</p></motion.header>
-      <motion.section className="profile-autofill" variants={primaryPageEntranceItem}><div className="profile-form-label">{t("智能预填")}</div><p>{t("系统只预填资料中明确提到的信息，未提及的字段将保持为空")}</p><UploadPanel files={files} parsed={!parsing && files.length > 0} onSelect={onSelectFile} onRemove={onRemoveFile} /></motion.section>
+      <motion.section className="profile-autofill" variants={primaryPageEntranceItem}><div className="profile-form-label">{t("智能预填")}</div><p><span aria-hidden="true">💡</span>{t("系统只预填资料中明确提到的信息，未提及的字段将保持为空")}</p><UploadPanel files={files} parsed={!parsing && files.length > 0} parsing={parsing} onSelect={onSelectFile} onRemove={onRemoveFile} /></motion.section>
       {parsing && <motion.div variants={primaryPageEntranceItem}><ParsingPanel progress={parseProgress} /></motion.div>}
       <motion.form className="profile-form" variants={primaryPageEntranceItem} onSubmit={(event) => { event.preventDefault(); onSave(); }}>
         <label className="profile-form-field"><span className="profile-form-label">{t("档案名称")}<b>*</b></span><input value={form.name} onChange={(event) => change("name", event.target.value)} placeholder={t("示例：通勤女装档案")} /></label>

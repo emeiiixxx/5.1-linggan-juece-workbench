@@ -5792,12 +5792,13 @@ button.selection-card:not(:disabled):active { transform: scale(0.995); }
 .profile-editor-header h1, .profile-detail-header h1 { margin: 0; color: var(--text-primary); font-size: 32px; font-weight: 700; line-height: 40px; }
 .profile-editor-header p, .profile-detail-header p { margin: 8px 0 0; color: var(--text-tertiary); font-size: 14px; line-height: 20px; }
 
-.profile-autofill { margin-bottom: 24px; }
-.profile-autofill > .profile-form-label { height: 24px; color: var(--text-primary); font-size: 16px; font-weight: 500; line-height: 24px; }
+.profile-autofill { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 8px; row-gap: 8px; margin-bottom: 24px; }
+.profile-autofill > .profile-form-label { height: 24px; padding-left: 8px; color: var(--text-primary); font-size: 16px; font-weight: 500; line-height: 24px; }
 .profile-form-label { display: block; color: var(--text-secondary); font-size: 12px; font-weight: 500; line-height: 20px; }
 .profile-form-label b { margin-left: 2px; color: var(--status-danger); font-weight: 500; }
-.profile-autofill > p { margin: 0 0 8px; color: #d89b24; font-size: 12px; line-height: 16px; }
-.profile-upload-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 16px; border: 1px solid var(--border-weak); border-radius: var(--radius-l); background: var(--surface-default); }
+.profile-autofill > p { display: flex; align-items: center; gap: 4px; margin: 0; color: var(--status-warning, #fca73b); font-size: 12px; line-height: 16px; }
+.profile-autofill > p > span { flex: 0 0 auto; }
+.profile-upload-panel { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 24px; border: 1px solid var(--border-weak); border-radius: 16px; background: var(--surface-default); }
 .profile-upload-panel__copy { display: grid; gap: 2px; }
 .profile-upload-panel__copy strong { color: var(--text-primary); font-size: 14px; font-weight: 500; line-height: 20px; }
 .profile-upload-panel__copy span { color: var(--text-tertiary); font-size: 12px; line-height: 16px; }

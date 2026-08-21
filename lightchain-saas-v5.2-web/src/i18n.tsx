@@ -369,6 +369,7 @@ const copy: Record<string, Translation> = {
   "资料包": { ja: "資料", en: "Source Files" },
   "未上传资料": { ja: "アップロード済みの資料はありません", en: "No files uploaded" },
   "重新上传并解析": { ja: "再アップロードして解析", en: "Re-upload & Analyze" },
+  "解析中…": { ja: "解析中…", en: "Analyzing…" },
   "重命名档案": { ja: "プロファイル名を変更", en: "Rename Profile" },
   "删除档案": { ja: "プロファイルを削除", en: "Delete Profile" },
   "修改后将用于后续任务中选择此档案。": { ja: "変更後の名前は、以降のタスクで表示されます。", en: "The new name will appear when selecting this profile in future tasks." },
