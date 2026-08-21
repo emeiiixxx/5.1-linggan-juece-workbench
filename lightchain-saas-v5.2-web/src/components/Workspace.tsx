@@ -9,7 +9,7 @@ import { ArchiveHeaderMotion } from "./ArchiveHeaderMotion";
 import { IconControl } from "./IconControl";
 import { QuickStartCard } from "./QuickStartCard";
 import { primaryPageEntrance, primaryPageEntranceItem, primaryPageEntranceMediaItem } from "../utils/pageMotion";
-import { useI18n } from "../i18n";
+import { useI18n, type Locale } from "../i18n";
 import { useAutoGrowTextarea } from "../hooks/useAutoGrowTextarea";
 import { gsap } from "../motion/gsap";
 
@@ -60,8 +60,20 @@ type WorkspaceTask = {
   workflow: TaskWorkflow;
   initialState?: "default" | "confirmation" | "complete" | "exception";
 };
-const defaultPlanPrompt = "以 Loro Piana 的 2027春夏 系列做为设计灵感，需要包含 短款外套、衬衫、卫衣、短袖、长裤、短裤 这些品类，生成一份 男装 主题设计企划";
-const defaultPlanEditorHtml = '以 <span class="composer-semantic-slot">Loro Piana</span> 的 <span class="composer-semantic-slot">2027春夏</span> 系列做为设计灵感，需要包含 <span class="composer-semantic-slot">短款外套、衬衫、卫衣、短袖、长裤、短裤</span> 这些品类，生成一份 <span class="composer-semantic-slot">男装</span> 主题设计企划';
+const defaultPlanContent: Record<Locale, { prompt: string; editorHtml: string }> = {
+  "zh-CN": {
+    prompt: "以 Loro Piana 的 2027春夏 系列做为设计灵感，需要包含 短款外套、衬衫、卫衣、短袖、长裤、短裤 这些品类，生成一份 男装 主题设计企划",
+    editorHtml: '以 <span class="composer-semantic-slot">Loro Piana</span> 的 <span class="composer-semantic-slot">2027春夏</span> 系列做为设计灵感，需要包含 <span class="composer-semantic-slot">短款外套、衬衫、卫衣、短袖、长裤、短裤</span> 这些品类，生成一份 <span class="composer-semantic-slot">男装</span> 主题设计企划',
+  },
+  "ja-JP": {
+    prompt: "Loro Pianaの2027年春夏を参考に、ショートアウター、シャツ、スウェット、半袖、ロングパンツ、ショートパンツを含むメンズ企画を作成してください。",
+    editorHtml: '<span class="composer-semantic-slot">Loro Piana</span> の <span class="composer-semantic-slot">2027年春夏</span> を参考に、<span class="composer-semantic-slot">ショートアウター、シャツ、スウェット、半袖、ロングパンツ、ショートパンツ</span> を含む <span class="composer-semantic-slot">メンズ</span> 企画を作成してください。',
+  },
+  "en-US": {
+    prompt: "Create a menswear plan inspired by Loro Piana Spring/Summer 2027, including cropped outerwear, shirts, sweatshirts, short-sleeve tops, trousers, and shorts.",
+    editorHtml: 'Create a <span class="composer-semantic-slot">menswear</span> plan inspired by <span class="composer-semantic-slot">Loro Piana</span> <span class="composer-semantic-slot">Spring/Summer 2027</span>, including <span class="composer-semantic-slot">cropped outerwear, shirts, sweatshirts, short-sleeve tops, trousers, and shorts</span>.',
+  },
+};
 
 function TaskConversation({ task, onTaskStatusChange, readOnly = false }: {
   task: WorkspaceTask;
@@ -315,8 +327,10 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
   const featuredCaseReuseLabelRef = useRef<HTMLSpanElement>(null);
   const planEditorRef = useRef<HTMLDivElement>(null);
   const activePlanSlotRef = useRef<HTMLElement | null>(null);
-  const savedPlanEditorHtmlRef = useRef(defaultPlanEditorHtml);
-  const planPromptRef = useRef(defaultPlanPrompt);
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
+  const savedPlanEditorHtmlRef = useRef(defaultPlanContent[locale].editorHtml);
+  const planPromptRef = useRef(defaultPlanContent[locale].prompt);
   const planHasUserDraftRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -381,6 +395,17 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
       node.dataset.empty = String(!planPromptRef.current.trim());
     }
   }, []);
+
+  useLayoutEffect(() => {
+    if (planHasUserDraftRef.current) return;
+    const content = defaultPlanContent[locale];
+    planPromptRef.current = content.prompt;
+    savedPlanEditorHtmlRef.current = content.editorHtml;
+    if (planEditorRef.current) {
+      planEditorRef.current.innerHTML = content.editorHtml;
+      planEditorRef.current.dataset.empty = "false";
+    }
+  }, [locale]);
 
   useLayoutEffect(() => {
     if (activeTab !== 0) return;
@@ -490,11 +515,12 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
     setActiveTab(newTaskWorkflow === "default" ? 1 : 0);
     setProductPlanningType("new-product");
     setProductPlanningMenuOpen(false);
-    planPromptRef.current = defaultPlanPrompt;
-    savedPlanEditorHtmlRef.current = defaultPlanEditorHtml;
+    const content = defaultPlanContent[localeRef.current];
+    planPromptRef.current = content.prompt;
+    savedPlanEditorHtmlRef.current = content.editorHtml;
     planHasUserDraftRef.current = false;
     if (planEditorRef.current) {
-      planEditorRef.current.innerHTML = defaultPlanEditorHtml;
+      planEditorRef.current.innerHTML = content.editorHtml;
       planEditorRef.current.dataset.empty = "false";
     }
     setAttachments((current) => {
@@ -1182,8 +1208,9 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
                           key={option.value}
                           onClick={() => {
                             if (option.value === "plan" && !planHasUserDraftRef.current) {
-                              planPromptRef.current = defaultPlanPrompt;
-                              savedPlanEditorHtmlRef.current = defaultPlanEditorHtml;
+                              const content = defaultPlanContent[locale];
+                              planPromptRef.current = content.prompt;
+                              savedPlanEditorHtmlRef.current = content.editorHtml;
                             }
                             setProductPlanningType(option.value);
                             setProductPlanningMenuOpen(false);
