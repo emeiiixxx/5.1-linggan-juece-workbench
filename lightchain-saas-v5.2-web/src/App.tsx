@@ -1,7 +1,6 @@
 import { Activity, lazy, Suspense, useEffect, useLayoutEffect, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
-import { Toast } from "./components/Toast";
 import { Workspace } from "./components/Workspace";
 import {
   allDemoTaskExamples,
@@ -47,7 +46,6 @@ type PersistedWorkspaceState = {
 };
 
 const WORKSPACE_STORAGE_KEY = "lightchain:v5.2:workspace";
-const MAX_CONCURRENT_TASKS = 10;
 
 const readPersistedWorkspace = (): PersistedWorkspaceState | null => {
   if (typeof window === "undefined") return null;
@@ -115,7 +113,6 @@ export default function App() {
   const [taskRecords, setTaskRecords] = useState<TaskRecord[]>(() =>
     mergePersistedTasksWithDemoDetails(initialWorkspace?.taskRecords));
   const [activeTaskId, setActiveTaskId] = useState<number | null>(initialWorkspace?.activeTaskId ?? null);
-  const [taskLimitNotice, setTaskLimitNotice] = useState("");
   const [homeEntryKey, setHomeEntryKey] = useState(0);
   const [newTaskKey, setNewTaskKey] = useState(0);
   const [newTaskWorkflow, setNewTaskWorkflow] = useState<"new-product" | "default" | null>(null);
@@ -133,8 +130,6 @@ export default function App() {
     : activeTask
       ? workflowPageTitles[activeTask.workflow]
       : "灵感决策工作台";
-  const concurrentTaskCount = taskRecords.filter((task) => task.status !== "completed").length;
-
   const transitionTaskFocus = (nextTaskId: number | null) => {
     if (activeTaskId !== null && nextTaskId === null) {
       setHomeEntryKey((value) => value + 1);
@@ -159,12 +154,6 @@ export default function App() {
       // The prototype remains usable when storage is unavailable or full.
     }
   }, [activeTaskId, createdProjects, selectedProfile, selectedProject, sidebarExpanded, taskRecords, theme]);
-
-  useEffect(() => {
-    if (!taskLimitNotice) return;
-    const timer = window.setTimeout(() => setTaskLimitNotice(""), 3000);
-    return () => window.clearTimeout(timer);
-  }, [taskLimitNotice]);
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -309,12 +298,6 @@ export default function App() {
               ));
             }}
             onCreateTask={({ title, projectId, prompt, workflow, sourceLabel, attachments }) => {
-              // Keep every new-task entry accessible. The limit is enforced only
-              // when Send is about to create another task so the draft stays intact.
-              if (concurrentTaskCount >= MAX_CONCURRENT_TASKS) {
-                setTaskLimitNotice("当前任务数量已达上限，请稍后再试。");
-                return false;
-              }
               const id = Date.now();
               const task: TaskRecord = {
                 id,
@@ -338,7 +321,6 @@ export default function App() {
           />
         </Activity>
       </div>
-      <Toast message={taskLimitNotice} variant="error" />
     </div>
     </I18nProvider>
   );

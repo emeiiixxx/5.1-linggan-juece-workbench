@@ -20,7 +20,6 @@ const copy: Record<string, Translation> = {
   "联系客服": { ja: "サポート", en: "Contact Support" },
   "购买积分": { ja: "クレジット購入", en: "Buy Credits" },
   "确认购买后积分将立即到账，并从当前任务最后一个已成功确认的节点继续。": { ja: "購入後、クレジットはすぐに反映され、現在のタスクの最後に正常確認されたチェックポイントから再開します。", en: "Credits are added immediately after purchase, and the current task resumes from its last successfully confirmed checkpoint." },
-  "当前任务数量已达上限，请稍后再试。": { ja: "タスク数が上限に達しました。しばらくしてからもう一度お試しください。", en: "You’ve reached the task limit. Please try again later." },
   "暂停当前任务": { ja: "現在のタスクを一時停止する", en: "Pause current task" },
   "打开个人中心": { ja: "アカウントを開く", en: "Open account" },
   "灵感决策工作台": { ja: "インサイトワークスペース", en: "Inspiration Workspace" },
