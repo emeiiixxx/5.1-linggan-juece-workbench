@@ -312,6 +312,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
   const projectMenuRef = useRef<HTMLDivElement>(null);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
   const featuredCasePreviewRef = useRef<HTMLElement>(null);
+  const featuredCaseReuseLabelRef = useRef<HTMLSpanElement>(null);
   const planEditorRef = useRef<HTMLDivElement>(null);
   const activePlanSlotRef = useRef<HTMLElement | null>(null);
   const savedPlanEditorHtmlRef = useRef(defaultPlanEditorHtml);
@@ -325,6 +326,22 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
   const indicatorPositionedRef = useRef(false);
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
+  const measureFeaturedCaseReuseLabel = useCallback((label: HTMLSpanElement | null) => {
+    featuredCaseReuseLabelRef.current = label;
+    if (!label) return;
+
+    const updateExpandedWidth = () => {
+      if (featuredCaseReuseLabelRef.current !== label) return;
+      const button = label.closest<HTMLButtonElement>(".featured-case-preview__reuse");
+      if (!button) return;
+      // Keep both animation endpoints numeric; Safari cannot interpolate width to max-content.
+      const expandedWidth = Math.ceil(label.scrollWidth + 32);
+      button.style.setProperty("--featured-case-reuse-expanded-width", `${expandedWidth}px`);
+    };
+
+    updateExpandedWidth();
+    void document.fonts?.ready.then(updateExpandedWidth);
+  }, [locale]);
   const activeTaskId = activeTask?.id ?? null;
   const taskIdsToRender = activeTask && !mountedTaskIds.includes(activeTask.id)
     ? [...mountedTaskIds, activeTask.id]
@@ -879,7 +896,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
                 <span className="featured-case-preview__reuse-icon" data-node-id="831:50946">
                   <FigmaIcon name="copy" size={24} />
                 </span>
-                <span className="featured-case-preview__reuse-label" data-node-id="831:50940">
+                <span ref={measureFeaturedCaseReuseLabel} className="featured-case-preview__reuse-label" data-node-id="831:50940">
                   {t("复制初始输入到新建任务")}
                 </span>
               </button>

@@ -3793,19 +3793,19 @@ a:focus-visible {
 }
 
 .profile-button.featured-case-preview__reuse {
+  --featured-case-reuse-expanded-width: 272px;
+
   position: relative;
   width: 40px;
   min-width: 0;
   height: 40px;
   overflow: hidden;
-  padding: 0;
+  padding: 0 16px;
   border-radius: var(--radius-max);
   box-shadow: var(--shadow-l);
-  interpolate-size: allow-keywords;
   pointer-events: auto;
   transition:
     width var(--motion-standard),
-    padding var(--motion-standard),
     color var(--motion-standard),
     background-color var(--motion-standard),
     box-shadow var(--motion-standard);
@@ -3833,8 +3833,7 @@ a:focus-visible {
 
 .profile-button.featured-case-preview__reuse:hover,
 .profile-button.featured-case-preview__reuse:focus-visible {
-  width: max-content;
-  padding: 0 16px;
+  width: var(--featured-case-reuse-expanded-width);
 }
 
 .profile-button.featured-case-preview__reuse:hover .featured-case-preview__reuse-icon,
