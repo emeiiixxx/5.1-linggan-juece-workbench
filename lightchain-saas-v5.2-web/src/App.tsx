@@ -46,6 +46,14 @@ type PersistedWorkspaceState = {
 };
 
 const WORKSPACE_STORAGE_KEY = "lightchain:v5.2:workspace";
+const retiredPrototypeTaskTitles = new Set([
+  "设计一组复古野趣花卉",
+  "设计一组2027春季",
+  "为北美轻户外品牌制作",
+  "以PDF的2025秋",
+  "就是返回南京和健康",
+  "34343",
+]);
 
 const readPersistedWorkspace = (): PersistedWorkspaceState | null => {
   if (typeof window === "undefined") return null;
@@ -54,7 +62,11 @@ const readPersistedWorkspace = (): PersistedWorkspaceState | null => {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PersistedWorkspaceState>;
     if (parsed.version !== 1 || !Array.isArray(parsed.taskRecords)) return null;
-    return parsed as PersistedWorkspaceState;
+    const taskRecords = parsed.taskRecords.filter((task) => !retiredPrototypeTaskTitles.has(task.title));
+    const activeTaskId = taskRecords.some((task) => task.id === parsed.activeTaskId)
+      ? parsed.activeTaskId ?? null
+      : null;
+    return { ...parsed, taskRecords, activeTaskId } as PersistedWorkspaceState;
   } catch {
     return null;
   }
