@@ -1,13 +1,9 @@
 # 首页业务场景 Tab 右侧动效交付表
 
-版本：2.0
-
 状态：与当前首页实现对齐
 
 适用区域：首页业务场景 Tab 右侧
 代码基线：Git 仓库 `main` 分支最新版本的 `src/components/ArchiveHeaderMotion.tsx`
-
-> 1.x 版本的“双玻璃卡片 5 秒开合”方案已经废弃，不得再作为开发实现依据。
 
 ## 1. 真源与交付文件
 
@@ -39,8 +35,8 @@
 | 对象 | 规则 |
 | --- | --- |
 | 总容器 | 240 × 172 px，首页头部右下对齐 |
-| 上标签自动漂浮 | `y: 0 → -6px`；3.9s；`sine.inOut`；yoyo；无限循环 |
-| 下标签自动漂浮 | `y: 0 → 6px`；4.4s；延迟 0.7s；`sine.inOut`；yoyo；无限循环 |
+| 上标签自动漂浮 | `y: 0 → -6px`；3.3s；`sine.inOut`；yoyo；无限循环 |
+| 下标签自动漂浮 | `y: 0 → 6px`；3.7s；延迟 0.5s；`sine.inOut`；yoyo；无限循环 |
 | 鼠标避让范围 | 标签中心 96px 半径内生效 |
 | 最大避让距离 | 18px |
 | 上标签回位 | 0.46s；`power3.out` |
@@ -85,4 +81,4 @@
 
 ## 7. 开发交付话术
 
-> 首页业务场景 Tab 右侧动效以本 v2.0 交付表和当前 `src/components/ArchiveHeaderMotion.tsx` 为准。Figma负责确认视觉，代码负责确认状态、参数与降级规则。请勿使用旧版双玻璃卡片方案。完成后按 Tab 映射、深浅主题、鼠标避让、reduced-motion、Safari 和 900px 响应式逐项验收。
+> 首页业务场景 Tab 右侧动效以本交付表和当前 `src/components/ArchiveHeaderMotion.tsx` 为准。Figma 负责确认视觉，代码负责确认状态、参数与降级规则。完成后按 Tab 映射、深浅主题、鼠标避让、reduced-motion、Safari 和 900px 响应式逐项验收。

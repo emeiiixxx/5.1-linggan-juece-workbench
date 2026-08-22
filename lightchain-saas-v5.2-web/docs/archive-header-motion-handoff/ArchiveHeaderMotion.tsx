@@ -79,8 +79,8 @@ export function ArchiveHeaderMotion({
       gsap.set([topRepel, topFloat, bottomRepel, bottomFloat], { x: 0, y: 0, force3D: true });
       if (reduceMotion) return;
 
-      gsap.to(topFloat, { y: -6, duration: 3.9, ease: "sine.inOut", repeat: -1, yoyo: true });
-      gsap.to(bottomFloat, { y: 6, duration: 4.4, delay: 0.7, ease: "sine.inOut", repeat: -1, yoyo: true });
+      gsap.to(topFloat, { y: -6, duration: 3.3, ease: "sine.inOut", repeat: -1, yoyo: true });
+      gsap.to(bottomFloat, { y: 6, duration: 3.7, delay: 0.5, ease: "sine.inOut", repeat: -1, yoyo: true });
 
       quickSettersRef.current = {
         topX: gsap.quickTo(topRepel, "x", { duration: 0.46, ease: "power3.out" }),
