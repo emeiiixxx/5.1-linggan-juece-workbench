@@ -34,7 +34,7 @@ export function TaskListItemContent({
       <span className="task-list-item-content__meta">
         <span className="task-list-item-content__type">{t(sourceLabel ?? taskWorkflowLabels[workflow])}</span>
         {modifiedDate ? (
-          <span className="task-list-item-content__date">·{modifiedDate}</span>
+          <span className="task-list-item-content__date">{modifiedDate}</span>
         ) : null}
       </span>
     </span>
