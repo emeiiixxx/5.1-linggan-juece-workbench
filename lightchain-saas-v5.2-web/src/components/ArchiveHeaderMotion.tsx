@@ -80,7 +80,7 @@ export function ArchiveHeaderMotion({ theme, activeTab }: { theme: "dark" | "lig
     gsap.to(topFloat, {
       x: 0,
       y: -6,
-      duration: 3.9,
+      duration: 3.3,
       ease: "sine.inOut",
       repeat: -1,
       yoyo: true,
@@ -88,8 +88,8 @@ export function ArchiveHeaderMotion({ theme, activeTab }: { theme: "dark" | "lig
     gsap.to(bottomFloat, {
       x: 0,
       y: 6,
-      duration: 4.4,
-      delay: 0.7,
+      duration: 3.7,
+      delay: 0.5,
       ease: "sine.inOut",
       repeat: -1,
       yoyo: true,
