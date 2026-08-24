@@ -6,10 +6,11 @@ import { buildConditionAcknowledgement } from "../utils/taskAcknowledgement";
 import { BusinessButton, Button, QuickReplyButton } from "./Button";
 import {
   AnalysisStepIcon,
+  CONVERSATION_GENERATION_BATCH_DELAY_MS,
   ConversationFeed,
   ConversationFollowUpExchange,
   ConversationFormTitle,
-  ConversationStatusIcon,
+  ConversationGeneratedImageBatch,
   ConversationTaskCompletion,
   ConversationUserMessage as UserMessage,
   SelectAllControl,
@@ -238,7 +239,10 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
       const timer = window.setTimeout(() => setStage("results"), reduceMotion ? 0 : 650);
       return () => window.clearTimeout(timer);
     }
-    const timer = window.setTimeout(() => setBatchProgress((current) => current + 1), reduceMotion ? 0 : 1050);
+    const timer = window.setTimeout(
+      () => setBatchProgress((current) => current + 1),
+      CONVERSATION_GENERATION_BATCH_DELAY_MS,
+    );
     return () => window.clearTimeout(timer);
   }, [batchProgress, reduceMotion, stage]);
 
@@ -548,15 +552,19 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
             {stage === "generating" && (
               <AssistantMessage className="apparel-generation-message">
                 <p>正在为你生成图案图片。</p>
-                {[0, 1].map((batch) => {
+                {[0, 1].filter((batch) => batch <= batchProgress).map((batch) => {
                   const complete = batch < batchProgress;
-                  const active = batch === batchProgress;
                   const start = batch * 4;
                   return (
-                    <section className="apparel-generation-batch" key={batch}>
-                      <header><ConversationStatusIcon status={complete ? "complete" : active ? "loading" : "pending"} /><span>{complete ? "已完成" : active ? "正在生成" : "等待生成"}第 {batch + 1} 批（PT #{String(start + 1).padStart(2, "0")}-{String(start + 4).padStart(2, "0")}）</span><FigmaIcon name="chevron-down" size={16} /></header>
-                      <div className="apparel-generation-grid">{Array.from({ length: 4 }, (_, itemIndex) => <div className={complete ? "is-complete" : "is-loading"} key={itemIndex}><ProgressiveImage src={assetUrl(patternAsset(start + itemIndex))} alt={`生成图案 PT ${start + itemIndex + 1}`} />{!complete && <span className="conversation-analysis-loading apparel-generation-loading" aria-label="正在生成"><img className="conversation-analysis-spinner" src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" /></span>}</div>)}</div>
-                    </section>
+                    <ConversationGeneratedImageBatch
+                      title={`我正在为系列的第 ${batch + 1} 批生成图案（PT #${String(start + 1).padStart(2, "0")}-${String(start + 4).padStart(2, "0")}）`}
+                      images={Array.from({ length: 4 }, (_, itemIndex) => ({
+                        src: patternAsset(start + itemIndex),
+                        alt: `生成图案 PT ${start + itemIndex + 1}`,
+                      }))}
+                      complete={complete}
+                      key={batch}
+                    />
                   );
                 })}
               </AssistantMessage>

@@ -4,7 +4,7 @@ import { assetUrl } from "../utils/assets";
 import { FigmaIcon } from "./FigmaIcon";
 import { ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
 import { BusinessButton, Button, QuickReplyButton } from "./Button";
-import { AnalysisStepIcon, ConversationFeed, ConversationFollowUpExchange, ConversationFormTitle, ConversationStatusIcon as ApparelStatusIcon, ConversationTaskCompletion, ConversationUserMessage as UserMessage, SelectAllControl, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
+import { AnalysisStepIcon, CONVERSATION_GENERATION_BATCH_DELAY_MS, ConversationFeed, ConversationFollowUpExchange, ConversationFormTitle, ConversationGeneratedImageBatch, ConversationTaskCompletion, ConversationUserMessage as UserMessage, SelectAllControl, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
 import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
 import { useGsapEntrance } from "../motion/gsap";
 import { SelectionCard, SelectionControl } from "./SelectionCard";
@@ -262,7 +262,10 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
       const completionTimer = window.setTimeout(() => setStage("results"), reduceMotion ? 0 : 700);
       return () => window.clearTimeout(completionTimer);
     }
-    const timer = window.setTimeout(() => setBatchProgress((current) => current + 1), reduceMotion ? 0 : 1100);
+    const timer = window.setTimeout(
+      () => setBatchProgress((current) => current + 1),
+      CONVERSATION_GENERATION_BATCH_DELAY_MS,
+    );
     return () => window.clearTimeout(timer);
   }, [batchProgress, reduceMotion, stage]);
 
@@ -753,31 +756,20 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
             {stage === "generating" && (
               <AssistantMessage className="apparel-generation-message">
                 <p>立即为你生成图片</p>
-                {[0, 1].map((batch) => {
+                {[0, 1].filter((batch) => batch <= batchProgress).map((batch) => {
                   const complete = batch < batchProgress;
-                  const active = batch === batchProgress;
                   const start = batch * 4 + 1;
                   const end = Math.min(start + 3, 8);
                   return (
-                    <section className="apparel-generation-batch" key={batch}>
-                      <header>
-                        <ApparelStatusIcon status={complete ? "complete" : active ? "loading" : "pending"} />
-                        <span>{complete ? "已完成" : active ? "正在生成" : "等待生成"}第{batch + 1}批次（SKU #{String(start).padStart(2, "0")}-{String(end).padStart(2, "0")}）</span>
-                        <FigmaIcon name="chevron-down" size={16} />
-                      </header>
-                      <div className="apparel-generation-grid">
-                        {Array.from({ length: end - start + 1 }, (_, itemIndex) => (
-                          <div className={complete ? "is-complete" : "is-loading"} key={itemIndex}>
-                            <ProgressiveImage src={assetUrl(activeReferenceImage)} alt={`生成款式 SKU ${start + itemIndex}`} />
-                            {!complete && (
-                              <span className="conversation-analysis-loading apparel-generation-loading" aria-label="正在生成">
-                                <img className="conversation-analysis-spinner" src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" />
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </section>
+                    <ConversationGeneratedImageBatch
+                      title={`我正在为系列的第 ${batch + 1} 批生成图像（SKU #${String(start).padStart(2, "0")}-${String(end).padStart(2, "0")}）`}
+                      images={Array.from({ length: end - start + 1 }, (_, itemIndex) => ({
+                        src: activeReferenceImage,
+                        alt: `生成款式 SKU ${start + itemIndex}`,
+                      }))}
+                      complete={complete}
+                      key={batch}
+                    />
                   );
                 })}
               </AssistantMessage>

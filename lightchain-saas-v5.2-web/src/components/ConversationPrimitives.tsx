@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type HTMLAttributes, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type HTMLAttributes, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion, type HTMLMotionProps } from "motion/react";
 import { assetUrl } from "../utils/assets";
@@ -16,6 +16,7 @@ import { ProgressiveImage } from "./ProgressiveImage";
 import { ConversationUserAttachments, type ConversationUserAttachment } from "./ConversationUserAttachments";
 
 export type ConversationStepStatus = "complete" | "loading" | "pending";
+export const CONVERSATION_GENERATION_BATCH_DELAY_MS = 5000;
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
 const conversationMetaClaimEvent = "lightchain:conversation-meta-claim";
@@ -556,6 +557,39 @@ export function TaskDisclosure({
         </TaskDisclosureCompleteContext.Provider>
       </div>
     </div>
+  );
+}
+
+export function ConversationGeneratedImageBatch({
+  title,
+  images,
+  complete,
+}: {
+  title: string;
+  images: readonly { src: string; alt: string }[];
+  complete: boolean;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const controlsId = useId();
+
+  return (
+    <TaskDisclosure
+      title={title}
+      expanded={expanded}
+      complete={complete}
+      controlsId={controlsId}
+      onToggle={() => setExpanded((open) => !open)}
+    >
+      {complete ? (
+        <div className="apparel-generation-grid">
+          {images.map((image) => (
+            <div className="is-complete" key={image.alt}>
+              <ProgressiveImage src={assetUrl(image.src)} alt={image.alt} />
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </TaskDisclosure>
   );
 }
 
