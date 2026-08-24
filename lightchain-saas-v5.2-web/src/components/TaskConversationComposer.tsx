@@ -38,6 +38,7 @@ type TaskConversationComposerProps = {
   motionDelay?: number;
   focusRequest?: number;
   exceptionNotice?: TaskConversationExceptionNotice | null;
+  attachmentMode?: "mixed" | "image-only";
 };
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
@@ -57,6 +58,7 @@ export function TaskConversationComposer({
   motionDelay = 0,
   focusRequest = 0,
   exceptionNotice = null,
+  attachmentMode = "mixed",
 }: TaskConversationComposerProps) {
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
@@ -66,6 +68,7 @@ export function TaskConversationComposer({
   const composerRef = useRef<HTMLDivElement>(null);
   const attachmentUrlsRef = useRef(new Set<string>());
   const reduceMotion = useReducedMotion();
+  const imageOnlyAttachments = attachmentMode === "image-only";
   const { textareaRef, height } = useAutoGrowTextarea(value, 144, 320, 64 + (attachments.length ? 36 : 0));
 
   useEffect(() => {
@@ -131,6 +134,10 @@ export function TaskConversationComposer({
       document.removeEventListener("keydown", dismissMenuOnEscape);
     };
   }, [attachmentMenuOpen]);
+
+  useEffect(() => {
+    if (imageOnlyAttachments) setAttachmentMenuOpen(false);
+  }, [imageOnlyAttachments]);
 
   useEffect(() => () => {
     attachmentUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -290,18 +297,24 @@ export function TaskConversationComposer({
         <div className="composer-attachment" ref={attachmentMenuRef}>
           <IconControl
             className="composer-attachment__button"
-            label="添加附件"
+            label={imageOnlyAttachments ? "添加图片" : "添加附件"}
             tooltipPlacement="top"
-            selected={attachmentMenuOpen}
+            selected={!imageOnlyAttachments && attachmentMenuOpen}
             disabled={disabled || isRunning}
-            aria-haspopup="menu"
-            aria-expanded={attachmentMenuOpen}
-            onClick={() => setAttachmentMenuOpen((open) => !open)}
+            aria-haspopup={imageOnlyAttachments ? undefined : "menu"}
+            aria-expanded={imageOnlyAttachments ? undefined : attachmentMenuOpen}
+            onClick={() => {
+              if (imageOnlyAttachments) {
+                imageInputRef.current?.click();
+                return;
+              }
+              setAttachmentMenuOpen((open) => !open);
+            }}
           >
             <FigmaIcon name="plus" size={20} />
           </IconControl>
           <AnimatePresence>
-            {attachmentMenuOpen && (
+            {!imageOnlyAttachments && attachmentMenuOpen && (
               <motion.div
                 className="composer-attachment-menu"
                 role="menu"
@@ -322,7 +335,7 @@ export function TaskConversationComposer({
               </motion.div>
             )}
           </AnimatePresence>
-          <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple tabIndex={-1} aria-label="选择要上传的文件" onChange={(event) => addAttachments(event, "file")} />
+          {!imageOnlyAttachments ? <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple tabIndex={-1} aria-label="选择要上传的文件" onChange={(event) => addAttachments(event, "file")} /> : null}
           <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple tabIndex={-1} aria-label="选择要上传的图片" onChange={(event) => addAttachments(event, "image")} />
         </div>
         </div>

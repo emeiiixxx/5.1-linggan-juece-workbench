@@ -597,6 +597,7 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
         <div className="conversation-bottom-fade" aria-hidden="true" />
         <TaskConversationComposer
           className="apparel-composer"
+          attachmentMode="image-only"
           ariaLabel="继续图案设计对话"
           value={followUp}
           onChange={setFollowUp}

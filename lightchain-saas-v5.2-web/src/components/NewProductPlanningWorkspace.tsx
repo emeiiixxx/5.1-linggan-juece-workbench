@@ -1177,7 +1177,6 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                   <p>请选择主要市场、电商平台和社交媒体。</p>
                   <ResearchScopeForm
                     confirmed={stage !== "scope" || exceptionDemoStage === "credits"}
-                    profileLinked={Boolean(profileName)}
                     markets={researchMarkets}
                     selectedMarkets={markets}
                     commerceOptions={researchPlatformOptions.commerce}

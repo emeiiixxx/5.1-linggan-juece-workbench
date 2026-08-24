@@ -1,11 +1,9 @@
 import { assetUrl } from "../utils/assets";
 import { BusinessButton, Button } from "./Button";
 import { SelectAllControl } from "./ConversationPrimitives";
-import { TipEmoji } from "./TipEmoji";
 
 type ResearchScopeFormProps = {
   confirmed: boolean;
-  profileLinked: boolean;
   markets: string[];
   selectedMarkets: string[];
   commerceOptions: string[];
@@ -57,7 +55,6 @@ function ScopeOptions({
 
 export function ResearchScopeForm({
   confirmed,
-  profileLinked,
   markets,
   selectedMarkets,
   commerceOptions,
@@ -74,9 +71,6 @@ export function ResearchScopeForm({
   onReset,
   onConfirm,
 }: ResearchScopeFormProps) {
-  const guidance = profileLinked
-    ? "已关联业务偏好档案，已提供默认调研范围，所有选项仍可调整。"
-    : "未关联业务偏好档案，已根据当前语言预选地区，其余选项请按需选择。";
   const allSelected = markets.length > 0
     && commerceOptions.length > 0
     && socialOptions.length > 0
@@ -109,12 +103,7 @@ export function ResearchScopeForm({
         </div>
       </header>
 
-      <div className="research-scope-note" id="research-scope-guidance">
-        <TipEmoji size={16} />
-        <p>{guidance}</p>
-      </div>
-
-      <div className="research-scope-fields" aria-describedby="research-scope-guidance">
+      <div className="research-scope-fields">
         <fieldset className="research-scope-field">
           <legend>地区（支持多选） <span aria-hidden="true">*</span></legend>
           <ScopeOptions options={markets} selected={selectedMarkets} confirmed={confirmed} onToggle={onToggleMarket} />

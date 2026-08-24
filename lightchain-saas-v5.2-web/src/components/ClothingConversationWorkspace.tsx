@@ -827,6 +827,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
         <div className="conversation-bottom-fade" aria-hidden="true" />
         <TaskConversationComposer
           className="apparel-composer"
+          attachmentMode="image-only"
           ariaLabel="继续款式设计对话"
           value={followUp}
           onChange={setFollowUp}

@@ -364,6 +364,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
     .map((taskId) => tasks.find((task) => task.id === taskId))
     .filter((task): task is WorkspaceTask => Boolean(task));
   const isPlanMode = activeTab === 0 && productPlanningType === "plan";
+  const imageOnlyAttachments = activeTab === 2 || activeTab === 3;
   const supportsProfileSelection = activeTab < 2 && !isPlanMode;
   const activeQuickStartCards = quickStartCardsByTab[activeTab] ?? quickStartCardsByTab[0];
   const reduceMotion = useReducedMotion();
@@ -609,6 +610,10 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
       document.removeEventListener("keydown", dismissSelectMenusOnEscape);
     };
   }, [attachmentMenuOpen, productPlanningMenuOpen, profileMenuOpen, projectMenuOpen]);
+
+  useEffect(() => {
+    if (imageOnlyAttachments) setAttachmentMenuOpen(false);
+  }, [imageOnlyAttachments]);
 
   const createTask = (taskMessage: string, sourceTab: number) => {
     const title = Array.from(taskMessage).slice(0, 10).join("");
@@ -1227,12 +1232,16 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
             {!isPlanMode && <div className="composer-attachment" ref={attachmentMenuRef}>
               <IconControl
                 className="composer-attachment__button"
-                label={t("添加附件")}
+                label={t(imageOnlyAttachments ? "添加图片" : "添加附件")}
                 tooltipPlacement="top"
-                selected={attachmentMenuOpen}
-                aria-haspopup="menu"
-                aria-expanded={attachmentMenuOpen}
+                selected={!imageOnlyAttachments && attachmentMenuOpen}
+                aria-haspopup={imageOnlyAttachments ? undefined : "menu"}
+                aria-expanded={imageOnlyAttachments ? undefined : attachmentMenuOpen}
                 onClick={() => {
+                  if (imageOnlyAttachments) {
+                    imageInputRef.current?.click();
+                    return;
+                  }
                   setAttachmentMenuOpen((open) => !open);
                   setProductPlanningMenuOpen(false);
                   setProfileMenuOpen(false);
@@ -1242,7 +1251,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
                 <FigmaIcon name="plus" size={20} />
               </IconControl>
               <AnimatePresence>
-                {attachmentMenuOpen && (
+                {!imageOnlyAttachments && attachmentMenuOpen && (
                   <motion.div
                     className="composer-attachment-menu"
                     role="menu"
@@ -1264,7 +1273,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
                   </motion.div>
                 )}
               </AnimatePresence>
-              <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple tabIndex={-1} aria-label={t("选择要上传的文件")} onChange={(event) => addAttachments(event, "file")} />
+              {!imageOnlyAttachments ? <input ref={fileInputRef} className="composer-attachment__input" type="file" multiple tabIndex={-1} aria-label={t("选择要上传的文件")} onChange={(event) => addAttachments(event, "file")} /> : null}
               <input ref={imageInputRef} className="composer-attachment__input" type="file" accept="image/*" multiple tabIndex={-1} aria-label={t("选择要上传的图片")} onChange={(event) => addAttachments(event, "image")} />
             </div>}
             <div className="composer__send-hint" title={t("Enter 发送 · Shift + Enter 换行")}>{t("Enter 发送 · Shift + Enter 换行")}</div>
@@ -1417,7 +1426,7 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
             )}
           </AnimatePresence>
         </motion.section>
-        <motion.div variants={primaryPageEntranceItem}>
+        <motion.div className="featured-cases-container" variants={primaryPageEntranceItem}>
           <FeaturedCases activeTab={activeTab} onSelect={setSelectedFeaturedCase} />
         </motion.div>
       </motion.div>

@@ -1205,7 +1205,6 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                     <p>请选择主要市场、电商平台和社交媒体。</p>
                     <ResearchScopeForm
                       confirmed={scopeConfirmed}
-                      profileLinked={Boolean(profileName)}
                       markets={researchMarkets}
                       selectedMarkets={selectedResearchMarkets}
                       commerceOptions={researchPlatformOptions.commerce}

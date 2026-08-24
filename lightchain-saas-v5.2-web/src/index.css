@@ -3479,9 +3479,15 @@ a:focus-visible {
   background: var(--state-hover);
 }
 
+.featured-cases-container {
+  width: 100%;
+  min-width: 0;
+}
+
 .featured-cases {
   width: 720px;
   flex: 0 0 auto;
+  margin-inline: auto;
   padding-bottom: 24px;
 }
 
@@ -6648,29 +6654,6 @@ button.selection-card:not(:disabled):active { transform: scale(0.995); }
 .research-scope-badge--confirmed {
   border-color: var(--status-success);
   color: var(--status-success);
-}
-
-.research-scope-note {
-  display: flex;
-  width: 100%;
-  align-items: flex-start;
-  flex-direction: row;
-  gap: 8px;
-  padding: 12px;
-  border-radius: var(--radius-base);
-  background: var(--overlay-weak);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.research-scope-note > .tip-emoji {
-  margin-top: 1px;
-}
-
-.research-scope-note p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-weight: 400;
 }
 
 .research-scope-fields {
@@ -10314,11 +10297,15 @@ button.task-detail-row--reference {
   .workspace-shell,
   .workspace-header,
   .composer,
-  .composer__input,
   .quick-start,
   .featured-cases {
     width: min(720px, calc(100% - 32px));
   }
+
+  .composer__input {
+    width: 100%;
+  }
+
 }
 
 @media (max-width: 900px) {
