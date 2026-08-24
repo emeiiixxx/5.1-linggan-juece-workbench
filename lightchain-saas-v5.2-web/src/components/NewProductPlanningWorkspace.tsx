@@ -915,7 +915,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const placeholder: Record<PlanningStage, string> = {
     analyzing: "Agent 正在解析新品企划需求，请稍候...",
     brief: "补充条件，或回复“满意，请继续”...",
-    scope: "请完成上方调研范围表单，或输入补充条件...",
+    scope: "请完成上方调研范围表单，或在“其他”中补充条件...",
     research: "Agent 正在完成多来源调研与视觉方向整理...",
     directions: "请在上方选择视觉方向，支持多选...",
     "structure-planning": "Agent 正在调用工具完成商品结构规划...",
@@ -1011,6 +1011,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   }), [confirmedDirectionReportItems, confirmedDirections, merchandisingPlan, planSources]);
   const aiResultsHtml = useMemo(() => buildFashionProposalHtml({
     kind: "package",
+    referenceState: "reference",
     title: "AI 改款结果",
     deck: "汇总本轮基于已确认视觉方向、参考商品与商品结构生成的 AI 改款图，供筛选与后续新品企划使用。",
     kicker: "AI DESIGN VARIATIONS",

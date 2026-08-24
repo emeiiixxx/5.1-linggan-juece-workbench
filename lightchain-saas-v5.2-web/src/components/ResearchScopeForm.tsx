@@ -126,14 +126,14 @@ export function ResearchScopeForm({
         <div className="research-scope-divider" aria-hidden="true" />
 
         <fieldset className="research-scope-field">
-          <legend>其他独立站 / 平台</legend>
+          <legend>其他</legend>
           <div className="research-scope-other">
             <textarea
               value={otherCommerce}
               onChange={(event) => onOtherCommerceChange(event.target.value)}
               readOnly={confirmed}
-              placeholder="请输入其他电商平台或独立站名称，多个请用逗号“，”隔开"
-              aria-label="其他电商平台或独立站名称"
+              placeholder="请输入其他补充条件"
+              aria-label="其他补充条件"
             />
           </div>
         </fieldset>

@@ -187,6 +187,7 @@ function buildTrendReportHtml(
     const selectedDirections = trendDirections.filter((direction) => selectedDirectionIds.includes(direction.id));
     return buildFashionProposalHtml({
       kind: "package",
+      referenceState: kind === "ai-results" ? "reference" : "selected",
       title: kind === "proposal" ? "正式客户提案" : "AI 改款结果",
       deck: kind === "proposal"
         ? "整合客户需求、市场证据、确认方向与 AI 改款图，形成可直接对外沟通的只读提案。"
@@ -916,7 +917,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     : !scopeFormVisible
       ? "补充季节或其他条件；输入“继续”进入调研范围..."
       : !scopeConfirmed
-        ? "请完成上方调研范围表单，或输入需要补充的条件..."
+        ? "请完成上方调研范围表单，或在“其他”中补充条件..."
         : !trendScanComplete
           ? "Agent 正在扫描趋势方向，请稍候..."
           : !trendDirectionsConfirmed

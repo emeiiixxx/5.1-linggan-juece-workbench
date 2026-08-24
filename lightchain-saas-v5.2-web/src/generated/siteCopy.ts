@@ -788,9 +788,9 @@ export const generatedSiteCopy: Record<string, { ja: string; en: string }> = {
     "en": "The shoulder line, waist and hem are gathered together to form a structured but not bulky spring silhouette.",
     "ja": "ショルダーライン、ウエスト、裾にギャザーを施し、構築的だけどもたつかない春らしいシルエットに仕上げました。"
   },
-  "请输入其他电商平台或独立站名称，多个请用逗号“，”隔开": {
-    "en": "Please enter the name of other e-commerce platforms or independent sites. Please separate multiple ones with commas \",\"",
-    "ja": "他の電子商取引プラットフォームまたは独立したサイトの名前を入力してください。複数ある場合はカンマ「,」で区切ってください。"
+  "请输入其他补充条件": {
+    "en": "Enter any other additional conditions",
+    "ja": "その他の追加条件を入力してください"
   },
   "渠道：ZOZOTOWN、Rakuten Fashion": {
     "en": "Channel: ZOZOTOWN, Rakuten Fashion",
@@ -912,9 +912,9 @@ export const generatedSiteCopy: Record<string, { ja: string; en: string }> = {
     "en": "Reply \"Agree, continue\", or enter the design strategy that needs to be adjusted...",
     "ja": "「同意して続行します」と返信するか、調整が必要な設計戦略を入力してください..."
   },
-  "请完成上方调研范围表单，或输入需要补充的条件...": {
-    "en": "Please complete the survey scope form above, or enter the conditions you need to add...",
-    "ja": "上記の調査範囲フォームに記入するか、追加する必要がある条件を入力してください..."
+  "请完成上方调研范围表单，或在“其他”中补充条件...": {
+    "en": "Please complete the research scope form above, or add details under ‘Other’...",
+    "ja": "上記の調査範囲フォームに入力するか、「その他」に条件を追加してください..."
   },
   "已暂时跳过客户反馈，以下未指定项将作为待确认假设。": {
     "en": "Customer feedback has been temporarily skipped and the following unspecified items will be treated as assumptions to be confirmed.",
@@ -1108,10 +1108,6 @@ export const generatedSiteCopy: Record<string, { ja: string; en: string }> = {
     "en": "Describe the pattern style, elements and application scenarios you want to generate...",
     "ja": "生成したいパターン スタイル、要素、アプリケーション シナリオについて説明します..."
   },
-  "请完成上方调研范围表单，或输入补充条件...": {
-    "en": "Please complete the survey scope form above, or enter additional conditions...",
-    "ja": "上記の調査範囲フォームに記入するか、追加の条件を入力してください..."
-  },
   "确认删除「{name}」吗？删除后不可恢复。": {
     "en": "Are you sure you want to delete \"{name}\"? It cannot be recovered after deletion.",
     "ja": "「{name}」を削除してもよろしいですか?削除後は復元できません。"
@@ -1175,6 +1171,10 @@ export const generatedSiteCopy: Record<string, { ja: string; en: string }> = {
   "公开渠道样本与客户已选素材均保留来源边界。": {
     "en": "Both public channel samples and customer-selected materials retain source boundaries.",
     "ja": "パブリック チャンネルのサンプルと顧客が選択したマテリアルはどちらも、ソースの境界を維持します。"
+  },
+  "公开渠道样本与参考素材均保留来源边界。": {
+    "en": "Both public channel samples and reference materials retain their source boundaries.",
+    "ja": "公開チャネルのサンプルと参考資料は、いずれも出典の境界を保持します。"
   },
   "检查空白图、明显重复和与目标人群不符的结果": {
     "en": "Check for blank graphs, obvious duplications, and results that do not match the target population",
@@ -1972,9 +1972,9 @@ export const generatedSiteCopy: Record<string, { ja: string; en: string }> = {
     "en": "European fashion retail public product samples",
     "ja": "ヨーロッパのファッション小売店の公開製品サンプル"
   },
-  "其他电商平台或独立站名称": {
-    "en": "Other e-commerce platforms or independent website names",
-    "ja": "他の電子商取引プラットフォームまたは独立した Web サイト名"
+  "其他补充条件": {
+    "en": "Other additional conditions",
+    "ja": "その他の追加条件"
   },
   "企划案参考图片，支持多选": {
     "en": "Project reference pictures, support multiple selections",
@@ -2275,10 +2275,6 @@ export const generatedSiteCopy: Record<string, { ja: string; en: string }> = {
   "经典传承与解构创新：": {
     "en": "Classic inheritance and deconstruction innovation:",
     "ja": "古典的な継承と分解の革新:"
-  },
-  "其他独立站 / 平台": {
-    "en": "Other independent stations/platforms",
-    "ja": "その他の独立した駅/プラットフォーム"
   },
   "确认 AI 款式图。": {
     "en": "Confirm AI style map.",

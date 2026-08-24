@@ -19,6 +19,7 @@ export type FashionProposalReference = {
 
 export type FashionProposalHtmlOptions = {
   kind: "research" | "package" | "plan";
+  referenceState?: "reference" | "selected";
   directions: FashionProposalDirection[];
   references: FashionProposalReference[];
   categoryCount: number;
@@ -67,9 +68,10 @@ const sourceFor = (title: string, sources: FashionProposalSource[]) => {
 
 const tagMarkup = (tags: string[]) => `<div class="tag-list">${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>`;
 
-export function buildFashionProposalHtml({ kind, directions, references, categoryCount, directionLabel, title: titleOverride, deck: deckOverride, kicker = "CLIENT DIRECTION PROPOSAL", topbarMeta = "Japan / Womenswear / 2026.08", sources = sourceCatalog, plan, evidenceMetrics }: FashionProposalHtmlOptions) {
+export function buildFashionProposalHtml({ kind, referenceState = "selected", directions, references, categoryCount, directionLabel, title: titleOverride, deck: deckOverride, kicker = "CLIENT DIRECTION PROPOSAL", topbarMeta = "Japan / Womenswear / 2026.08", sources = sourceCatalog, plan, evidenceMetrics }: FashionProposalHtmlOptions) {
   const isPackage = kind === "package";
   const isPlan = kind === "plan";
+  const referencesAreSelected = referenceState === "selected";
   const title = titleOverride ?? (isPlan ? "新品企划案" : isPackage ? "客户方向参考包" : "客户需求调研与视觉方向");
   const deck = deckOverride ?? (isPlan
     ? "把已确认的趋势方向、商品结构与 AI 改款图整合为可执行的新品开发方案。"
@@ -80,7 +82,7 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
   const heroImage = references[0]?.imageUrl ?? directions[0]?.imageUrl ?? "";
   const sampleCount = isPackage || isPlan ? references.length : directions.length;
   const reportMetrics = evidenceMetrics ?? [
-    { value: String(sampleCount), label: isPlan ? "确认 AI 款式图" : isPackage ? "客户已选参考图" : "候选视觉方向" },
+    { value: String(sampleCount), label: isPlan ? "确认 AI 款式图" : isPackage ? (referencesAreSelected ? "客户已选参考图" : "参考素材") : "候选视觉方向" },
     { value: String(directions.length), label: isPlan ? "确认视觉方向" : "已确认及待评估方向" },
     { value: String(isPackage || isPlan ? categoryCount : reportSources.length), label: isPlan ? "规划品类" : isPackage ? "素材类型" : "公开来源类型" },
   ];
@@ -201,7 +203,7 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
     <header class="hero" id="report-cover">
       <div class="hero__heading"><div class="hero__copy"><span class="kicker">${escapeHtml(kicker)}</span><h1>${escapeHtml(title)}</h1></div><p class="hero__deck">${escapeHtml(deck)}</p></div>
       <figure class="visual-frame hero__media" data-visual><img class="progressive-media" loading="eager" decoding="async" fetchpriority="high" src="${escapeHtml(heroImage)}" alt="${escapeHtml(title)}封面视觉"></figure>
-      <div class="hero__foot"><span><strong>方向依据</strong> ${escapeHtml(directionLabel)}</span><span>公开渠道样本与客户已选素材均保留来源边界。</span></div>
+      <div class="hero__foot"><span><strong>方向依据</strong> ${escapeHtml(directionLabel)}</span><span>${referencesAreSelected ? "公开渠道样本与客户已选素材均保留来源边界。" : "公开渠道样本与参考素材均保留来源边界。"}</span></div>
     </header>
     <section class="section evidence" id="report-evidence">
       <div class="evidence__intro" data-reveal><h2>先说明为什么，再呈现选什么。</h2><p>数字只描述本次工作样本，不将社媒互动、电商陈列或品牌采用直接等同于销量。</p></div>
@@ -209,7 +211,7 @@ export function buildFashionProposalHtml({ kind, directions, references, categor
     </section>
     ${directionMarkup ? `<section class="section" id="report-directions"><div class="section-header" data-reveal><h2>${isPlan ? "已确认视觉方向。" : "方向需要能被执行。"}</h2><p>${isPlan ? "方向已经完成确认，并作为商品结构与 AI 改款的共同设计约束。" : "每个方向同时保留市场信号、造型语言与下一步验证建议。"}</p></div><div class="direction-list">${directionMarkup}</div></section>` : ""}
     ${planMarkup}
-    ${referenceMarkup ? `<section class="section references" id="report-references"><div class="section-header" data-reveal><h2>${isPlan ? "确认 AI 款式图。" : "客户已选素材。"}</h2><p>${isPlan ? "以下款式图已由用户确认并写入本次企划，作为后续开款与客户沟通的视觉依据。" : "图像、标题、设计标签和原始来源一起保留，避免在提案传递中失真。"}</p></div><div class="reference-grid">${referenceMarkup}</div></section>` : ""}
+    ${referenceMarkup ? `<section class="section references" id="report-references"><div class="section-header" data-reveal><h2>${isPlan ? "确认 AI 款式图。" : referencesAreSelected ? "客户已选素材。" : "参考素材"}</h2><p>${isPlan ? "以下款式图已由用户确认并写入本次企划，作为后续开款与客户沟通的视觉依据。" : "图像、标题、设计标签和原始来源一起保留，避免在提案传递中失真。"}</p></div><div class="reference-grid">${referenceMarkup}</div></section>` : ""}
     <section class="section method" id="report-method"><div class="method__copy" data-reveal><h2>证据可追溯，结论才可讨论。</h2><p>以下链接是本原型用于说明证据结构的公开渠道入口。正式项目应继续记录具体商品页、采集时间、授权状态与样本口径。</p></div><div class="source-list" data-reveal>${sourceMarkup}</div></section>
     <footer class="footer"><span>CLIENT WORKING DOCUMENT / SOURCE BOUNDARIES RETAINED</span></footer>
   </main>
