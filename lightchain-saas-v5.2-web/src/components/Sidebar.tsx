@@ -842,32 +842,18 @@ export function Sidebar({
     setDropFocusedGroupIndex(null);
   };
 
-  const getTaskUpdatedAtTime = (title: string) => {
-    const updatedAt = getTaskSidebarMeta(title).updatedAt;
-    if (!updatedAt) return 0;
-    const timestamp = Date.parse(updatedAt);
-    return Number.isNaN(timestamp) ? 0 : timestamp;
-  };
-
   const recentEntries = [
     ...groups.map((group, groupIndex) => ({
       kind: "group" as const,
       group,
       groupIndex,
-      updatedAt: Math.max(0, ...group.items.map(getTaskUpdatedAtTime)),
-      stableIndex: groupIndex,
     })),
     ...tasks.map((item, taskIndex) => ({
       kind: "task" as const,
       item,
       taskIndex,
-      updatedAt: getTaskUpdatedAtTime(item),
-      stableIndex: groups.length + taskIndex,
     })),
-  ].sort((left, right) => {
-    if (left.kind !== right.kind) return left.kind === "group" ? -1 : 1;
-    return right.updatedAt - left.updatedAt || left.stableIndex - right.stableIndex;
-  });
+  ];
   const isRecentEmpty = recentEntries.length === 0;
 
   const renderRecentEmptyState = (isFlyout: boolean) => (
@@ -885,18 +871,10 @@ export function Sidebar({
     groupIndex: number,
     isFlyout: boolean,
   ) => {
-    const sortedItems = group.items
-      .map((item, itemIndex) => ({
-        item,
-        itemIndex,
-        updatedAt: getTaskUpdatedAtTime(item),
-      }))
-      .sort((left, right) =>
-        right.updatedAt - left.updatedAt || left.itemIndex - right.itemIndex,
-      );
+    const orderedItems = group.items.map((item, itemIndex) => ({ item, itemIndex }));
     const visibleItems = group.showAll
-      ? sortedItems
-      : sortedItems.slice(0, PROJECT_TASK_PREVIEW_LIMIT);
+      ? orderedItems
+      : orderedItems.slice(0, PROJECT_TASK_PREVIEW_LIMIT);
 
     return (
       <div className="tree-group" key={`${isFlyout ? "flyout-" : ""}${group.id}`}>
