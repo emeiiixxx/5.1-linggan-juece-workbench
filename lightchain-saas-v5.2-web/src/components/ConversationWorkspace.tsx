@@ -20,6 +20,7 @@ import { getResearchPlatformOptions, getResearchScopeDefaults, researchMarkets, 
 import { useModalFocus } from "../hooks/useModalFocus";
 import { buildConditionAcknowledgement } from "../utils/taskAcknowledgement";
 import { scrollWithinConversation } from "../utils/conversationScroll";
+import { AppliedBusinessProfileMessage } from "./AppliedBusinessProfileMessage";
 
 type AnalysisPhase = "parsing" | "complete";
 type GenerationDecision = "skip" | "confirm";
@@ -163,13 +164,6 @@ function createCustomerAiResultBatch(
 
 function StreamingText({ children }: { children: string; delay?: number }) {
   return <span className="conversation-streaming-text">{children}</span>;
-}
-
-function getProfileSummary(profileName: string) {
-  if (profileName.includes("卡宾")) return "品类：鞋袋　价格段：CNY 200–1,000　市场：中国、欧美　年龄段：3–18岁";
-  if (profileName.includes("日本")) return "品类：女装　价格段：JPY 8,000–18,000　市场：日本、韩国、美国　年龄段：25–34岁、35–44岁";
-  if (profileName.includes("灭霸") || profileName.includes("Thanos")) return "品类：女装、男装、童装　价格段：USD 1,000–999,999,999　市场：日本、韩国、美国　年龄段：多年龄段";
-  return "已应用该档案中保存的品类、价格、市场与年龄范围";
 }
 
 function getProfileAnalysisDefaults(profileName: string | undefined) {
@@ -1012,28 +1006,8 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
             </ConversationUserMessage>
 
             <AnimatePresence initial={false}>
-              {profileVisible ? (
-                <motion.article
-                  className="conversation-message conversation-message--assistant conversation-profile-read"
-                  data-message-actions="true"
-                  initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.3, ease: revealEase }}
-                  data-node-id="476:103926"
-                >
-                  <p className="conversation-profile-read__label">
-                    <StreamingText delay={0.04}>已读取到有应用业务偏好档案</StreamingText>
-                  </p>
-                  <motion.div
-                    className="conversation-profile-card"
-                    initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.985 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ duration: reduceMotion ? 0 : 0.38, delay: reduceMotion ? 0 : 0.3, ease: revealEase }}
-                  >
-                    <strong>{profileName}</strong>
-                    <span>{profileName ? getProfileSummary(profileName) : null}</span>
-                  </motion.div>
-                </motion.article>
+              {profileVisible && profileName ? (
+                <AppliedBusinessProfileMessage profileName={profileName} reduceMotion={reduceMotion} dataNodeId="476:103926" />
               ) : null}
             </AnimatePresence>
 

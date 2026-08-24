@@ -39,6 +39,7 @@ import { useModalFocus } from "../hooks/useModalFocus";
 import { extractPromptContext, getPromptExclusions } from "../utils/promptContext";
 import { buildConditionAcknowledgement } from "../utils/taskAcknowledgement";
 import { scrollWithinConversation } from "../utils/conversationScroll";
+import { AppliedBusinessProfileMessage } from "./AppliedBusinessProfileMessage";
 
 type PlanningStage =
   | "analyzing"
@@ -1126,6 +1127,10 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
               <ConversationUserAttachments attachments={attachments} />
               <span>{prompt}</span>
             </ConversationUserMessage>
+
+            {profileName ? (
+              <AppliedBusinessProfileMessage profileName={profileName} reduceMotion={reduceMotion} />
+            ) : null}
 
             <AssistantMessage actions={false}>
               <p>{stage === "analyzing" ? "正在读取需求资料并整理企划边界。" : "已完成需求解析，并保留所有未提供字段为未指定。"}</p>
