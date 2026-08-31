@@ -33,7 +33,7 @@ const actionIcons = {
 function FavoriteActionIcon({ filled }: { filled: boolean }) {
   return (
     <span className="candidate-lightbox__action-icon" aria-hidden="true">
-      <img src={filled ? actionIcons.favoriteFilled : actionIcons.favorite} alt="" />
+      {filled ? <img src={actionIcons.favoriteFilled} alt="" /> : <FigmaIcon name="favorite" size={20} />}
     </span>
   );
 }

@@ -49,6 +49,7 @@ const ART_INSETS: Record<string, string> = {
   "company-info": "14.92% 12.5% 12.5%",
   "customer-support": "9.38% 7.81%",
   "expand-window": "12.5%",
+  favorite: "9.45% 8.02%",
   global: "9.38%",
   "heart-filled": "15.63% 9.47% 14.32%",
   "heart-outline": "15.63% 9.47% 14.32%",
