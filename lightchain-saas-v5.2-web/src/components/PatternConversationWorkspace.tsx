@@ -14,11 +14,9 @@ import {
   ConversationTaskCompletion,
   ConversationUserMessage as UserMessage,
   SelectAllControl,
-  TaskDetailPanel,
   TaskDisclosure,
 } from "./ConversationPrimitives";
 import { ConversationUserAttachments } from "./ConversationUserAttachments";
-import { FigmaIcon } from "./FigmaIcon";
 import {
   ImageActionBar,
   ImageGalleryLightbox,
@@ -85,27 +83,6 @@ const patternGalleryCategories: ImageGalleryCategory[] = [
   { id: "ai-pattern", label: "AI图案" },
 ];
 
-const patternReferenceCategories: ImageGalleryCategory[] = [
-  { id: "pattern-reference", label: "参考素材" },
-];
-
-const patternReferenceSourceUrls = [
-  "https://www.pinterest.com/search/pins/?q=botanical%20surface%20pattern",
-  "https://www.pinterest.com/search/pins/?q=floral%20textile%20pattern",
-  "https://www.pinterest.com/search/pins/?q=fruit%20surface%20pattern",
-] as const;
-
-const patternReferenceItems: ImageGalleryItem[] = candidateIds.map((candidateId, index) => ({
-  id: candidateId,
-  categoryId: patternReferenceCategories[0].id,
-  code: candidateId,
-  src: patternAsset(index),
-  title: `图案参考 ${String(index + 1).padStart(2, "0")}`,
-  subtitle: index % 3 === 0 ? "植物叶片·低饱和手绘" : index % 3 === 1 ? "水果花卉·柔和粉彩" : "度假植物·清新撞色",
-  badges: ["花型参考", index % 2 === 0 ? "四方连续" : "定位印花"],
-  sourceUrl: patternReferenceSourceUrls[index % patternReferenceSourceUrls.length],
-}));
-
 const generatedPatternItems: ImageGalleryItem[] = patternPlan.map((item, index) => ({
   id: item[0],
   categoryId: patternGalleryCategories[0].id,
@@ -157,7 +134,6 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
   const initialConfirmation = initialState === "confirmation";
   const [stage, setStage] = useState<PatternStage>(initialComplete ? "results" : initialConfirmation ? "brief" : "analyzing");
   const [analysisExpanded, setAnalysisExpanded] = useState(!initialConfirmation && !initialComplete);
-  const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [followUp, setFollowUp] = useState("");
   const [quantityChoice, setQuantityChoice] = useState(quantityOptions[0]);
   const [styleChoices, setStyleChoices] = useState<string[]>(initialConfirmation || initialComplete ? ["浪漫花卉", "度假植物"] : []);
@@ -176,7 +152,6 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
   const [matrixReply, setMatrixReply] = useState(initialComplete ? "开始生图" : "");
   const [candidateAnalysisExpanded, setCandidateAnalysisExpanded] = useState(true);
   const [previewCandidate, setPreviewCandidate] = useState<string | null>(null);
-  const [referencePreviewId, setReferencePreviewId] = useState<string | null>(null);
   const [previewResult, setPreviewResult] = useState<string | null>(null);
   const [favoriteResults, setFavoriteResults] = useState<string[]>([]);
   const [replyAttachments, setReplyAttachments] = useState<Partial<Record<PatternStage, TaskConversationAttachment[]>>>({});
@@ -358,7 +333,7 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
   });
 
   return (
-    <motion.main className={`workspace-region workspace-region--conversation apparel-workspace pattern-workspace ${detailPanelOpen ? "has-detail-panel" : ""} ${readOnly ? "is-read-only" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.main className={`workspace-region workspace-region--conversation apparel-workspace pattern-workspace ${readOnly ? "is-read-only" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
       <section className="conversation-stage" aria-label="图案设计任务对话">
         <div className="conversation-scroll">
           <ConversationFeed className="apparel-conversation-feed" metaDisabled={readOnly}>
@@ -611,65 +586,7 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
         </> : null}
       </section>
 
-      <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>
-        <TaskDetailPanel
-          ariaLabel="图案设计任务概览"
-          onCollapse={() => setDetailPanelOpen(false)}
-          referenceTitle="参考素材"
-          references={(stageIndex >= 5 ? patternReferenceItems : []).map((item) => ({
-            id: item.id,
-            label: `${item.code} · ${item.title}`,
-            href: item.sourceUrl ?? "#",
-            thumbnail: item.src,
-            meta: item.subtitle,
-            date: "2026-08-19",
-            groupDate: "2026-08-19 10:20",
-          }))}
-          onReferenceSelect={(reference) => {
-            if (reference.id) setReferencePreviewId(reference.id);
-          }}
-          generatedTitle="AI图案"
-          generatedReferences={(stage === "results" ? generatedPatternItems : []).map((item) => ({
-            id: item.id,
-            label: `${item.code} · ${item.title}`,
-            href: "#",
-            thumbnail: item.src,
-            meta: item.subtitle,
-            date: "2026-08-19",
-            groupDate: "2026-08-19 10:30",
-          }))}
-          onGeneratedSelect={(reference) => {
-            if (reference.id) setPreviewResult(reference.id);
-          }}
-        />
-        <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
-      </aside>
-
       {previewCandidate ? <ImageLightbox src={assetUrl(patternAsset(candidateIds.indexOf(previewCandidate)))} alt={`${previewCandidate}-图案参考.jpg`} onClose={() => setPreviewCandidate(null)} /> : null}
-      {referencePreviewId ? (
-        <ImageGalleryLightbox
-          title="参考素材"
-          categories={patternReferenceCategories}
-          items={patternReferenceItems}
-          activeCategoryId={patternReferenceCategories[0].id}
-          activeItemId={referencePreviewId}
-          selectedIds={[]}
-          selectionDisabled
-          referenceActions={{
-            onDownload: (item) => downloadAsset(item.src, `${item.code}-${item.title}.jpg`),
-            onOpenSource: (item) => {
-              if (item.sourceUrl) window.open(item.sourceUrl, "_blank", "noopener,noreferrer");
-            },
-          }}
-          hideSelection
-          presentation="reference"
-          showCategories={false}
-          onCategoryChange={() => undefined}
-          onNavigate={setReferencePreviewId}
-          onToggleSelection={() => undefined}
-          onClose={() => setReferencePreviewId(null)}
-        />
-      ) : null}
       {previewResult ? (
         <ImageGalleryLightbox
           title="AI图案"

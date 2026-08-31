@@ -1,10 +1,9 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
-import { FigmaIcon } from "./FigmaIcon";
 import { ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
 import { BusinessButton, Button, QuickReplyButton } from "./Button";
-import { AnalysisStepIcon, CONVERSATION_GENERATION_BATCH_DELAY_MS, ConversationFeed, ConversationFollowUpExchange, ConversationFormTitle, ConversationGeneratedImageBatch, ConversationTaskCompletion, ConversationUserMessage as UserMessage, SelectAllControl, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
+import { AnalysisStepIcon, CONVERSATION_GENERATION_BATCH_DELAY_MS, ConversationFeed, ConversationFollowUpExchange, ConversationFormTitle, ConversationGeneratedImageBatch, ConversationTaskCompletion, ConversationUserMessage as UserMessage, SelectAllControl, TaskDisclosure } from "./ConversationPrimitives";
 import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
 import { useGsapEntrance } from "../motion/gsap";
 import { SelectionCard, SelectionControl } from "./SelectionCard";
@@ -31,10 +30,6 @@ type ApparelStage =
 type Attachment = { name: string; previewUrl?: string };
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
-const inspirationReferenceLinks = [
-  { label: "pinterest.com", href: "https://www.pinterest.com/search/pins/?q=mens%20bomber%20jacket", meta: "飞行员夹克廓形、领部、门襟与辅料细节参考" },
-  { label: "vogue.com", href: "https://www.vogue.com/fashion-shows/menswear", meta: "男装系列、秀场造型与解构设计案例" },
-] as const;
 const referenceImage = "assets/apparel-design/candidate-jacket.png";
 const userReferences = [
   "assets/apparel-design/reference-jacket.png",
@@ -166,7 +161,6 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
   const completionReportedRef = useRef(startsComplete);
   const [stage, setStage] = useState<ApparelStage>(startsComplete ? "results" : startsAtConfirmation ? "brief" : "analyzing");
   const [analysisExpanded, setAnalysisExpanded] = useState(!startsAtConfirmation && !startsComplete);
-  const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [followUp, setFollowUp] = useState("");
   const [briefReply, setBriefReply] = useState(startsComplete ? "已确认完整系列开发、风格方向、商业定位与改款幅度" : "");
   const [quantityChoice, setQuantityChoice] = useState(quantityOptions[0]);
@@ -285,11 +279,6 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
   const stageIndex = useMemo(() => [
     "analyzing", "brief", "directions-loading", "directions", "candidates-loading", "candidates", "candidate-confirmation", "candidate-analysis", "strategy", "matrix", "generating", "results",
   ].indexOf(stage), [stage]);
-  const visibleInspirationReferences = stageIndex >= 5 ? (isKnitCardigan ? [
-    { label: "pinterest.com", href: "https://www.pinterest.com/search/pins/?q=knit%20cardigan%20design", meta: "针织开衫廓形、组织、门襟与搭配参考" },
-    { label: "vogue.com", href: "https://www.vogue.com/fashion-shows", meta: "春季针织造型与系列搭配参考" },
-  ] : inspirationReferenceLinks) : [];
-
   const submitMessage = (preset?: string, submittedAttachments: TaskConversationAttachment[] = []) => {
     const value = (preset ?? followUp).trim();
     if (!value && !submittedAttachments.length) return;
@@ -416,7 +405,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
   };
 
   return (
-    <motion.main className={`workspace-region workspace-region--conversation apparel-workspace ${detailPanelOpen ? "has-detail-panel" : ""} ${readOnly ? "is-read-only" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.main className={`workspace-region workspace-region--conversation apparel-workspace ${readOnly ? "is-read-only" : ""}`} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
       <section className="conversation-stage" aria-label="款式设计任务对话">
         <div className="conversation-scroll">
           <ConversationFeed className="apparel-conversation-feed" metaDisabled={readOnly}>
@@ -840,15 +829,6 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
         />
         </> : null}
       </section>
-
-      <aside className={`task-detail-rail ${detailPanelOpen ? "is-expanded" : "is-collapsed"}`}>
-        <TaskDetailPanel
-          ariaLabel="款式设计任务概览"
-          onCollapse={() => setDetailPanelOpen(false)}
-          references={visibleInspirationReferences}
-        />
-        <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
-      </aside>
 
       {previewCandidate ? (
         <ImageLightbox
