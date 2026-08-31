@@ -622,6 +622,7 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
           activeItemId={previewCandidate}
           selectedIds={selectedCandidates}
           selectionDisabled={stage !== "candidates"}
+          hideSourceAction
           onCategoryChange={() => setPreviewCandidate(patternCandidateItems[0].id)}
           onNavigate={setPreviewCandidate}
           onToggleSelection={(itemId) => setSelectedCandidates((current) => current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId])}

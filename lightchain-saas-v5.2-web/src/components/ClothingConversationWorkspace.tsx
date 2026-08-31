@@ -842,6 +842,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
           activeItemId={previewCandidate}
           selectedIds={selectedCandidates}
           selectionDisabled={stage !== "candidates"}
+          hideSourceAction
           onCategoryChange={() => setPreviewCandidate(apparelCandidateItems[0].id)}
           onNavigate={setPreviewCandidate}
           onToggleSelection={toggleCandidate}

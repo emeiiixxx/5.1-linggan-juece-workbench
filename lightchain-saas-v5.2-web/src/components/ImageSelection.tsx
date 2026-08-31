@@ -217,6 +217,7 @@ export function ImageGalleryLightbox({
   resultActions,
   referenceActions,
   hideSelection = false,
+  hideSourceAction = false,
   copyMode = "full",
   presentation = "gallery",
   showCategories = true,
@@ -244,6 +245,7 @@ export function ImageGalleryLightbox({
     onOpenSource: (item: ImageGalleryItem) => void;
   };
   hideSelection?: boolean;
+  hideSourceAction?: boolean;
   copyMode?: "full" | "title-only";
   presentation?: "gallery" | "reference" | "detail";
   showCategories?: boolean;
@@ -533,7 +535,7 @@ export function ImageGalleryLightbox({
                   <FavoriteActionIcon filled={activeItemFavorited} />
                   {t(activeItemFavorited ? "已收藏" : "收藏到资源库")}
                 </Button>
-                <Button variant="outline">{t("查看来源")}</Button>
+                {!hideSourceAction ? <Button variant="outline">{t("查看来源")}</Button> : null}
               </>
             )}
             {!hideSelection ? (
