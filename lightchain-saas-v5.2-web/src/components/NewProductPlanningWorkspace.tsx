@@ -1543,7 +1543,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
           items={allGeneratedResultItems}
           activeCategoryId={activePreviewCategory}
           activeItemId={previewId}
-          selectedIds={previewReadOnly ? [] : selectedResults}
+          selectedIds={selectedResults}
           selectionDisabled={previewReadOnly || stage !== "results"}
           hideSelection={previewHideSelection}
           resultActions={{

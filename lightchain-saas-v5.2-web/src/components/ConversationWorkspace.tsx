@@ -1894,7 +1894,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
           items={allCustomerGeneratedItems}
           activeCategoryId={allCustomerGeneratedItems.find((item) => item.id === aiResultPreviewId)?.categoryId ?? candidateCategories[0].id}
           activeItemId={aiResultPreviewId}
-          selectedIds={aiResultPreviewReadOnly ? [] : selectedAiResultIds}
+          selectedIds={selectedAiResultIds}
           selectionDisabled={aiResultPreviewReadOnly || aiResultsConfirmed || customerProposalStage !== "results" || customerProposalRunning}
           hideSelection={aiResultPreviewHideSelection}
           resultActions={{

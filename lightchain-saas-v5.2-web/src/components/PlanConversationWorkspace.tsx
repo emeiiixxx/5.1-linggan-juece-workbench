@@ -3,8 +3,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
 import { BusinessButton, Button } from "./Button";
 import { FigmaIcon } from "./FigmaIcon";
-import { ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
-import { Toast } from "./Toast";
+import { ImageGalleryLightbox, MasonryImageSelection, type ImageGalleryCategory, type ImageGalleryItem } from "./ImageSelection";
 import { Radio } from "./Radio";
 import {
   AnalysisStepIcon,
@@ -19,7 +18,6 @@ import {
 } from "./ConversationPrimitives";
 import { useGsapEntrance } from "../motion/gsap";
 import { extractPromptContext } from "../utils/promptContext";
-import { ProgressiveImage } from "./ProgressiveImage";
 import { scrollWithinConversation } from "../utils/conversationScroll";
 import { useI18n } from "../i18n";
 
@@ -62,6 +60,26 @@ const planReferenceLinks = [
 
 const referenceImages = Array.from({ length: 12 }, (_, index) => `assets/plan-flow/reference-${String(index + 1).padStart(2, "0")}.jpg`);
 const jacketImages = Array.from({ length: 4 }, () => "assets/apparel-design/candidate-jacket.png");
+const initialReferenceCategories: ImageGalleryCategory[] = [{ id: "plan-initial-reference", label: "首批参考图" }];
+const moreReferenceCategories: ImageGalleryCategory[] = [{ id: "plan-more-reference", label: "更多参考图" }];
+const initialReferenceItems: ImageGalleryItem[] = jacketImages.map((src, index) => ({
+  id: `plan-initial-${index + 1}`,
+  categoryId: initialReferenceCategories[0].id,
+  code: `REF ${String(index + 1).padStart(2, "0")}`,
+  src,
+  title: `主题企划参考 ${String(index + 1).padStart(2, "0")}`,
+  subtitle: "品牌廓形、材质与系列结构参考",
+  badges: [index % 2 === 0 ? "廓形参考" : "材质参考", "主题企划", "系列方向"],
+}));
+const moreReferenceItems: ImageGalleryItem[] = referenceImages.map((src, index) => ({
+  id: `plan-more-${index + 1}`,
+  categoryId: moreReferenceCategories[0].id,
+  code: `REF ${String(index + 5).padStart(2, "0")}`,
+  src,
+  title: `扩展参考 ${String(index + 1).padStart(2, "0")}`,
+  subtitle: index % 3 === 0 ? "品牌秀场与造型搭配参考" : index % 3 === 1 ? "街拍层次与色彩组合参考" : "零售商品结构与细节参考",
+  badges: [index % 2 === 0 ? "造型参考" : "细节参考", "主题企划", index < 4 ? "核心方向" : index < 8 ? "风格延展" : "补充素材"],
+}));
 const planFileIcons = {
   PPT: assetUrl("assets/figma-icons/file-ppt.svg"),
   HTML: assetUrl("assets/figma-icons/file-html.svg"),
@@ -73,6 +91,18 @@ const generationSteps = [
   { title: "生成的内容", images: [referenceImages[0], referenceImages[3], referenceImages[5], referenceImages[7]] },
   { title: "生成的内容", images: [referenceImages[2], referenceImages[4], referenceImages[8], referenceImages[10]] },
 ] as const;
+const generationCategoryLabels = ["企划封面", "关键造型", "主推细节及图案", "生成内容", "生成内容"] as const;
+const generationCategories: ImageGalleryCategory[] = generationSteps.map((_, index) => ({
+  id: `plan-generation-${index + 1}`,
+  label: generationCategoryLabels[index],
+}));
+const generationItems: ImageGalleryItem[] = generationSteps.flatMap((step, stepIndex) => step.images.map((src, imageIndex) => ({
+  id: `plan-generation-${stepIndex + 1}-${imageIndex + 1}`,
+  categoryId: generationCategories[stepIndex].id,
+  code: `IMG ${String(imageIndex + 1).padStart(2, "0")}`,
+  src,
+  title: `${generationCategories[stepIndex].label} ${String(imageIndex + 1).padStart(2, "0")}`,
+})));
 const stageOrder: PlanStage[] = ["theme", "references", "more-loading", "more-references", "analysis-loading", "directions", "export", "exporting", "complete"];
 
 function AssistantMessage({ children, className = "", actions = true }: { children: ReactNode; className?: string; actions?: boolean }) {
@@ -89,36 +119,29 @@ function ToolProgress({ id, complete, lines }: { id: string; complete: boolean; 
   );
 }
 
-function GeneratedImageStep({ id, title, images, complete, favorites, onPreview, onFavorite }: {
+function GeneratedImageStep({ id, title, items, complete, onPreview }: {
   id: string;
   title: string;
-  images: readonly string[];
+  items: readonly ImageGalleryItem[];
   complete: boolean;
-  favorites: ReadonlySet<string>;
-  onPreview: (src: string) => void;
-  onFavorite: (src: string) => void;
+  onPreview: (itemId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   return (
     <TaskDisclosure title={title} expanded={expanded} complete={complete} controlsId={id} onToggle={() => setExpanded((open) => !open)}>
       {complete ? (
-        <div className={`plan-generation-image-grid ${images.length === 1 ? "is-single" : ""}`}>
-          {images.map((src, index) => (
-            <div className="plan-generation-image" key={`${src}-${index}`}>
-              <button type="button" aria-label={`查看生成图片 ${index + 1}`} onClick={() => onPreview(src)}>
-                <ProgressiveImage src={assetUrl(src)} alt={`企划生成内容 ${index + 1}`} />
-              </button>
-              <ImageActionBar
-                favorited={favorites.has(src)}
-                onFavorite={() => onFavorite(src)}
-                onDownload={() => {
-                  const link = document.createElement("a");
-                  link.href = assetUrl(src);
-                  link.download = `plan-generated-${index + 1}.jpg`;
-                  link.click();
-                }}
-              />
-            </div>
+        <div className={`plan-generation-image-grid ${items.length === 1 ? "is-single" : ""}`}>
+          {items.map((item) => (
+            <MasonryImageSelection
+              src={assetUrl(item.src)}
+              alt={`${item.code} ${item.title}`}
+              label={`${item.code} · ${item.title}`}
+              selected={false}
+              previewOnly
+              onSelect={() => undefined}
+              onPreview={() => onPreview(item.id)}
+              key={item.id}
+            />
           ))}
         </div>
       ) : null}
@@ -270,16 +293,14 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
   const [initialImageReady, setInitialImageReady] = useState(startsComplete);
   const [referenceToolsReady, setReferenceToolsReady] = useState(startsComplete);
   const [generationStep, setGenerationStep] = useState(startsComplete ? generationSteps.length - 1 : 0);
-  const [favoriteImages, setFavoriteImages] = useState<Set<string>>(() => new Set());
-  const [toast, setToast] = useState("");
   const [firstSelection, setFirstSelection] = useState<number[]>(startsComplete ? [0, 1] : []);
   const [moreSelection, setMoreSelection] = useState<number[]>(startsComplete ? [0, 1, 2] : []);
   const [requestedMore, setRequestedMore] = useState(startsComplete);
   const [exportFormat, setExportFormat] = useState<"PPT" | "HTML" | "PPT与HTML">(startsComplete ? "PPT与HTML" : "PPT");
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [referencePreviewId, setReferencePreviewId] = useState<string | null>(null);
+  const [generationPreviewId, setGenerationPreviewId] = useState<string | null>(null);
   const feedEndRef = useRef<HTMLDivElement>(null);
-  const toastTimerRef = useRef<number | null>(null);
   const reduceMotion = useReducedMotion();
   const stageIndex = stageOrder.indexOf(stage);
   const visiblePlanReferences = initialTrendReady
@@ -346,35 +367,8 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
     return () => window.cancelAnimationFrame(frame);
   }, [generationStep, initialImageReady, initialTrendReady, reduceMotion, referenceToolsReady, stage]);
 
-  useEffect(() => () => {
-    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
-  }, []);
-
   const toggleSelection = (index: number, values: number[], update: (next: number[]) => void) => {
     update(values.includes(index) ? values.filter((value) => value !== index) : [...values, index]);
-  };
-
-  const toggleFavorite = (src: string) => {
-    const removing = favoriteImages.has(src);
-    setFavoriteImages((current) => {
-      const next = new Set(current);
-      if (next.has(src)) next.delete(src);
-      else next.add(src);
-      return next;
-    });
-    setToast(removing ? "已取消收藏" : "收藏成功");
-    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = window.setTimeout(() => {
-      toastTimerRef.current = null;
-      setToast("");
-    }, 2000);
-  };
-
-  const downloadReferenceImage = (src: string, index: number) => {
-    const link = document.createElement("a");
-    link.href = assetUrl(src);
-    link.download = `plan-reference-${index + 1}.jpg`;
-    link.click();
   };
 
   const createHtmlPlanUrl = () => {
@@ -411,6 +405,29 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+
+  const previewingInitialReferences = referencePreviewId?.startsWith("plan-initial-") ?? false;
+  const activeReferencePreviewItems = previewingInitialReferences ? initialReferenceItems : moreReferenceItems;
+  const activeReferencePreviewCategories = previewingInitialReferences ? initialReferenceCategories : moreReferenceCategories;
+  const activeReferenceSelectedIds = (previewingInitialReferences ? firstSelection : moreSelection)
+    .map((index) => activeReferencePreviewItems[index]?.id)
+    .filter((itemId): itemId is string => Boolean(itemId));
+  const referencePreviewSelectionDisabled = previewingInitialReferences ? stage !== "references" : stage !== "more-references";
+  const activeGenerationPreviewItem = generationItems.find((item) => item.id === generationPreviewId);
+
+  const toggleReferencePreviewSelection = (itemId: string) => {
+    const index = activeReferencePreviewItems.findIndex((item) => item.id === itemId);
+    if (index < 0) return;
+    if (previewingInitialReferences) toggleSelection(index, firstSelection, setFirstSelection);
+    else toggleSelection(index, moreSelection, setMoreSelection);
+  };
+
+  const downloadGeneratedImage = (item: ImageGalleryItem) => {
+    const link = document.createElement("a");
+    link.href = assetUrl(item.src);
+    link.download = `plan-generated-${item.id}.jpg`;
+    link.click();
   };
 
   return (
@@ -457,18 +474,16 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
                 <p>请从以下图片中选择您喜欢的参考图片，或选择“需要更多参考图片”来获取更多选项，选择“生成企划”以继续下一步。</p>
                 <section className="plan-choice-form" data-message-meta="disabled" data-copy-exclude="true">
                   <ConversationFormTitle title="设计需求" status={stage === "references" ? "pending" : "confirmed"} statusLabel={stage === "references" ? "待确认" : "已确认"} />
-                  <div className="image-selection-grid" role="group" aria-label={t("主题企划参考图片，支持多选")}>
-                    {jacketImages.map((src, index) => <ImageSelection
-                      src={assetUrl(src)}
-                      alt={`${planSubject}参考 ${index + 1}`}
+                  <div className="conversation-candidate-grid" role="group" aria-label={t("主题企划参考图片，支持多选")}>
+                    {initialReferenceItems.map((item, index) => <MasonryImageSelection
+                      src={assetUrl(item.src)}
+                      alt={`${item.code} ${item.title}`}
+                      label={`${item.code} · ${item.title}`}
                       selected={firstSelection.includes(index)}
-                      favorited={favoriteImages.has(src)}
                       disabled={stage !== "references"}
                       onSelect={() => toggleSelection(index, firstSelection, setFirstSelection)}
-                      onPreview={() => setPreview(src)}
-                      onFavorite={() => toggleFavorite(src)}
-                      onDownload={() => downloadReferenceImage(src, index)}
-                      key={`${src}-${index}`}
+                      onPreview={() => setReferencePreviewId(item.id)}
+                      key={item.id}
                     />)}
                   </div>
                   {stage === "references" ? <div className="plan-form-actions"><SelectAllControl selected={firstSelection.length === jacketImages.length} className="selection-select-all--leading" onToggle={() => setFirstSelection(firstSelection.length === jacketImages.length ? [] : jacketImages.map((_, index) => index))} /><Button variant="secondary" size="small" onClick={() => { setRequestedMore(true); setStage("more-loading"); }}>需要更多参考图片</Button><BusinessButton points={300} disabled={!firstSelection.length} onClick={() => setStage("analysis-loading")}>生成企划</BusinessButton></div> : null}
@@ -488,18 +503,16 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
                 <p>请从以下图片中选择您喜欢的参考图片，或选择“需要更多参考图片”来获取更多选项，选择“生成企划”以继续下一步。</p>
                 <section className="plan-choice-form" data-message-meta="disabled" data-copy-exclude="true">
                   <ConversationFormTitle title="设计需求" status={stage === "more-references" ? "pending" : "confirmed"} statusLabel={stage === "more-references" ? "待确认" : "已确认"} />
-                  <div className="image-selection-grid" role="group" aria-label={t("主题企划参考图片，支持多选")}>
-                    {referenceImages.map((src, index) => <ImageSelection
-                      src={assetUrl(src)}
-                      alt={`${planSubject}参考 ${index + 1}`}
+                  <div className="conversation-candidate-grid" role="group" aria-label={t("主题企划参考图片，支持多选")}>
+                    {moreReferenceItems.map((item, index) => <MasonryImageSelection
+                      src={assetUrl(item.src)}
+                      alt={`${item.code} ${item.title}`}
+                      label={`${item.code} · ${item.title}`}
                       selected={moreSelection.includes(index)}
-                      favorited={favoriteImages.has(src)}
                       disabled={stage !== "more-references"}
                       onSelect={() => toggleSelection(index, moreSelection, setMoreSelection)}
-                      onPreview={() => setPreview(src)}
-                      onFavorite={() => toggleFavorite(src)}
-                      onDownload={() => downloadReferenceImage(src, index)}
-                      key={`${src}-${index}`}
+                      onPreview={() => setReferencePreviewId(item.id)}
+                      key={item.id}
                     />)}
                   </div>
                   {stage === "more-references" ? <div className="plan-form-actions"><SelectAllControl selected={moreSelection.length === referenceImages.length} className="selection-select-all--leading" onToggle={() => setMoreSelection(moreSelection.length === referenceImages.length ? [] : referenceImages.map((_, index) => index))} /><Button variant="secondary" size="small" onClick={() => setMoreSelection((current) => current.length ? current : [0])}>需要更多参考图片</Button><BusinessButton points={300} disabled={!moreSelection.length} onClick={() => setStage("analysis-loading")}>生成企划</BusinessButton></div> : null}
@@ -516,11 +529,9 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
                     <GeneratedImageStep
                       id={`plan-generation-step-${index}`}
                       title={step.title}
-                      images={step.images}
+                      items={generationItems.filter((item) => item.categoryId === generationCategories[index].id)}
                       complete={index < generationStep || stage !== "directions"}
-                      favorites={favoriteImages}
-                      onPreview={setPreview}
-                      onFavorite={toggleFavorite}
+                      onPreview={setGenerationPreviewId}
                       key={`${step.title}-${index}`}
                     />
                   ) : null)}
@@ -568,8 +579,41 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
         />
         <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>
       </aside>
-      {preview ? <ImageLightbox src={assetUrl(preview)} alt={t("主题企划参考图片")} onClose={() => setPreview(null)} /> : null}
-      <Toast message={toast} />
+      {referencePreviewId ? (
+        <ImageGalleryLightbox
+          categories={activeReferencePreviewCategories}
+          items={activeReferencePreviewItems}
+          activeCategoryId={activeReferencePreviewCategories[0].id}
+          activeItemId={referencePreviewId}
+          selectedIds={activeReferenceSelectedIds}
+          selectionDisabled={referencePreviewSelectionDisabled}
+          showCategories={false}
+          onCategoryChange={() => setReferencePreviewId(activeReferencePreviewItems[0].id)}
+          onNavigate={setReferencePreviewId}
+          onToggleSelection={toggleReferencePreviewSelection}
+          onClose={() => setReferencePreviewId(null)}
+        />
+      ) : null}
+      {generationPreviewId && activeGenerationPreviewItem ? (
+        <ImageGalleryLightbox
+          title="生成内容"
+          categories={generationCategories}
+          items={generationItems}
+          activeCategoryId={activeGenerationPreviewItem.categoryId}
+          activeItemId={generationPreviewId}
+          selectedIds={[]}
+          selectionDisabled
+          hideSelection
+          copyMode="title-only"
+          resultActions={{ onDownload: downloadGeneratedImage }}
+          presentation="detail"
+          showCategories={false}
+          onCategoryChange={() => undefined}
+          onNavigate={setGenerationPreviewId}
+          onToggleSelection={() => undefined}
+          onClose={() => setGenerationPreviewId(null)}
+        />
+      ) : null}
     </motion.main>
   );
 }

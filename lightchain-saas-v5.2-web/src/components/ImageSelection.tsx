@@ -255,6 +255,7 @@ export function ImageGalleryLightbox({
   const { t } = useI18n();
   const isReferencePresentation = presentation === "reference";
   const isDetailPresentation = presentation === "reference" || presentation === "detail";
+  const hasCategoryTabs = showCategories && categories.length > 1;
   const visibleItems = useMemo(
     () => showCategories ? items.filter((item) => item.categoryId === activeCategoryId) : items,
     [activeCategoryId, items, showCategories],
@@ -301,7 +302,7 @@ export function ImageGalleryLightbox({
     if (!backdrop || !card || !tip || prefersReducedMotion()) return;
     const timeline = gsap.timeline()
       .from(backdrop, { autoAlpha: 0, duration: gsapMotion.fast, ease: "power2.out" });
-    if (showCategories && !isDetailPresentation) {
+    if (hasCategoryTabs && !isDetailPresentation) {
       timeline.from(".candidate-lightbox__tabs", { autoAlpha: 0, y: -8, duration: gsapMotion.duration, ease: gsapMotion.ease }, "<0.04");
     }
     timeline.from(card, { autoAlpha: 0, y: 14, scale: 0.988, duration: 0.52, ease: gsapMotion.ease }, "<0.02");
@@ -315,7 +316,7 @@ export function ImageGalleryLightbox({
     timeline
       .fromTo(tip, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.24, ease: "power2.out" }, "<")
       .to(tip, { autoAlpha: 0, duration: 0.28, ease: "power2.in", delay: 2.48 });
-  }, { scope: backdropRef, dependencies: [isDetailPresentation, showCategories] });
+  }, { scope: backdropRef, dependencies: [hasCategoryTabs, isDetailPresentation] });
 
   useGSAP(() => {
     if (!cardRef.current || prefersReducedMotion()) return;
@@ -402,7 +403,7 @@ export function ImageGalleryLightbox({
   return createPortal(
     <div
       ref={backdropRef}
-      className={`candidate-lightbox-backdrop ${showCategories ? "" : "candidate-lightbox-backdrop--flat"} ${isReferencePresentation ? "candidate-lightbox-backdrop--reference" : ""} ${presentation === "detail" ? "candidate-lightbox-backdrop--detail" : ""} ${title ? "candidate-lightbox-backdrop--titled" : ""}`.trim()}
+      className={`candidate-lightbox-backdrop ${hasCategoryTabs ? "" : "candidate-lightbox-backdrop--flat"} ${isReferencePresentation ? "candidate-lightbox-backdrop--reference" : ""} ${presentation === "detail" ? "candidate-lightbox-backdrop--detail" : ""} ${title ? "candidate-lightbox-backdrop--titled" : ""}`.trim()}
       role="dialog"
       aria-modal="true"
       aria-label={`${t("查看大图")}：${activeItem.code} ${activeCategory?.label ?? activeItem.title}`}
@@ -417,7 +418,7 @@ export function ImageGalleryLightbox({
         <FigmaIcon name="close" size={20} />
       </IconControl>
 
-      {showCategories && !isDetailPresentation ? (
+      {hasCategoryTabs && !isDetailPresentation ? (
         <div className="candidate-lightbox__tabs" role="tablist" aria-label={t("参考图类型")}>
           {categories.map((category) => (
             <button
