@@ -14,7 +14,6 @@ import {
   ConversationTaskCompletion,
   ConversationUserMessage,
   SelectAllControl,
-  TaskArtifactRow,
   TaskDetailPanel,
   TaskDisclosure,
 } from "./ConversationPrimitives";
@@ -564,11 +563,7 @@ export function PlanConversationWorkspace({ prompt, initialState = "default", on
         <TaskDetailPanel
           ariaLabel={t("主题企划任务概览")}
           onCollapse={() => setDetailPanelOpen(false)}
-          artifacts={exportFormat.includes("HTML") && stage === "complete" ? (
-            <TaskArtifactRow kind="file" onClick={previewPlan}>{planName}.html</TaskArtifactRow>
-          ) : exportFormat.includes("HTML") && stage === "exporting" ? (
-            <TaskArtifactRow kind="file">正在生成 {planName}.html…</TaskArtifactRow>
-          ) : undefined}
+          referenceTitle="来源资料"
           references={visiblePlanReferences}
         />
         <button type="button" className="task-detail-restore" onClick={() => setDetailPanelOpen(true)} aria-label="展开概览"><FigmaIcon name="expand-window" size={20} /></button>

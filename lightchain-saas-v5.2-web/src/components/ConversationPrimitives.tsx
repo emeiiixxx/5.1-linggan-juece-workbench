@@ -940,7 +940,7 @@ export function TaskDetailPanel({
   };
 
   return (
-    <div className={`task-detail-panel ${referenceTitle === "参考信息" ? "is-reference-information" : ""} ${expandedGallery ? "is-reference-expanded" : ""}`} aria-label={ariaLabel}>
+    <div className={`task-detail-panel ${["参考信息", "来源资料"].includes(referenceTitle) ? "is-reference-information" : ""} ${expandedGallery ? "is-reference-expanded" : ""}`} aria-label={ariaLabel}>
       <div className="task-detail-panel__view task-detail-panel__overview-view">
         <header>
           <strong>概览</strong>
