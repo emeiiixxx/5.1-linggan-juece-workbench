@@ -18,14 +18,11 @@ import {
 } from "./ConversationPrimitives";
 import { ConversationUserAttachments } from "./ConversationUserAttachments";
 import {
-  ImageActionBar,
   ImageGalleryLightbox,
-  ImageLightbox,
-  ImageSelection,
+  MasonryImageSelection,
   type ImageGalleryCategory,
   type ImageGalleryItem,
 } from "./ImageSelection";
-import { ProgressiveImage } from "./ProgressiveImage";
 import { SelectionCard, SelectionControl } from "./SelectionCard";
 import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
 
@@ -82,6 +79,21 @@ function patternAsset(index: number) {
 const patternGalleryCategories: ImageGalleryCategory[] = [
   { id: "ai-pattern", label: "AI图案" },
 ];
+
+const patternCandidateCategories: ImageGalleryCategory[] = [
+  { id: "pattern-reference", label: "图案参考" },
+];
+
+const patternCandidateItems: ImageGalleryItem[] = candidateIds.map((candidateId, index) => ({
+  id: candidateId,
+  categoryId: patternCandidateCategories[0].id,
+  code: candidateId,
+  src: patternAsset(index),
+  title: `候选图案 ${String(index + 1).padStart(2, "0")}`,
+  subtitle: index % 3 === 0 ? "植物叶片 · 低饱和手绘" : index % 3 === 1 ? "水果花卉 · 柔和粉彩" : "度假植物 · 清新撞色",
+  badges: [index % 2 === 0 ? "四方连续" : "定位印花", index < 4 ? "商业基础" : index < 8 ? "风格识别" : "形象表达"],
+  detailLines: ["候选图案参考", `适配方向：${patternDirections[index % patternDirections.length].title}`, `建议应用：${applicationOptions[index % applicationOptions.length]}`],
+}));
 
 const generatedPatternItems: ImageGalleryItem[] = patternPlan.map((item, index) => ({
   id: item[0],
@@ -146,14 +158,12 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
   const [directionReply, setDirectionReply] = useState(initialComplete ? "A · 植物花园 + C · 复古野趣" : "");
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>(initialComplete ? candidateIds.slice(0, 6) : []);
   const [candidatesSkipped, setCandidatesSkipped] = useState(false);
-  const [favoriteCandidates, setFavoriteCandidates] = useState<string[]>([]);
   const [candidateReply, setCandidateReply] = useState(initialComplete ? "满意，请继续" : "");
   const [strategyReply, setStrategyReply] = useState(initialComplete ? "认可，请继续" : "");
   const [matrixReply, setMatrixReply] = useState(initialComplete ? "开始生图" : "");
   const [candidateAnalysisExpanded, setCandidateAnalysisExpanded] = useState(true);
   const [previewCandidate, setPreviewCandidate] = useState<string | null>(null);
   const [previewResult, setPreviewResult] = useState<string | null>(null);
-  const [favoriteResults, setFavoriteResults] = useState<string[]>([]);
   const [replyAttachments, setReplyAttachments] = useState<Partial<Record<PatternStage, TaskConversationAttachment[]>>>({});
   const [batchProgress, setBatchProgress] = useState(0);
   const [resultFollowUps, setResultFollowUps] = useState<Array<{ request: string; attachments: TaskConversationAttachment[]; response: string }>>([]);
@@ -442,11 +452,19 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
                 <p>请从候选池中选择你喜欢的图案参考。</p>
                 <div className={`research-scope-form media-selection-form ${stage === "candidates" ? "" : "is-readonly"}`} data-message-meta="disabled" data-copy-exclude="true">
                   <ConversationFormTitle title="候选图案池 · 支持多选" status={stage === "candidates" ? "pending" : "confirmed"} statusLabel={stage === "candidates" ? "待确认" : candidatesSkipped ? "已跳过" : "已确认"} />
-                  <div className="image-selection-grid" role="group" aria-label="候选图案池，支持多选">
-                    {candidateIds.map((candidateId, index) => {
-                      const path = patternAsset(index);
-                      return <ImageSelection src={assetUrl(path)} alt={`图案候选 ${candidateId}`} selected={selectedCandidates.includes(candidateId)} favorited={favoriteCandidates.includes(candidateId)} disabled={stage !== "candidates"} onSelect={() => setSelectedCandidates((current) => current.includes(candidateId) ? current.filter((id) => id !== candidateId) : [...current, candidateId])} onPreview={() => setPreviewCandidate(candidateId)} onFavorite={() => setFavoriteCandidates((current) => current.includes(candidateId) ? current.filter((id) => id !== candidateId) : [...current, candidateId])} onDownload={() => downloadAsset(path, `${candidateId}-图案参考.jpg`)} key={candidateId} />;
-                    })}
+                  <div className="conversation-candidate-grid" role="group" aria-label="候选图案池，支持多选">
+                    {patternCandidateItems.map((item) => (
+                      <MasonryImageSelection
+                        src={assetUrl(item.src)}
+                        alt={`${item.code} ${item.title}`}
+                        label={`${item.code} · ${item.title}`}
+                        selected={selectedCandidates.includes(item.id)}
+                        disabled={stage !== "candidates"}
+                        onSelect={() => setSelectedCandidates((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])}
+                        onPreview={() => setPreviewCandidate(item.id)}
+                        key={item.id}
+                      />
+                    ))}
                   </div>
                   {stage === "candidates" && <div className="research-scope-actions"><SelectAllControl selected={selectedCandidates.length === candidateIds.length} className="selection-select-all--leading" onToggle={() => setSelectedCandidates(selectedCandidates.length === candidateIds.length ? [] : [...candidateIds])} /><Button variant="secondary" size="small" onClick={skipCandidates}>跳过</Button><Button variant="primary" size="small" disabled={!selectedCandidates.length} onClick={() => submitMessage(`已选择 ${selectedCandidates.length} 张图案参考`)}>下一步</Button></div>}
                 </div>
@@ -554,10 +572,20 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
                 </AssistantMessage>
                 <AssistantMessage className="apparel-results">
                   <p>图案预览</p>
-                  <div className="apparel-result-grid">{patternPlan.map((item, index) => {
-                    const path = patternAsset(index);
-                    return <figure key={item[0]}><div className="apparel-result-media"><button type="button" aria-label={`查看 PT ${item[0]} ${item[1]} 大图`} onClick={() => setPreviewResult(item[0])}><ProgressiveImage src={assetUrl(path)} alt={`PT ${item[0]} ${item[1]}`} style={{ objectPosition: `${44 + (index % 3) * 6}% center` }} /></button><ImageActionBar favorited={favoriteResults.includes(item[0])} onFavorite={() => setFavoriteResults((current) => current.includes(item[0]) ? current.filter((id) => id !== item[0]) : [...current, item[0]])} onDownload={() => downloadAsset(path, `PT-${item[0]}-${item[1]}.jpg`)} /></div></figure>;
-                  })}</div>
+                  <div className="customer-ai-result-grid customer-ai-result-grid--all">
+                    {generatedPatternItems.map((item) => (
+                      <MasonryImageSelection
+                        src={assetUrl(item.src)}
+                        alt={`${item.code} ${item.title}`}
+                        label={`${item.code} · ${item.title}`}
+                        selected={false}
+                        previewOnly
+                        onSelect={() => undefined}
+                        onPreview={() => setPreviewResult(item.id)}
+                        key={item.id}
+                      />
+                    ))}
+                  </div>
                 </AssistantMessage>
                 <AssistantMessage><ConversationTaskCompletion /></AssistantMessage>
               </>
@@ -586,7 +614,20 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
         </> : null}
       </section>
 
-      {previewCandidate ? <ImageLightbox src={assetUrl(patternAsset(candidateIds.indexOf(previewCandidate)))} alt={`${previewCandidate}-图案参考.jpg`} onClose={() => setPreviewCandidate(null)} /> : null}
+      {previewCandidate ? (
+        <ImageGalleryLightbox
+          categories={patternCandidateCategories}
+          items={patternCandidateItems}
+          activeCategoryId={patternCandidateCategories[0].id}
+          activeItemId={previewCandidate}
+          selectedIds={selectedCandidates}
+          selectionDisabled={stage !== "candidates"}
+          onCategoryChange={() => setPreviewCandidate(patternCandidateItems[0].id)}
+          onNavigate={setPreviewCandidate}
+          onToggleSelection={(itemId) => setSelectedCandidates((current) => current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId])}
+          onClose={() => setPreviewCandidate(null)}
+        />
+      ) : null}
       {previewResult ? (
         <ImageGalleryLightbox
           title="AI图案"
@@ -597,6 +638,7 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
           selectedIds={[]}
           selectionDisabled
           hideSelection
+          copyMode="title-only"
           resultActions={{
             onDownload: (item) => downloadAsset(item.src, `${item.code}-${item.title}.jpg`),
           }}

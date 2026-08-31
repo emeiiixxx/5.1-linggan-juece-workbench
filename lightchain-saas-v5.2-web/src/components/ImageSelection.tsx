@@ -107,6 +107,7 @@ export function MasonryImageSelection({
   alt,
   label,
   selected,
+  previewOnly = false,
   disabled = false,
   loading = false,
   loadingLabel = "生成中...",
@@ -117,6 +118,7 @@ export function MasonryImageSelection({
   alt: string;
   label: string;
   selected: boolean;
+  previewOnly?: boolean;
   disabled?: boolean;
   loading?: boolean;
   loadingLabel?: string;
@@ -125,14 +127,14 @@ export function MasonryImageSelection({
 }) {
   const { t } = useI18n();
   return (
-    <div className={`masonry-image-selection ${selected ? "is-selected" : ""} ${loading ? "is-loading" : ""}`} data-message-meta="disabled" aria-busy={loading}>
+    <div className={`masonry-image-selection ${!previewOnly && selected ? "is-selected" : ""} ${loading ? "is-loading" : ""}`} data-message-meta="disabled" aria-busy={loading}>
       <button
         type="button"
         className="masonry-image-selection__toggle"
-        aria-label={`${t(selected ? "取消选择" : "选择")} ${alt}`}
-        aria-pressed={selected}
-        disabled={disabled || loading}
-        onClick={onSelect}
+        aria-label={`${t(previewOnly ? "放大查看" : selected ? "取消选择" : "选择")} ${alt}`}
+        aria-pressed={previewOnly ? undefined : selected}
+        disabled={loading || (!previewOnly && disabled)}
+        onClick={previewOnly ? onPreview : onSelect}
       >
         <ProgressiveImage src={src} alt={alt} />
         <span className="masonry-image-selection__title">{label}</span>
@@ -215,6 +217,7 @@ export function ImageGalleryLightbox({
   resultActions,
   referenceActions,
   hideSelection = false,
+  copyMode = "full",
   presentation = "gallery",
   showCategories = true,
   onCategoryChange,
@@ -241,6 +244,7 @@ export function ImageGalleryLightbox({
     onOpenSource: (item: ImageGalleryItem) => void;
   };
   hideSelection?: boolean;
+  copyMode?: "full" | "title-only";
   presentation?: "gallery" | "reference" | "detail";
   showCategories?: boolean;
   onCategoryChange: (categoryId: string) => void;
@@ -467,34 +471,32 @@ export function ImageGalleryLightbox({
         <footer className="candidate-lightbox__information">
           <div className="candidate-lightbox__copy">
             <strong>{activeItem.code} · {activeItem.title}</strong>
-            {!isDetailPresentation || !activeItem.detailLines?.length ? (
+            {copyMode === "full" && (!isDetailPresentation || !activeItem.detailLines?.length) ? (
               <span>{activeItem.subtitle ?? "TikTok Shop US · USD 20.00"}</span>
             ) : null}
-            {!isDetailPresentation ? (
+            {copyMode === "full" && !isDetailPresentation ? (
               <div className="candidate-lightbox__badges" aria-label={t("素材标签")}>
                 {(activeItem.badges ?? ["Amazon US / TikTok Shop US", "2026年8月 / 2027年2月", activeCategory?.label ?? "连衣裙、裤装、上衣、套装"]).map((badge) => (
                   <small key={badge}>{badge}</small>
                 ))}
               </div>
             ) : null}
-            {isDetailPresentation && activeItem.detailLines?.length ? (
+            {copyMode === "full" && isDetailPresentation && activeItem.detailLines?.length ? (
               <span className="candidate-lightbox__detail-lines">
                 {activeItem.detailLines.map((line) => <span key={line}>{line}</span>)}
               </span>
             ) : null}
-            {isDetailPresentation && activeItem.generationPrompt ? (
+            {copyMode === "full" && isDetailPresentation && activeItem.generationPrompt ? (
               <span className="candidate-lightbox__generation-prompt">{t("改款提示词")}：{activeItem.generationPrompt}</span>
             ) : null}
           </div>
           <div className="candidate-lightbox__actions">
             {resultActions ? (
               <>
-                {isDetailPresentation ? (
-                  <Button variant="outline" aria-pressed={activeItemFavorited} onClick={toggleFavorite}>
-                    <FavoriteActionIcon filled={activeItemFavorited} />
-                    {t(activeItemFavorited ? "已收藏" : "收藏到资源库")}
-                  </Button>
-                ) : null}
+                <Button variant="outline" aria-pressed={activeItemFavorited} onClick={toggleFavorite}>
+                  <FavoriteActionIcon filled={activeItemFavorited} />
+                  {t(activeItemFavorited ? "已收藏" : "收藏到资源库")}
+                </Button>
                 <Button variant="outline" onClick={() => resultActions.onDownload(activeItem)}>
                   <FigmaIcon name="download" size={20} />
                   {t("下载")}
@@ -525,7 +527,13 @@ export function ImageGalleryLightbox({
                 </Button>
               </>
             ) : (
-              <Button variant="outline">{t("查看来源")}</Button>
+              <>
+                <Button variant="outline" aria-pressed={activeItemFavorited} onClick={toggleFavorite}>
+                  <FavoriteActionIcon filled={activeItemFavorited} />
+                  {t(activeItemFavorited ? "已收藏" : "收藏到资源库")}
+                </Button>
+                <Button variant="outline">{t("查看来源")}</Button>
+              </>
             )}
             {!hideSelection ? (
               <Button

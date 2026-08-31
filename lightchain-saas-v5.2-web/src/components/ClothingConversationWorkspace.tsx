@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
-import { ImageActionBar, ImageLightbox, ImageSelection } from "./ImageSelection";
+import { ImageGalleryLightbox, MasonryImageSelection, type ImageGalleryCategory, type ImageGalleryItem } from "./ImageSelection";
 import { BusinessButton, Button, QuickReplyButton } from "./Button";
 import { AnalysisStepIcon, CONVERSATION_GENERATION_BATCH_DELAY_MS, ConversationFeed, ConversationFollowUpExchange, ConversationFormTitle, ConversationGeneratedImageBatch, ConversationTaskCompletion, ConversationUserMessage as UserMessage, SelectAllControl, TaskDisclosure } from "./ConversationPrimitives";
 import { TaskConversationComposer, type TaskConversationAttachment } from "./TaskConversationComposer";
@@ -149,6 +149,36 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
   const phaseTitles = isKnitCardigan
     ? ["轻盈基础款", "肌理升级款", "场景延展款"]
     : ["经典传承款", "门襟革新款", "解构实验款"];
+  const apparelCandidateCategories = useMemo<ImageGalleryCategory[]>(() => [
+    { id: "apparel-reference", label: `${apparelItem}参考` },
+  ], [apparelItem]);
+  const apparelCandidateItems = useMemo<ImageGalleryItem[]>(() => candidateIds.map((candidateId, index) => ({
+    id: candidateId,
+    categoryId: "apparel-reference",
+    code: candidateId,
+    src: activeReferenceImage,
+    title: `${apparelItem}候选参考 ${String(index + 1).padStart(2, "0")}`,
+    subtitle: isKnitCardigan ? "针织组织、门襟与轻盈比例参考" : "飞行员夹克廓形、门襟与辅料参考",
+    badges: [apparelItem, index % 2 === 0 ? "廓形参考" : "结构细节", index < 6 ? "商业基础" : index < 12 ? "风格升级" : "形象表达"],
+    detailLines: [
+      `候选素材 · ${apparelItem}`,
+      isKnitCardigan ? "重点观察：针织组织、肩线、门襟与收口" : "重点观察：皮革质感、领型、门襟与辅料",
+      `候选编号：${candidateId}`,
+    ],
+  })), [activeReferenceImage, apparelItem, isKnitCardigan]);
+  const apparelResultCategories = useMemo<ImageGalleryCategory[]>(() => [
+    { id: "apparel-result", label: "生成款式" },
+  ], []);
+  const apparelResultItems = useMemo<ImageGalleryItem[]>(() => activeSkuPlan.map((sku, index) => ({
+    id: sku[0],
+    categoryId: "apparel-result",
+    code: `SKU ${sku[0]}`,
+    src: activeReferenceImage,
+    title: sku[1],
+    subtitle: sku[3],
+    badges: [index < 3 ? phaseTitles[0] : index < 6 ? phaseTitles[1] : phaseTitles[2], apparelItem],
+    detailLines: [`素材调用：${sku[2]}`, `设计公式：${sku[3]}`, sku[4]],
+  })), [activeReferenceImage, activeSkuPlan, apparelItem, phaseTitles]);
   const startsComplete = initialState === "complete";
   const startsAtConfirmation = initialState === "confirmation";
   const completedDirectionIds = isKnitCardigan ? ["A", "B"] : ["A", "D"];
@@ -173,10 +203,8 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
   const [customDirection, setCustomDirection] = useState("");
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>(startsComplete ? candidateIds.slice(0, 6) : []);
   const [candidatesSkipped, setCandidatesSkipped] = useState(false);
-  const [favoriteCandidates, setFavoriteCandidates] = useState<string[]>([]);
   const [previewCandidate, setPreviewCandidate] = useState<string | null>(null);
   const [previewResult, setPreviewResult] = useState<string | null>(null);
-  const [favoriteResults, setFavoriteResults] = useState<string[]>([]);
   const [candidateReply, setCandidateReply] = useState(startsComplete ? "满意，请继续" : "");
   const [candidateAnalysisExpanded, setCandidateAnalysisExpanded] = useState(!startsComplete);
   const [strategyReply, setStrategyReply] = useState(startsComplete ? "认可，请继续" : "");
@@ -330,23 +358,6 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
     setCandidateReply("");
     setCandidatesSkipped(true);
     setStage("candidate-analysis");
-  };
-
-  const toggleFavoriteCandidate = (candidateId: string) => {
-    setFavoriteCandidates((current) => current.includes(candidateId)
-      ? current.filter((id) => id !== candidateId)
-      : [...current, candidateId]);
-  };
-
-  const downloadCandidate = (candidateId: string) => {
-    const link = document.createElement("a");
-    link.href = assetUrl(activeReferenceImage);
-    link.download = `${candidateId}-${apparelItem}参考.png`;
-    link.click();
-  };
-
-  const toggleFavoriteResult = (skuId: string) => {
-    setFavoriteResults((current) => current.includes(skuId) ? current.filter((id) => id !== skuId) : [...current, skuId]);
   };
 
   const downloadResult = (skuId: string, skuName: string) => {
@@ -580,24 +591,19 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
                     status={stage === "candidates" ? "pending" : "confirmed"}
                     statusLabel={stage === "candidates" ? "待确认" : candidatesSkipped ? "已跳过" : "已确认"}
                   />
-                  <div className="image-selection-grid" role="group" aria-label="候选池图片集，支持多选">
-                    {candidateIds.map((candidateId, index) => {
-                      const selected = selectedCandidates.includes(candidateId);
-                      return (
-                        <ImageSelection
-                          src={assetUrl(activeReferenceImage)}
-                          alt={`${apparelItem}候选参考 ${index + 1}`}
-                          selected={selected}
-                          favorited={favoriteCandidates.includes(candidateId)}
-                          disabled={stage !== "candidates"}
-                          onSelect={() => toggleCandidate(candidateId)}
-                          onPreview={() => setPreviewCandidate(candidateId)}
-                          onFavorite={() => toggleFavoriteCandidate(candidateId)}
-                          onDownload={() => downloadCandidate(candidateId)}
-                          key={candidateId}
-                        />
-                      );
-                    })}
+                  <div className="conversation-candidate-grid" role="group" aria-label="候选池图片集，支持多选">
+                    {apparelCandidateItems.map((item) => (
+                      <MasonryImageSelection
+                        src={assetUrl(item.src)}
+                        alt={`${item.code} ${item.title}`}
+                        label={`${item.code} · ${item.title}`}
+                        selected={selectedCandidates.includes(item.id)}
+                        disabled={stage !== "candidates"}
+                        onSelect={() => toggleCandidate(item.id)}
+                        onPreview={() => setPreviewCandidate(item.id)}
+                        key={item.id}
+                      />
+                    ))}
                   </div>
                   {stage === "candidates" && <div className="research-scope-actions"><SelectAllControl selected={selectedCandidates.length === candidateIds.length} className="selection-select-all--leading" onToggle={() => setSelectedCandidates(selectedCandidates.length === candidateIds.length ? [] : [...candidateIds])} /><Button variant="secondary" size="small" onClick={skipCandidates}>跳过</Button><Button variant="primary" size="small" disabled={!selectedCandidates.length} onClick={() => submitMessage(`已选择 ${selectedCandidates.length} 张参考素材`)}>下一步</Button></div>}
                 </div>
@@ -782,20 +788,18 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
 
                 <AssistantMessage className="apparel-results">
                   <p>系列总结：本系列围绕{apparelItem}需求与已确认方向逐步展开。8 款设计覆盖商业基础、风格升级和形象表达三个层次，并保留所有排除条件。</p>
-                  <div className="apparel-result-grid">
-                    {activeSkuPlan.map((sku, index) => (
-                      <figure key={sku[0]}>
-                        <div className="apparel-result-media">
-                          <button type="button" aria-label={`查看 SKU ${sku[0]} ${sku[1]} 大图`} onClick={() => setPreviewResult(sku[0])}>
-                            <ProgressiveImage src={assetUrl(activeReferenceImage)} alt={`SKU ${sku[0]} ${sku[1]}`} style={{ objectPosition: `${42 + (index % 4) * 4}% center` }} />
-                          </button>
-                          <ImageActionBar
-                            favorited={favoriteResults.includes(sku[0])}
-                            onFavorite={() => toggleFavoriteResult(sku[0])}
-                            onDownload={() => downloadResult(sku[0], sku[1])}
-                          />
-                        </div>
-                      </figure>
+                  <div className="customer-ai-result-grid customer-ai-result-grid--all">
+                    {apparelResultItems.map((item) => (
+                      <MasonryImageSelection
+                        src={assetUrl(item.src)}
+                        alt={`${item.code} ${item.title}`}
+                        label={`${item.code} · ${item.title}`}
+                        selected={false}
+                        previewOnly
+                        onSelect={() => undefined}
+                        onPreview={() => setPreviewResult(item.id)}
+                        key={item.id}
+                      />
                     ))}
                   </div>
                 </AssistantMessage>
@@ -831,16 +835,38 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
       </section>
 
       {previewCandidate ? (
-        <ImageLightbox
-          src={assetUrl(activeReferenceImage)}
-          alt={`${previewCandidate}-${apparelItem}候选参考.png`}
+        <ImageGalleryLightbox
+          categories={apparelCandidateCategories}
+          items={apparelCandidateItems}
+          activeCategoryId={apparelCandidateCategories[0].id}
+          activeItemId={previewCandidate}
+          selectedIds={selectedCandidates}
+          selectionDisabled={stage !== "candidates"}
+          onCategoryChange={() => setPreviewCandidate(apparelCandidateItems[0].id)}
+          onNavigate={setPreviewCandidate}
+          onToggleSelection={toggleCandidate}
           onClose={() => setPreviewCandidate(null)}
         />
       ) : null}
       {previewResult ? (
-        <ImageLightbox
-          src={assetUrl(activeReferenceImage)}
-          alt={`SKU-${previewResult}-${activeSkuPlan.find((sku) => sku[0] === previewResult)?.[1] ?? "款式设计"}.png`}
+        <ImageGalleryLightbox
+          title="生成款式"
+          categories={apparelResultCategories}
+          items={apparelResultItems}
+          activeCategoryId={apparelResultCategories[0].id}
+          activeItemId={previewResult}
+          selectedIds={[]}
+          selectionDisabled
+          hideSelection
+          copyMode="title-only"
+          resultActions={{
+            onDownload: (item) => downloadResult(item.id, item.title),
+          }}
+          presentation="detail"
+          showCategories={false}
+          onCategoryChange={() => undefined}
+          onNavigate={setPreviewResult}
+          onToggleSelection={() => undefined}
           onClose={() => setPreviewResult(null)}
         />
       ) : null}
