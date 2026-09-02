@@ -21,6 +21,7 @@ export const CONVERSATION_GENERATION_BATCH_DELAY_MS = 5000;
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
 const conversationMetaClaimEvent = "lightchain:conversation-meta-claim";
+const conversationMessageMetaEnabled = false;
 const TaskDisclosureCompleteContext = createContext<boolean | null>(null);
 
 type MessageMetaPosition = { left: number; top: number; side: "assistant" | "user"; copyEnabled: boolean };
@@ -136,6 +137,7 @@ type ConversationFeedProps = HTMLAttributes<HTMLDivElement> & {
 export function ConversationFeed({ className = "", children, metaDisabled = false, ...props }: ConversationFeedProps) {
   const { t } = useI18n();
   const reduceMotion = useReducedMotion();
+  const messageMetaDisabled = metaDisabled || !conversationMessageMetaEnabled;
   const metaOwnerRef = useRef(Symbol("conversation-feed-meta"));
   const hoveredMessageRef = useRef<HTMLElement | null>(null);
   const metaElementRef = useRef<HTMLDivElement>(null);
@@ -282,13 +284,14 @@ export function ConversationFeed({ className = "", children, metaDisabled = fals
   };
 
   useEffect(() => {
-    if (!metaDisabled) return;
+    if (!messageMetaDisabled) return;
     dismissMessageMeta();
     setFeedbackMessage(null);
     setToast("");
-  }, [dismissMessageMeta, metaDisabled]);
+  }, [dismissMessageMeta, messageMetaDisabled]);
 
   useEffect(() => {
+    if (messageMetaDisabled) return;
     const dismissOtherFeedMeta = (event: Event) => {
       if ((event as CustomEvent<symbol>).detail === metaOwnerRef.current) return;
       dismissMessageMeta();
@@ -325,7 +328,7 @@ export function ConversationFeed({ className = "", children, metaDisabled = fals
       if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current);
       if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
     };
-  }, [dismissMessageMeta, measureMessageMetaPosition]);
+  }, [dismissMessageMeta, measureMessageMetaPosition, messageMetaDisabled]);
 
   useEffect(() => {
     const message = hoveredMessageRef.current;
@@ -352,14 +355,14 @@ export function ConversationFeed({ className = "", children, metaDisabled = fals
   return (
     <>
       <div
-        className={`conversation-feed ${metaDisabled ? "is-meta-disabled" : ""} ${className}`.trim()}
-        onPointerOver={metaDisabled ? undefined : showMessageMeta}
-        onPointerLeave={metaDisabled ? undefined : scheduleMetaHide}
+        className={`conversation-feed ${messageMetaDisabled ? "is-meta-disabled" : ""} ${className}`.trim()}
+        onPointerOver={messageMetaDisabled ? undefined : showMessageMeta}
+        onPointerLeave={messageMetaDisabled ? undefined : scheduleMetaHide}
         {...props}
       >
         {children}
       </div>
-      {!metaDisabled && metaPosition && typeof document !== "undefined" && createPortal(
+      {!messageMetaDisabled && metaPosition && typeof document !== "undefined" && createPortal(
         <div
           ref={metaElementRef}
           className={`conversation-message-meta conversation-message-meta--floating is-${metaPosition.side}`}

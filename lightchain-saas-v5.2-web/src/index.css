@@ -5147,6 +5147,18 @@ a:focus-visible {
   gap: 12px;
 }
 
+.conversation-message--assistant.apparel-results {
+  padding: 0;
+}
+
+.conversation-message--assistant.apparel-results > p {
+  margin: 0;
+}
+
+.apparel-results .customer-ai-result-grid--all {
+  margin-top: 0;
+}
+
 .apparel-results .masonry-image-selection {
   border: 0;
 }

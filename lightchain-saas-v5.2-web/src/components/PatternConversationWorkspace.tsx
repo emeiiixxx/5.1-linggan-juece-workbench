@@ -573,7 +573,6 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
                   {patternPlan.map((item, index) => <section className="apparel-result-logic" key={item[0]}>{index === 0 && <h3>Phase 1：{phaseTitles[0]}</h3>}{index === 3 && <h3>Phase 2：{phaseTitles[1]}</h3>}{index === 6 && <h3>Phase 3：{phaseTitles[2]}</h3>}<h4>PT #{item[0]}：{item[1]}</h4><p><strong>设计逻辑：</strong>{item[2]}。{item[3]}</p></section>)}
                 </AssistantMessage>
                 <AssistantMessage className="apparel-results">
-                  <p>图案预览</p>
                   <div className="customer-ai-result-grid customer-ai-result-grid--all">
                     {generatedPatternItems.map((item) => (
                       <MasonryImageSelection
