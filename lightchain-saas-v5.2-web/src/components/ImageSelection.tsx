@@ -11,95 +11,19 @@ import { CircleCheckbox } from "./CircleCheckbox";
 import { ProgressiveImage } from "./ProgressiveImage";
 import { TipEmoji } from "./TipEmoji";
 
-type ImageSelectionProps = {
-  src: string;
-  alt: string;
-  selected: boolean;
-  favorited?: boolean;
-  disabled?: boolean;
-  onSelect: () => void;
-  onPreview: () => void;
-  onFavorite: () => void;
-  onDownload: () => void;
-};
-
-const actionIcons = {
-  preview: assetUrl("assets/figma-icons/view-full-image.svg"),
-  favorite: assetUrl("assets/figma-icons/favorite.svg"),
-  favoriteFilled: assetUrl("assets/figma-icons/favorite-filled-rounded.svg"),
-  download: assetUrl("assets/figma-icons/download.svg"),
-};
+const favoriteFilledIcon = assetUrl("assets/figma-icons/favorite-filled-rounded.svg");
 
 function FavoriteActionIcon({ filled }: { filled: boolean }) {
   return (
     <span className="candidate-lightbox__action-icon" aria-hidden="true">
-      {filled ? <img src={actionIcons.favoriteFilled} alt="" /> : <FigmaIcon name="favorite" size={20} />}
+      {filled ? <img src={favoriteFilledIcon} alt="" /> : <FigmaIcon name="favorite" size={20} />}
     </span>
-  );
-}
-
-export function ImageActionBar({ favorited = false, size = "small", onPreview, onFavorite, onDownload }: {
-  favorited?: boolean;
-  size?: "xsmall" | "small";
-  onPreview?: () => void;
-  onFavorite: () => void;
-  onDownload: () => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <div className="image-action-bar" onClick={(event) => event.stopPropagation()}>
-      {onPreview ? (
-        <IconControl label={t("查看大图")} size={size} tooltipPlacement="top" onClick={(event) => runAction(event, onPreview)}>
-          <img className="image-action-bar__icon image-action-bar__icon--preview" src={actionIcons.preview} alt="" />
-        </IconControl>
-      ) : null}
-      <IconControl label={t(favorited ? "取消收藏" : "收藏到资源库")} size={size} tooltipPlacement="top" selected={favorited} onClick={(event) => runAction(event, onFavorite)}>
-        <img className="image-action-bar__icon image-action-bar__icon--favorite" src={actionIcons.favorite} alt="" />
-      </IconControl>
-      <IconControl label={t("下载图片")} size={size} tooltipPlacement="top" onClick={(event) => runAction(event, onDownload)}>
-        <img className="image-action-bar__icon image-action-bar__icon--download" src={actionIcons.download} alt="" />
-      </IconControl>
-    </div>
   );
 }
 
 function runAction(event: MouseEvent<HTMLButtonElement>, action: () => void) {
   event.stopPropagation();
   action();
-}
-
-export function ImageSelection({
-  src,
-  alt,
-  selected,
-  favorited = false,
-  disabled = false,
-  onSelect,
-  onPreview,
-  onFavorite,
-  onDownload,
-}: ImageSelectionProps) {
-  const { t } = useI18n();
-  return (
-    <div className={`image-selection ${selected ? "is-selected" : ""}`} data-message-meta="disabled">
-      <button
-        type="button"
-        className="image-selection__toggle"
-        aria-label={`${t(selected ? "取消选择" : "选择")} ${alt}`}
-        aria-pressed={selected}
-        disabled={disabled}
-        onClick={onSelect}
-      >
-        <ProgressiveImage className="image-selection__asset" src={src} alt={alt} />
-        {selected ? (
-          <span className="image-selection__checkbox" aria-hidden="true">
-            <CircleCheckbox checked />
-          </span>
-        ) : null}
-      </button>
-      <ImageActionBar favorited={favorited} onPreview={onPreview} onFavorite={onFavorite} onDownload={onDownload} />
-    </div>
-  );
 }
 
 export function MasonryImageSelection({

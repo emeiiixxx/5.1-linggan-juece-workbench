@@ -20,7 +20,7 @@ export const candidateCategories = [
 ] as const;
 
 export type CandidateCategoryId = typeof candidateCategories[number]["id"];
-export const candidatePageCount = 3;
+const candidatePageCount = 3;
 export const candidateReferenceImages = candidateCategories.flatMap((category, categoryIndex) =>
   Array.from({ length: candidatePageCount }, (_, pageIndex) =>
     Array.from({ length: 8 }, (_, imageIndex) => {
@@ -41,28 +41,11 @@ export const candidateReferenceImages = candidateCategories.flatMap((category, c
   ),
 ).flat();
 
-const candidateById = new Map(candidateReferenceImages.map((candidate) => [candidate.id, candidate]));
 const directionById = new Map<string, (typeof trendDirections)[number]>(trendDirections.map((direction) => [direction.id, direction]));
 
-export const getCandidateReference = (candidateId: string) => candidateById.get(candidateId);
-export const selectCandidateReferences = (candidateIds: string[]) => candidateIds.flatMap((candidateId) => {
-  const candidate = candidateById.get(candidateId);
-  return candidate ? [candidate] : [];
-});
 export const selectTrendDirections = (directionIds: string[]) => directionIds.flatMap((directionId) => {
   const direction = directionById.get(directionId);
   return direction ? [direction] : [];
 });
 export const getCandidateCategoryLabel = (categoryId: CandidateCategoryId) => candidateCategories.find((category) => category.id === categoryId)?.label ?? "客户参考素材";
 export const formatTrendDirectionSelection = (directionIds: string[]) => selectTrendDirections(directionIds).map((direction) => `${direction.id}·${direction.title}`).join("、");
-export const formatCandidateSelection = (candidateIds: string[]) => selectCandidateReferences(candidateIds).map((candidate) => `${candidate.code} · ${candidate.title}`).join("、");
-export const getReferencePackageData = (directionIds: string[], candidateIds: string[]) => {
-  const selectedReferences = selectCandidateReferences(candidateIds);
-  const selectedDirections = selectTrendDirections(directionIds);
-  return {
-    selectedReferences,
-    selectedDirections,
-    directionLabel: formatTrendDirectionSelection(directionIds) || "已确认视觉方向",
-    categoryCount: new Set(selectedReferences.map((reference) => reference.categoryId)).size,
-  };
-};

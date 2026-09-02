@@ -146,17 +146,6 @@ const formFromProfile = (profile: Profile): Form => {
 const requiredComplete = (form: Form) =>
   [form.name, Boolean(form.category.length), Boolean(form.minPrice && form.maxPrice), Boolean(form.countries.length), Boolean(form.ages.length)].filter(Boolean).length;
 
-function TagList({ values, limit = 4 }: { values: string[]; limit?: number }) {
-  const { t } = useI18n();
-  if (!values.length) return <span className="profile-detail__empty">{t("未填写")}</span>;
-  return (
-    <span className="profile-tag-list">
-      {values.slice(0, limit).map((value) => <span className="profile-tag" title={t(value)} key={value}>{t(value)}</span>)}
-      {values.length > limit && <span className="profile-tag">+{values.length - limit}</span>}
-    </span>
-  );
-}
-
 function AdaptiveTagList({ values }: { values: string[] }) {
   const { locale, t } = useI18n();
   const containerRef = useRef<HTMLSpanElement>(null);

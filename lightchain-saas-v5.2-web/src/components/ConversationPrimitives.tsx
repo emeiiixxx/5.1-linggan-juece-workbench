@@ -16,7 +16,6 @@ import { ProgressiveImage } from "./ProgressiveImage";
 import { ConversationUserAttachments, type ConversationUserAttachment } from "./ConversationUserAttachments";
 import { MasonryImageSelection } from "./ImageSelection";
 
-export type ConversationStepStatus = "complete" | "loading" | "pending";
 export const CONVERSATION_GENERATION_BATCH_DELAY_MS = 5000;
 
 const revealEase = [0.22, 1, 0.36, 1] as const;
@@ -39,10 +38,8 @@ const conversationMetaDisabledRegionSelector = [
   ".plan-choice-form",
   ".new-product-direction-form",
   ".new-product-results-form",
-  ".conversation-candidate-form",
   ".customer-ai-results-form",
   ".media-selection-form",
-  ".image-selection",
   ".masonry-image-selection",
   ".plan-generation-image-grid",
   ".plan-reference-grid",
@@ -429,13 +426,6 @@ export function ConversationFeed({ className = "", children, metaDisabled = fals
       )}
     </>
   );
-}
-
-export function ConversationStatusIcon({ status }: { status: ConversationStepStatus }) {
-  const { t } = useI18n();
-  if (status === "complete") return <span className="conversation-status-icon is-complete" aria-label={t("已完成")}><FigmaIcon name="check" size={16} /></span>;
-  if (status === "loading") return <span className="conversation-status-icon is-loading" aria-label={t("进行中")}><img className="conversation-loading-asset" src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" /></span>;
-  return <span className="conversation-status-icon is-pending" aria-label={t("待处理")} />;
 }
 
 export function AnalysisStepIcon({ complete, delay = 0 }: { complete: boolean; delay?: number }) {
@@ -1079,22 +1069,6 @@ export function ConversationFollowUpExchange({
         {children}
       </motion.article>
     </div>
-  );
-}
-
-export function ConversationErrorMessage({ children }: { children: ReactNode }) {
-  const reduceMotion = useReducedMotion();
-
-  return (
-    <motion.article
-      className="conversation-message conversation-message--assistant conversation-error-message"
-      data-message-actions="true"
-      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: reduceMotion ? 0 : 0.32, ease: revealEase }}
-    >
-      <div className="conversation-error-bubble" role="alert">{children}</div>
-    </motion.article>
   );
 }
 

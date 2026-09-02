@@ -12,7 +12,7 @@ import { ConversationUserAttachments, type ConversationUserAttachment } from "./
 import { ResearchScopeForm } from "./ResearchScopeForm";
 import { SelectionCard } from "./SelectionCard";
 import { AnalysisStepIcon, ConversationFeed, ConversationFileCard, ConversationFollowUpExchange, ConversationFormTitle, ConversationTaskCompletion, ConversationUserMessage, ImageSelectionActions, SelectAllControl, TaskArtifactRow, TaskDetailPanel, TaskDisclosure } from "./ConversationPrimitives";
-import { candidateCategories, candidatePageCount, candidateReferenceImages, formatCandidateSelection, formatTrendDirectionSelection, getCandidateCategoryLabel, getCandidateReference, trendDirections, trendReportDetails, type CandidateCategoryId } from "../data/referenceCatalog";
+import { candidateCategories, candidateReferenceImages, formatTrendDirectionSelection, getCandidateCategoryLabel, trendDirections, trendReportDetails, type CandidateCategoryId } from "../data/referenceCatalog";
 import { buildFashionProposalHtml } from "../report/fashionProposalHtml";
 import { translateHtmlCopy, translateSystemCopy, useI18n } from "../i18n";
 import { extractPromptContext } from "../utils/promptContext";
@@ -485,12 +485,6 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     startsComplete ? trendDirections.slice(0, 2).map((direction) => direction.id) : [],
   );
   const [trendDirectionsConfirmed, setTrendDirectionsConfirmed] = useState(startsComplete);
-  const [candidateSearchExpanded, setCandidateSearchExpanded] = useState(true);
-  const [candidateSearchStage, setCandidateSearchStage] = useState(0);
-  const [candidateSearchRun, setCandidateSearchRun] = useState(0);
-  const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
-  const [candidateSelectionConfirmed, setCandidateSelectionConfirmed] = useState(false);
-  const [customerFeedbackSkipped, setCustomerFeedbackSkipped] = useState(false);
   const [generationDecision, setGenerationDecision] = useState<GenerationDecision | null>(startsComplete ? "confirm" : null);
   const [generationEntryMessage, setGenerationEntryMessage] = useState("确认并生成");
   const [generationEntryAttachments, setGenerationEntryAttachments] = useState<TaskConversationAttachment[]>([]);
@@ -532,15 +526,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const [pendingCustomerAiRevision, setPendingCustomerAiRevision] = useState<PendingCustomerAiRevision | null>(null);
   const [customerProposalEntryMessage, setCustomerProposalEntryMessage] = useState("");
   const [customerProposalEntryAttachments, setCustomerProposalEntryAttachments] = useState<TaskConversationAttachment[]>([]);
-  const [candidatePreviewId, setCandidatePreviewId] = useState<string | null>(null);
   const [referenceStylePreviewId, setReferenceStylePreviewId] = useState<string | null>(null);
-  const [activeCandidateCategory, setActiveCandidateCategory] = useState<CandidateCategoryId>(candidateCategories[0].id);
-  const [candidatePages, setCandidatePages] = useState<Record<CandidateCategoryId, number>>({
-    "restrained-ruffle": 1,
-    "heritage-botanical": 1,
-    "soft-tailoring": 1,
-    "transitional-dress": 1,
-  });
   const [selectedResearchMarkets, setSelectedResearchMarkets] = useState<ResearchMarket[]>(profileScopeDefaults.markets);
   const [selectedCommerce, setSelectedCommerce] = useState<string[]>(profileScopeDefaults.commerce);
   const [selectedSocial, setSelectedSocial] = useState<string[]>(profileScopeDefaults.social);
@@ -554,7 +540,6 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const reduceMotion = useReducedMotion();
   const analysisComplete = analysisPhase === "complete";
   const trendScanComplete = scopeResultStage >= 3;
-  const candidateSearchComplete = candidateSearchStage >= 4;
   const displayedCustomerAiResults = customerAiResultBatches[customerAiResultBatches.length - 1]?.items ?? customerAiResultImages;
   const allCustomerGeneratedItems = useMemo(() => [...customerAiResultBatches].reverse().flatMap((batch) =>
     batch.items.map((item) => ({ ...item, groupDate: batch.createdAt })),
@@ -649,53 +634,6 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     const timers = stages.map(({ delay, value }) => window.setTimeout(() => setScopeResultStage(value), delay));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [reduceMotion, scopeConfirmed, startsComplete, trendResearchRun]);
-
-  useEffect(() => {
-    if (!trendDirectionsConfirmed || !candidateSearchRun) return;
-    if (startsComplete) return;
-    setCandidateSearchStage(0);
-    if (reduceMotion) {
-      setCandidateSearchStage(5);
-      return;
-    }
-    const stages = [
-      { delay: 120, value: 1 },
-      { delay: 420, value: 3 },
-      { delay: 1600, value: 5 },
-    ];
-    const timers = stages.map(({ delay, value }) => window.setTimeout(
-      () => setCandidateSearchStage(value),
-      delay,
-    ));
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [candidateSearchRun, reduceMotion, startsComplete, trendDirectionsConfirmed]);
-
-  useEffect(() => {
-    if (candidateSearchStage !== 1 && candidateSearchStage !== 5) return;
-    const frame = window.requestAnimationFrame(() => {
-      scrollWithinConversation(candidatePoolRef.current, {
-        behavior: reduceMotion ? "auto" : "smooth",
-        block: candidateSearchStage >= 5 ? "end" : "center",
-      });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [candidateSearchStage, reduceMotion]);
-
-  useEffect(() => {
-    if (!candidateSelectionConfirmed) return;
-    const frame = window.requestAnimationFrame(() => {
-      scrollWithinConversation(candidatePoolRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "end" });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [candidateSelectionConfirmed, reduceMotion]);
-
-  useEffect(() => {
-    if (!customerFeedbackSkipped) return;
-    const frame = window.requestAnimationFrame(() => {
-      scrollWithinConversation(candidatePoolRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "end" });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [customerFeedbackSkipped, generationDecision, reduceMotion]);
 
   useEffect(() => {
     if (customerProposalStage !== "ai-generating") return;
@@ -902,28 +840,11 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     setCustomerProposalStage("ai-generating");
   };
 
-  const toggleCandidateReference = (candidateId: string) => {
-    if (candidateSelectionConfirmed) return;
-    setSelectedCandidateIds((current) => current.includes(candidateId)
-      ? current.filter((id) => id !== candidateId)
-      : [...current, candidateId]);
-  };
-
   const startCustomerAiGeneration = () => {
     setGenerationDecision("confirm");
     setAiGenerationProgress(0);
     setAiGenerationExpanded(true);
     setCustomerProposalStage("ai-generating");
-  };
-
-  const requestCustomerGenerationFeedback = () => {
-    setComposerFocusRequest((request) => request + 1);
-  };
-
-  const confirmCustomerAiGeneration = () => {
-    setGenerationEntryMessage("确认并生成");
-    setGenerationEntryAttachments([]);
-    startCustomerAiGeneration();
   };
 
   const toggleAiResult = (resultId: string) => {
@@ -999,24 +920,6 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     }
   };
 
-  const navigateCandidatePreview = (candidateId: string) => {
-    const candidate = getCandidateReference(candidateId);
-    if (!candidate) return;
-    setCandidatePreviewId(candidate.id);
-    setActiveCandidateCategory(candidate.categoryId);
-    setCandidatePages((current) => ({ ...current, [candidate.categoryId]: candidate.page }));
-  };
-
-  const changeCandidatePreviewCategory = (categoryId: string) => {
-    const typedCategoryId = categoryId as CandidateCategoryId;
-    const page = candidatePages[typedCategoryId];
-    const firstCandidate = candidateReferenceImages.find((item) => item.categoryId === typedCategoryId && item.page === page)
-      ?? candidateReferenceImages.find((item) => item.categoryId === typedCategoryId);
-    if (!firstCandidate) return;
-    setActiveCandidateCategory(typedCategoryId);
-    setCandidatePreviewId(firstCandidate.id);
-  };
-
   const openTrendPreview = (kind: TrendPreviewKind) => {
     setTrendPreviewKind(kind);
     setTrendPreviewOpen(true);
@@ -1034,10 +937,6 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     && allResearchPlatformOptions.commerce.every((platform) => selectedCommerce.includes(platform))
     && allResearchPlatformOptions.social.every((platform) => selectedSocial.includes(platform));
   const scopeCanSubmit = selectedResearchMarkets.length > 0 && selectedCommerce.length > 0 && selectedSocial.length > 0;
-  const activeCandidatePage = candidatePages[activeCandidateCategory];
-  const visibleCandidateImages = candidateReferenceImages.filter((candidate) =>
-    candidate.categoryId === activeCandidateCategory && candidate.page === activeCandidatePage,
-  );
   const toggleAllAiResults = () => {
     if (aiResultsConfirmed || customerProposalRunning) return;
     const next = selectedAiResultIds.length === displayedCustomerAiResults.length
@@ -1498,240 +1397,6 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                             key="candidate-pool"
                             data-node-id="620:33330"
                           >
-                              {/* 已移除定向参考检索、参考包与客户反馈等待阶段。 */}
-                              {false && (<>
-                              <AnimatePresence initial={false}>
-                                {candidateSearchStage >= 1 ? (
-                                  <motion.article
-                                    className="conversation-message conversation-message--assistant conversation-candidate-copy"
-                                    initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: reduceMotion ? 0 : 0.3, ease: revealEase }}
-                                  >
-                                    <p>已确认趋势方向：{formatTrendDirectionSelection(selectedTrendIds)}。</p>
-                                    <AnimatePresence initial={false}>
-                                      {candidateSearchStage >= 2 ? (
-                                        <motion.p
-                                          key="candidate-search-intro"
-                                          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                                          animate={{ opacity: 1, y: 0 }}
-                                          transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
-                                        >
-                                          现在根据已确认方向、{confirmedMarkets}、女装和参考图特征，生成定向视觉参考检索条件。
-                                        </motion.p>
-                                      ) : null}
-                                      {candidateSearchStage >= 4 ? (
-                                        <motion.p
-                                          key="candidate-search-complete"
-                                          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                                          animate={{ opacity: 1, y: 0 }}
-                                          transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
-                                        >
-                                          定向视觉参考条件已准备完成，候选池将只保留符合已确认方向与需求硬约束的素材。
-                                        </motion.p>
-                                      ) : null}
-                                    </AnimatePresence>
-                                  </motion.article>
-                                ) : null}
-                              </AnimatePresence>
-                              <AnimatePresence initial={false}>
-                                {candidateSearchStage >= 3 ? (
-                                  <motion.article
-                                    className="conversation-message conversation-message--assistant conversation-candidate-scan"
-                                    initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: reduceMotion ? 0 : 0.3, ease: revealEase }}
-                                  >
-                                    <TaskDisclosure
-                                      title="定向视觉参考检索"
-                                      expanded={candidateSearchExpanded}
-                                      complete={candidateSearchComplete}
-                                      controlsId="candidate-reference-scan-details"
-                                      onToggle={() => setCandidateSearchExpanded((expanded) => !expanded)}
-                                    >
-                                      <div><AnalysisStepIcon complete={candidateSearchComplete} delay={0.02} /><span>组合趋势方向、市场、人群、品类与参考图特征</span></div>
-                                      <div><AnalysisStepIcon complete={candidateSearchComplete} delay={0.1} /><span>获取电商商品图、社媒帖子截图、品牌官网/独立站款式图</span></div>
-                                      <div><AnalysisStepIcon complete={candidateSearchComplete} delay={0.18} /><span>去重并保留来源页链接、采集时间和授权状态</span></div>
-                                    </TaskDisclosure>
-                                  </motion.article>
-                                ) : null}
-                              </AnimatePresence>
-                              <AnimatePresence initial={false}>
-                                {candidateSearchStage >= 5 ? (
-                                  <motion.article
-                                    className="conversation-message conversation-message--assistant conversation-candidate-grid-message"
-                                    initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: reduceMotion ? 0 : 0.32, ease: revealEase }}
-                                  >
-                                    <p>从已取得素材中选择客户参考图</p>
-                                    <div className={`conversation-candidate-form ${candidateSelectionConfirmed ? "is-readonly" : ""}`} data-node-id="552:17645">
-                                      <ConversationFormTitle
-                                        title="选择参考图 · 支持多选"
-                                        status={candidateSelectionConfirmed ? "confirmed" : "pending"}
-                                        statusLabel={candidateSelectionConfirmed ? "已确认" : "待确认"}
-                                      />
-                                      <div className="conversation-candidate-tabs" role="tablist" aria-label="参考图类型">
-                                        {candidateCategories.map((category) => (
-                                          <button
-                                            type="button"
-                                            role="tab"
-                                            className={activeCandidateCategory === category.id ? "is-selected" : ""}
-                                            aria-selected={activeCandidateCategory === category.id}
-                                            onClick={() => setActiveCandidateCategory(category.id)}
-                                            key={category.id}
-                                          >
-                                            {category.label}
-                                          </button>
-                                        ))}
-                                      </div>
-                                      <div className="conversation-candidate-grid" role="tabpanel" aria-label="候选参考素材">
-                                        {visibleCandidateImages.map((candidate) => {
-                                          const selected = selectedCandidateIds.includes(candidate.id);
-                                          return (
-                                            <MasonryImageSelection
-                                              src={assetUrl(candidate.src)}
-                                              alt={`${candidate.code} ${candidate.title}`}
-                                              label={`${candidate.code} · ${candidate.title}`}
-                                              selected={selected}
-                                              disabled={candidateSelectionConfirmed}
-                                              onSelect={() => toggleCandidateReference(candidate.id)}
-                                              onPreview={() => setCandidatePreviewId(candidate.id)}
-                                              key={candidate.id}
-                                            />
-                                          );
-                                        })}
-                                      </div>
-                                      <div className="conversation-candidate-form__actions">
-                                        <div className="conversation-candidate-pagination" aria-label="候选参考素材分页">
-                                          <button
-                                            type="button"
-                                            aria-label="上一页"
-                                            disabled={activeCandidatePage === 1}
-                                            onClick={() => setCandidatePages((current) => ({ ...current, [activeCandidateCategory]: current[activeCandidateCategory] - 1 }))}
-                                          >
-                                            <FigmaIcon name="chevron-left" size={20} />
-                                          </button>
-                                          <span>{activeCandidatePage} / {candidatePageCount}</span>
-                                          <button
-                                            type="button"
-                                            aria-label="下一页"
-                                            disabled={activeCandidatePage === candidatePageCount}
-                                            onClick={() => setCandidatePages((current) => ({ ...current, [activeCandidateCategory]: current[activeCandidateCategory] + 1 }))}
-                                          >
-                                            <FigmaIcon name="chevron-right" size={20} />
-                                          </button>
-                                        </div>
-                                        {!candidateSelectionConfirmed ? (
-                                          <>
-                                            <SelectAllControl
-                                              selected={selectedCandidateIds.length === candidateReferenceImages.length}
-                                              className="selection-select-all--leading"
-                                              onToggle={() => setSelectedCandidateIds(selectedCandidateIds.length === candidateReferenceImages.length
-                                                ? []
-                                                : candidateReferenceImages.map((candidate) => candidate.id))}
-                                            />
-                                            <span className="conversation-form-selection-count" aria-live="polite">
-                                              <span>已选择</span>
-                                              <strong>{selectedCandidateIds.length}</strong>
-                                              <span>张图片</span>
-                                            </span>
-                                            <Button variant="primary" size="small" disabled={!selectedCandidateIds.length} onClick={() => setCandidateSelectionConfirmed(true)}>
-                                              生成方向参考包
-                                            </Button>
-                                          </>
-                                        ) : null}
-                                      </div>
-                                    </div>
-                                  </motion.article>
-                                ) : null}
-                              </AnimatePresence>
-                              {candidateSelectionConfirmed ? (
-                                <ConversationUserMessage
-                                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
-                                >
-                                  {formatCandidateSelection(selectedCandidateIds)}
-                                </ConversationUserMessage>
-                              ) : null}
-                              {candidateSelectionConfirmed ? (
-                                <motion.article
-                                  className="conversation-message conversation-message--assistant candidate-reference-handoff"
-                                  initial={reduceMotion ? false : "hidden"}
-                                  animate="visible"
-                                  variants={{
-                                    hidden: {},
-                                    visible: {
-                                      transition: {
-                                        delayChildren: reduceMotion ? 0 : 0.08,
-                                        staggerChildren: reduceMotion ? 0 : 0.08,
-                                      },
-                                    },
-                                  }}
-                                  data-node-id="567:69268"
-                                >
-                                  <motion.p variants={quickActionReveal}>
-                                    已确认 {selectedCandidateIds.length} 张客户参考图及视觉方向。当前等待客户反馈；可以直接粘贴文字、聊天截图、标注图或文档。
-                                  </motion.p>
-                                  {!customerFeedbackSkipped ? (
-                                    <motion.div className="candidate-reference-handoff__actions" variants={quickActionReveal}>
-                                      <Button variant="outline" onClick={() => setCustomerFeedbackSkipped(true)}>
-                                        <span>暂时跳过客户反馈</span>
-                                        <FigmaIcon name="arrow-right" size={16} />
-                                      </Button>
-                                    </motion.div>
-                                  ) : null}
-                                </motion.article>
-                              ) : null}
-                              {candidateSelectionConfirmed && customerFeedbackSkipped ? (
-                                <ConversationUserMessage
-                                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
-                                >
-                                  暂时跳过客户反馈
-                                </ConversationUserMessage>
-                              ) : null}
-                              {candidateSelectionConfirmed && customerFeedbackSkipped ? (
-                                <motion.article
-                                  className="conversation-message conversation-message--assistant candidate-generation-assumptions"
-                                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.08, ease: revealEase }}
-                                  data-node-id="620:31947"
-                                  data-message-meta="disabled"
-                                  data-copy-exclude="true"
-                                >
-                                  <p>
-                                    已暂时跳过客户反馈，以下未指定项将作为待确认假设。<br />
-                                    采用的基础参考款：C05、C06、C07、C03<br />
-                                    必须保留：已确认视觉方向、成熟客群与舒适覆盖度<br />
-                                    必须排除：过度年轻、夸张露肤、第三方标识与直接复刻<br />
-                                    款式修改方向：基于已选锚点做保守、差异与趋势延展三类发散<br />
-                                    计划生成：12 款原型演示概念图<br />
-                                    发散要求：每款至少改变两个有意义的设计轴；颜色替换不单独计为新款<br />
-                                    新增参考图作用：本轮未新增，默认使用已选候选图作为锚点
-                                  </p>
-                                  {!generationDecision ? (
-                                    <div className="candidate-generation-assumptions__actions">
-                                      <Button variant="secondary" size="small" onClick={requestCustomerGenerationFeedback}>补充反馈</Button>
-                                      <BusinessButton points={10} onClick={confirmCustomerAiGeneration}>确认并生成</BusinessButton>
-                                    </div>
-                                  ) : null}
-                                </motion.article>
-                              ) : null}
-                              {generationDecision ? (
-                                <ConversationUserMessage
-                                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  transition={{ duration: reduceMotion ? 0 : 0.28, ease: revealEase }}
-                                >
-                                  <ConversationUserAttachments attachments={generationEntryAttachments} />
-                                  {generationDecision === "confirm" ? generationEntryMessage : "跳过"}
-                                </ConversationUserMessage>
-                              ) : null}
-                              </>)}
                               {generationDecision === "confirm" && customerProposalStage !== "idle" ? (
                                 <motion.article
                                   className="conversation-message conversation-message--assistant customer-ai-generation-message"
@@ -2028,20 +1693,6 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
         </AnimatePresence>,
         document.body,
       )}
-      {candidatePreviewId ? (
-        <ImageGalleryLightbox
-          categories={candidateCategories}
-          items={candidateReferenceImages}
-          activeCategoryId={activeCandidateCategory}
-          activeItemId={candidatePreviewId}
-          selectedIds={selectedCandidateIds}
-          selectionDisabled={candidateSelectionConfirmed}
-          onCategoryChange={changeCandidatePreviewCategory}
-          onNavigate={navigateCandidatePreview}
-          onToggleSelection={toggleCandidateReference}
-          onClose={() => setCandidatePreviewId(null)}
-        />
-      ) : null}
       {referenceStylePreviewId ? (
         <ImageGalleryLightbox
           title={t("参考款式")}

@@ -78,7 +78,6 @@ const ART_INSETS: Record<string, string> = {
   reset: "13.54%",
   task: "6.25%",
   trash: "6.25% 12.5% 9.38%",
-  "view-full-image": "12.5%",
 };
 
 export function FigmaIcon({ name, size = 20, className = "" }: FigmaIconProps) {
