@@ -40,6 +40,7 @@ import { extractPromptContext, getPromptExclusions } from "../utils/promptContex
 import { buildConditionAcknowledgement } from "../utils/taskAcknowledgement";
 import { scrollWithinConversation } from "../utils/conversationScroll";
 import { AppliedBusinessProfileMessage } from "./AppliedBusinessProfileMessage";
+import { DirectionResearchRevisionHistory, directionResearchRevisionUi, useDirectionResearchRevision } from "./DirectionResearchRevision";
 
 type PlanningStage =
   | "analyzing"
@@ -599,6 +600,11 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
   const [activePreviewCategory, setActivePreviewCategory] = useState<string>(directions[0].id);
   const [reportPreview, setReportPreview] = useState<{ name: string; html: string } | null>(null);
   const [composerFocusRequest, setComposerFocusRequest] = useState(0);
+  const {
+    context: researchRevisionContext,
+    messages: researchRevisionMessages,
+    startRevision: startDirectionResearchRevision,
+  } = useDirectionResearchRevision();
   const reportPreviewDialogRef = useRef<HTMLElement>(null);
   const reduceMotion = useReducedMotion();
   const feedEndRef = useRef<HTMLDivElement>(null);
@@ -809,6 +815,19 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
       continueFromBrief(value, submittedAttachments, false);
       return;
     }
+    if (stage === "directions") {
+      const selectedLabels = directions
+        .filter((direction) => selectedDirections.includes(direction.id))
+        .map((direction) => direction.title);
+      startDirectionResearchRevision({
+        selectedLabels,
+        feedback: value,
+        attachments: submittedAttachments,
+      });
+      setSelectedDirections([]);
+      setStage("research");
+      return;
+    }
     if (stage === "structure" && isStructureContinueIntent(value, submittedAttachments.length)) {
       continueToAiGeneration();
       return;
@@ -917,7 +936,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
     brief: "补充条件，或回复“满意，请继续”...",
     scope: "请完成上方调研范围表单，或在“其他”中补充条件...",
     research: "Agent 正在完成多来源调研与视觉方向整理...",
-    directions: "请在上方选择视觉方向，支持多选...",
+    directions: directionResearchRevisionUi.placeholder,
     "structure-planning": "Agent 正在调用工具完成商品结构规划...",
     structure: "不满意可输入修改意见；满意请点击“继续生成 AI 改款”...",
     "ai-generating": "Agent 正在生成专业改款提示词与 AI 款式图...",
@@ -1150,7 +1169,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                 <p>资料缺口：无历史销售、旧企划、OTB 预算和真实供应商报价。缺失内容不会补造。</p>
                 {stage === "brief" && (!exceptionDemo || exceptionDemoStage === "ready") ? (
                   <div className="new-product-quick-replies">
-                    <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>补充条件</Button>
+                    <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>调整或补充</Button>
                     <QuickReplyButton onClick={() => continueFromBrief()}>满意，请继续</QuickReplyButton>
                   </div>
                 ) : null}
@@ -1218,6 +1237,8 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
               </>
             ) : null}
 
+            <DirectionResearchRevisionHistory messages={researchRevisionMessages} />
+
             {["research", "directions", "structure-planning", "structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage) ? (
               <AssistantMessage actions={false}>
                 <p>调研范围已确认，正在自动完成多来源调研与视觉方向整理。</p>
@@ -1231,10 +1252,14 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
             {["directions", "structure-planning", "structure", "ai-generating", "results", "plan-generating", "complete"].includes(stage) ? (
               <AssistantMessage>
-                <p>调研已完成。当前证据更支持“克制荷叶边实穿化”和“传承植物印花更新”作为核心方向；社媒互动不等于销量，不同平台的数值未合并。</p>
+                {researchRevisionContext ? (
+                  <p>重新调研已完成。本轮已结合{researchRevisionContext.selectedLabels.length ? `你选择的“${researchRevisionContext.selectedLabels.join("、")}”` : "当前调研范围"}{researchRevisionContext.feedback ? `、补充要求“${researchRevisionContext.feedback}”` : ""}{researchRevisionContext.attachmentCount ? `和 ${researchRevisionContext.attachmentCount} 份补充资料` : ""}，重新整理了以下视觉方向。</p>
+                ) : (
+                  <p>调研已完成。当前证据更支持“克制荷叶边实穿化”和“传承植物印花更新”作为核心方向；社媒互动不等于销量，不同平台的数值未合并。</p>
+                )}
                 <DownloadableFile
                   name="调研与视觉方向报告.html"
-                  description="刚刚 · 4 个待确认方向 · 分来源展示证据充分度与数据缺口"
+                  description={researchRevisionContext ? "刚刚 · 已结合本轮补充重新调研 · 4 个待确认方向" : "刚刚 · 4 个待确认方向 · 分来源展示证据充分度与数据缺口"}
                   html={researchReportHtml}
                   onPreview={() => setReportPreview({ name: "调研与视觉方向报告.html", html: researchReportHtml })}
                 />
@@ -1263,7 +1288,7 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                       );
                     })}
                   </div>
-                  {stage === "directions" ? <div className="new-product-form-actions"><SelectAllControl selected={selectedDirections.length === directions.length} className="selection-select-all--leading" onToggle={() => setSelectedDirections(selectedDirections.length === directions.length ? [] : directions.map((direction) => direction.id))} /><BusinessButton points={10} disabled={!selectedDirections.length} onClick={() => setStage("structure-planning")}>确认并继续</BusinessButton></div> : null}
+                  {stage === "directions" ? <div className="new-product-form-actions"><SelectAllControl selected={selectedDirections.length === directions.length} className="selection-select-all--leading" onToggle={() => setSelectedDirections(selectedDirections.length === directions.length ? [] : directions.map((direction) => direction.id))} /><Button variant="secondary" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>{directionResearchRevisionUi.actionLabel}</Button><BusinessButton points={10} disabled={!selectedDirections.length} onClick={() => setStage("structure-planning")}>确认并继续</BusinessButton></div> : null}
                 </section>
               </AssistantMessage>
             ) : null}
@@ -1293,7 +1318,8 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                   onPreview={() => setReportPreview({ name: "商品结构规划.html", html: productStructureHtml })}
                 />
                 {stage === "structure" && !latestStructureRevisionId && !pendingStructureRevision ? (
-                  <div className="conversation-quick-action">
+                  <div className="conversation-quick-actions">
+                    <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>调整或补充</Button>
                     <BusinessButton points={10} onClick={() => { onTaskProgress?.(); continueToAiGeneration(); }}>继续生成 AI 改款</BusinessButton>
                   </div>
                 ) : null}
@@ -1331,7 +1357,8 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
                       })}
                     />
                     {stage === "structure" && message.id === latestStructureRevisionId && !pendingStructureRevision ? (
-                      <div className="conversation-quick-action">
+                      <div className="conversation-quick-actions">
+                        <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>调整或补充</Button>
                         <BusinessButton points={10} onClick={() => { onTaskProgress?.(); continueToAiGeneration(); }}>继续生成 AI 改款</BusinessButton>
                       </div>
                     ) : null}
@@ -1429,7 +1456,21 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
 
         {!readOnly ? <>
         <div className="conversation-bottom-fade" aria-hidden="true" />
-        <TaskConversationComposer ariaLabel="继续新品企划对话" value={followUp} onChange={setFollowUp} onSubmit={submitFollowUp} placeholder={placeholder[stage]} hint={exceptionDemoStage === "reconnecting" ? "Agent 正在重新解析，请稍候..." : stage === "scope" ? "请先完成调研范围确认" : stage === "directions" ? "请先从上方表单完成视觉方向选择" : stage === "structure" ? "不满意可输入修改意见 · 满意请点击上方按钮" : stage === "results" ? "生成企划将扣除 999 积分" : undefined} points={stage === "structure" ? 10 : undefined} disabled={stage === "scope" || stage === "directions" || exceptionDemoStage === "reconnecting" || Boolean(exceptionNotice)} isRunning={composerRunning} onStop={stopCurrentTask} motionDelay={0.25} focusRequest={composerFocusRequest} exceptionNotice={exceptionNotice} />
+        <TaskConversationComposer
+          ariaLabel="继续新品企划对话"
+          value={followUp}
+          onChange={setFollowUp}
+          onSubmit={submitFollowUp}
+          placeholder={placeholder[stage]}
+          hint={exceptionDemoStage === "reconnecting" ? "Agent 正在重新解析，请稍候..." : stage === "scope" ? "请先完成调研范围确认" : stage === "directions" ? directionResearchRevisionUi.hint : stage === "structure" ? "不满意可输入修改意见 · 满意请点击上方按钮" : stage === "results" ? "生成企划将扣除 999 积分" : undefined}
+          points={stage === "directions" ? directionResearchRevisionUi.points : stage === "structure" ? 10 : undefined}
+          disabled={stage === "scope" || exceptionDemoStage === "reconnecting" || Boolean(exceptionNotice)}
+          isRunning={composerRunning}
+          onStop={stopCurrentTask}
+          motionDelay={0.25}
+          focusRequest={composerFocusRequest}
+          exceptionNotice={exceptionNotice}
+        />
         </> : null}
       </section>
 

@@ -55,6 +55,7 @@ const copy: Record<string, Translation> = {
   "关闭": { ja: "閉じる", en: "Close" },
   "取消": { ja: "キャンセル", en: "Cancel" },
   "确认": { ja: "確定", en: "Confirm" },
+  "调整或补充": { ja: "調整または追加", en: "Adjust or add details" },
   "创建项目": { ja: "プロジェクトを作成", en: "Create Project" },
   "创建": { ja: "作成", en: "Create" },
   "项目用于整理历史任务，名称最多 40 个字符": { ja: "過去のタスクをまとめるプロジェクトです。名前は40文字以内です。", en: "Projects organize past tasks. Names can be up to 40 characters." },

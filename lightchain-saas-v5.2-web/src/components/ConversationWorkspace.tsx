@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { assetUrl } from "../utils/assets";
@@ -21,8 +21,17 @@ import { useModalFocus } from "../hooks/useModalFocus";
 import { buildConditionAcknowledgement } from "../utils/taskAcknowledgement";
 import { scrollWithinConversation } from "../utils/conversationScroll";
 import { AppliedBusinessProfileMessage } from "./AppliedBusinessProfileMessage";
+import { DirectionResearchRevisionHistory, directionResearchRevisionUi, useDirectionResearchRevision, type DirectionResearchRevisionContext } from "./DirectionResearchRevision";
 
 type AnalysisPhase = "parsing" | "complete";
+type AnalysisRevisionRequest = {
+  message: string;
+  attachments: TaskConversationAttachment[];
+};
+type AnalysisRevisionHistoryItem = {
+  id: string;
+  request: AnalysisRevisionRequest | null;
+};
 type GenerationDecision = "skip" | "confirm";
 type TrendDownloadFormat = "HTML" | "PPT" | "PDF";
 type TrendPreviewKind = "research" | "ai-results" | "proposal";
@@ -294,14 +303,18 @@ function downloadTrendAnalysis(format: TrendDownloadFormat, locale: "zh-CN" | "j
 function TrendDirectionSelectionForm({
   selectedIds,
   confirmed,
+  statusLabel,
   onToggle,
   onToggleAll,
+  onAdjust,
   onConfirm,
 }: {
   selectedIds: string[];
   confirmed: boolean;
+  statusLabel?: string;
   onToggle: (directionId: string) => void;
   onToggleAll: () => void;
+  onAdjust: () => void;
   onConfirm: () => void;
 }) {
   return (
@@ -310,7 +323,7 @@ function TrendDirectionSelectionForm({
         title="选择客户提案采用的视觉方向"
         helper="支持多选 · 每个方向均关联市场证据和客户需求匹配点"
         status={confirmed ? "confirmed" : "pending"}
-        statusLabel={confirmed ? "已确认" : "待确认"}
+        statusLabel={statusLabel ?? (confirmed ? "已确认" : "待确认")}
       />
       <div className="new-product-direction-grid" role="group" aria-label="视觉方向，支持多选">
         {trendDirections.map((direction) => {
@@ -333,10 +346,97 @@ function TrendDirectionSelectionForm({
       {!confirmed ? (
         <div className="new-product-form-actions">
           <SelectAllControl selected={selectedIds.length === trendDirections.length} className="selection-select-all--leading" onToggle={onToggleAll} />
+          <Button variant="secondary" size="small" onClick={onAdjust}>{directionResearchRevisionUi.actionLabel}</Button>
           <BusinessButton points={10} disabled={!selectedIds.length} onClick={onConfirm}>确认并继续</BusinessButton>
         </div>
       ) : null}
     </section>
+  );
+}
+
+function getTrendDirectionResultSummary(context: DirectionResearchRevisionContext | null) {
+  if (!context) {
+    return "调研已完成。当前证据更支持“轻量松弛通勤”和“复古学院混搭”作为核心方向；柔性结构与都市轻机能适合小规模验证。判断分别核对了电商供给、社媒内容、品牌采用和趋势资料。社媒互动不等于销量，不同电商平台的数值未合并。";
+  }
+  return `重新调研已完成。本轮已结合${context.selectedLabels.length ? `你选择的“${context.selectedLabels.join("、")}”` : "当前调研范围"}${context.feedback ? `和补充要求“${context.feedback}”` : ""}，重新整理了以下视觉方向。`;
+}
+
+function ArchivedRequirementAnalysis({
+  item,
+  profileName,
+  parsedMarket,
+  parsedAudience,
+  parsedCategory,
+  parsedSeason,
+  parsedPrice,
+  missingSummary,
+  promptHasSeason,
+}: {
+  item: AnalysisRevisionHistoryItem;
+  profileName?: string;
+  parsedMarket: string;
+  parsedAudience: string;
+  parsedCategory: string;
+  parsedSeason: string;
+  parsedPrice: string;
+  missingSummary: string;
+  promptHasSeason: boolean;
+}) {
+  const request = item.request;
+  const [expanded, setExpanded] = useState(true);
+  return (
+    <>
+      {request ? (
+        <ConversationUserMessage>
+          <ConversationUserAttachments attachments={request.attachments} />
+          {request.message ? <span>{request.message}</span> : null}
+        </ConversationUserMessage>
+      ) : null}
+      <article className="conversation-message conversation-message--assistant conversation-analysis">
+        <p>{request ? "已收到调整或补充内容，并结合原始需求完成重新解析。" : "已完成首轮需求解析。"}（历史版本）</p>
+        <TaskDisclosure
+          title="需求解析任务"
+          expanded={expanded}
+          complete
+          controlsId={`${item.id}-details`}
+          onToggle={() => setExpanded((current) => !current)}
+        >
+          <div><AnalysisStepIcon complete /><span>{profileName ? "读取业务偏好档案" : "检查业务偏好档案"}</span></div>
+          <p>{profileName ? "已读取并理解业务偏好档案内容" : "本任务未应用业务偏好档案，将仅使用当前描述。"}</p>
+          <div><AnalysisStepIcon complete /><span>解析客户资料与首轮描述</span></div>
+          <p>已整理{parsedSeason === "待补充" ? "目标季节" : parsedSeason}相关公开资料，以建立本次需求语境。</p>
+          <div><AnalysisStepIcon complete /><span>识别参考图特征</span></div>
+          <p>已识别参考图特征：未上传，待补充</p>
+          <div><AnalysisStepIcon complete /><span>检查缺失信息</span></div>
+          <p>{missingSummary}</p>
+        </TaskDisclosure>
+      </article>
+      <div className="conversation-phase-group">
+        <article className="conversation-message conversation-message--assistant conversation-analysis-complete" data-message-actions="true">
+          <p>已完成本次需求解析</p>
+          <div className="conversation-analysis-summary">
+            <strong>本次需求理解：</strong>
+            <ul>
+              <li>目标：根据当前描述形成客户可评审的方向方案</li>
+              <li>{`市场：${parsedMarket}　人群：${parsedAudience}`}</li>
+              <li>{`品类：${parsedCategory}　季节：${parsedSeason}`}</li>
+              <li>{`价格：${parsedPrice}　设计方向：待补充`}</li>
+              <li>参考图特征：未上传，待补充</li>
+              <li>保留元素：待补充　排除元素：待补充</li>
+              {request ? <li>{request.message ? `已合并补充要求：${request.message}` : `已合并 ${request.attachments.length} 份补充资料`}</li> : null}
+              <li>{promptHasSeason ? "必要字段已从当前描述中识别" : "待补充：季节"}</li>
+            </ul>
+          </div>
+        </article>
+        <article className="conversation-message conversation-message--assistant conversation-analysis-confirmation">
+          <p>{request ? "已结合本轮补充重新完成需求解析，确认后进入调研范围。" : promptHasSeason ? `已识别季节为【${parsedSeason}】，确认后进入调研范围。` : "请确认【季节】，可直接补充；没有补充时可继续进入调研范围。"}</p>
+          <div className="conversation-quick-actions" aria-label="历史版本操作">
+            <Button variant="outline" size="small" disabled>调整或补充</Button>
+            <QuickReplyButton disabled>{promptHasSeason ? "确认需求，继续" : "没有补充，继续"}</QuickReplyButton>
+          </div>
+        </article>
+      </div>
+    </>
   );
 }
 
@@ -364,6 +464,9 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const [detailPanelOpen, setDetailPanelOpen] = useState(true);
   const [analysisExpanded, setAnalysisExpanded] = useState(!startsComplete);
   const [analysisPhase, setAnalysisPhase] = useState<AnalysisPhase>(startsComplete ? "complete" : "parsing");
+  const [analysisRevisionRun, setAnalysisRevisionRun] = useState(0);
+  const [analysisRevisionRequest, setAnalysisRevisionRequest] = useState<AnalysisRevisionRequest | null>(null);
+  const [analysisRevisionHistory, setAnalysisRevisionHistory] = useState<AnalysisRevisionHistoryItem[]>([]);
   const [profileVisible, setProfileVisible] = useState(startsComplete && Boolean(profileName));
   const [analysisVisible, setAnalysisVisible] = useState(startsComplete);
   const [followUp, setFollowUp] = useState("");
@@ -374,6 +477,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const [seasonSkipped, setSeasonSkipped] = useState(false);
   const [scopeConfirmed, setScopeConfirmed] = useState(startsComplete);
   const [scopeResultStage, setScopeResultStage] = useState(startsComplete ? 5 : 0);
+  const [trendResearchRun, setTrendResearchRun] = useState(0);
   const [trendScanExpanded, setTrendScanExpanded] = useState(true);
   const [trendPreviewOpen, setTrendPreviewOpen] = useState(false);
   const [trendPreviewKind, setTrendPreviewKind] = useState<TrendPreviewKind>("research");
@@ -401,6 +505,16 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     ignoredMessages: ["确认并生成", "跳过"],
   });
   const [additionalMessages, setAdditionalMessages] = useState<Array<{ request: string; attachments: TaskConversationAttachment[]; response: string }>>([]);
+  const {
+    context: directionRevisionContext,
+    messages: directionRevisionMessages,
+    startRevision: startDirectionResearchRevision,
+  } = useDirectionResearchRevision();
+  const [trendDirectionHistory, setTrendDirectionHistory] = useState<Array<{
+    id: string;
+    selectedIds: string[];
+    context: DirectionResearchRevisionContext | null;
+  }>>([]);
   const [customerProposalStage, setCustomerProposalStage] = useState<"idle" | "ai-generating" | "results" | "proposal-generating" | "complete">(startsComplete ? "complete" : "idle");
   const [aiGenerationProgress, setAiGenerationProgress] = useState(startsComplete ? 4 : 0);
   const [proposalGenerationProgress, setProposalGenerationProgress] = useState(startsComplete ? 4 : 0);
@@ -478,7 +592,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
       window.clearTimeout(analysisTimer);
       window.clearTimeout(completionTimer);
     };
-  }, [profileName, reduceMotion, startsComplete]);
+  }, [analysisRevisionRun, profileName, reduceMotion, startsComplete]);
 
   useEffect(() => {
     if (profileName || scopeConfirmed || scopeTouchedRef.current) return;
@@ -513,7 +627,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
       scrollWithinConversation(confirmedResultsRef.current, { behavior: reduceMotion ? "auto" : "smooth", block: "start" });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [reduceMotion, scopeConfirmed, startsComplete]);
+  }, [reduceMotion, scopeConfirmed, startsComplete, trendResearchRun]);
 
   useEffect(() => {
     if (!scopeConfirmed) return;
@@ -523,14 +637,18 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
       setScopeResultStage(5);
       return;
     }
-    const stages = [
-      { delay: 120, value: 1 },
-      { delay: 420, value: 2 },
-      { delay: 1400, value: 5 },
-    ];
+    const stages = trendResearchRun > 0
+      ? [
+          { delay: 180, value: 1 },
+          { delay: 2200, value: 5 },
+        ]
+      : [
+          { delay: 120, value: 1 },
+          { delay: 1400, value: 5 },
+        ];
     const timers = stages.map(({ delay, value }) => window.setTimeout(() => setScopeResultStage(value), delay));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [reduceMotion, scopeConfirmed, startsComplete]);
+  }, [reduceMotion, scopeConfirmed, startsComplete, trendResearchRun]);
 
   useEffect(() => {
     if (!trendDirectionsConfirmed || !candidateSearchRun) return;
@@ -672,7 +790,20 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
     if (!message && !submittedAttachments.length) return;
     onTaskProgress?.();
     let handled = false;
-    if (customerProposalStage === "results") {
+    if (scopeConfirmed && trendScanComplete && !trendDirectionsConfirmed) {
+      const selectedLabels = trendDirections
+        .filter((direction) => selectedTrendIds.includes(direction.id))
+        .map((direction) => direction.title);
+      setTrendDirectionHistory((current) => [...current, {
+        id: `trend-direction-history-${Date.now()}`,
+        selectedIds: [...selectedTrendIds],
+        context: directionRevisionContext,
+      }]);
+      startDirectionResearchRevision({ selectedLabels, feedback: message, attachments: submittedAttachments });
+      setSelectedTrendIds([]);
+      setTrendResearchRun((run) => run + 1);
+      handled = true;
+    } else if (customerProposalStage === "results") {
       const normalizedMessage = message.replace(selectedAiResultSummary, "").replace(/^\s*[，,、:：]\s*/, "").trim();
       const confirmsProposal = selectedAiResultIds.length > 0 && (
         !normalizedMessage
@@ -687,15 +818,21 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
       startCustomerAiGeneration();
       handled = true;
     } else if (analysisComplete && !scopeFormVisible) {
-      setScopeEntryAttachments(submittedAttachments);
       if (message === "继续") {
+        setScopeEntryAttachments(submittedAttachments);
         setScopeEntryMessage("继续");
         setScopeFormVisible(true);
       } else if (message === "跳过") {
         setSeasonSkipped(true);
       } else {
-        setScopeEntryMessage(message);
-        setScopeFormVisible(true);
+        setAnalysisRevisionHistory((current) => [...current, {
+          id: `analysis-revision-history-${Date.now()}`,
+          request: analysisRevisionRequest,
+        }]);
+        setAnalysisRevisionRequest({ message, attachments: submittedAttachments });
+        setAnalysisExpanded(true);
+        setAnalysisPhase("parsing");
+        setAnalysisRevisionRun((run) => run + 1);
       }
       handled = true;
     }
@@ -915,7 +1052,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
   const conversationPlaceholder = !analysisComplete
     ? "Agent 正在解析需求，请稍候..."
     : !scopeFormVisible
-      ? "补充季节或其他条件；输入“继续”进入调研范围..."
+      ? "可调整或补充内容，或输入“继续”进入下一步..."
       : !scopeConfirmed
         ? "请完成上方调研范围表单，或在“其他”中补充条件..."
         : !trendScanComplete
@@ -1012,6 +1149,28 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
               ) : null}
             </AnimatePresence>
 
+            {analysisRevisionHistory.map((item) => (
+              <ArchivedRequirementAnalysis
+                item={item}
+                profileName={profileName}
+                parsedMarket={parsedMarket}
+                parsedAudience={parsedAudience}
+                parsedCategory={parsedCategory}
+                parsedSeason={parsedSeason}
+                parsedPrice={parsedPrice}
+                missingSummary={missingSummary}
+                promptHasSeason={Boolean(promptContext.season)}
+                key={item.id}
+              />
+            ))}
+
+            {analysisRevisionRequest ? (
+              <ConversationUserMessage>
+                <ConversationUserAttachments attachments={analysisRevisionRequest.attachments} />
+                {analysisRevisionRequest.message ? <span>{analysisRevisionRequest.message}</span> : null}
+              </ConversationUserMessage>
+            ) : null}
+
             <AnimatePresence initial={false}>
             {analysisVisible ? (
             <motion.article
@@ -1021,7 +1180,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
               transition={{ duration: reduceMotion ? 0 : 0.38, ease: revealEase }}
               data-node-id="476:103930"
             >
-              <p><StreamingText delay={0.04}>下面开始本次需求解析，完成后将给出需求理解。</StreamingText></p>
+              <p><StreamingText delay={0.04}>{analysisRevisionRequest ? "已收到调整或补充内容，正在结合原始需求重新解析。" : "下面开始本次需求解析，完成后将给出需求理解。"}</StreamingText></p>
               <motion.div
                 initial={reduceMotion ? false : "hidden"}
                 animate="visible"
@@ -1100,6 +1259,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                         <li><StreamingText delay={1.36}>{`价格：${parsedPrice}　设计方向：待补充`}</StreamingText></li>
                         <li><StreamingText delay={1.5}>参考图特征：未上传，待补充</StreamingText></li>
                         <li><StreamingText delay={1.64}>保留元素：待补充　排除元素：待补充</StreamingText></li>
+                        {analysisRevisionRequest ? <li><StreamingText delay={1.72}>{analysisRevisionRequest.message ? `已合并补充要求：${analysisRevisionRequest.message}` : `已合并 ${analysisRevisionRequest.attachments.length} 份补充资料`}</StreamingText></li> : null}
                         <li><StreamingText delay={1.78}>{promptContext.season ? "必要字段已从当前描述中识别" : "待补充：季节"}</StreamingText></li>
                       </ul>
                     </motion.div>
@@ -1111,7 +1271,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                     variants={conversationBlockReveal}
                     transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : 0.18, ease: revealEase }}
                   >
-                    <p><StreamingText delay={2.02}>{promptContext.season ? `已识别季节为【${promptContext.season}】，确认后进入调研范围。` : "请确认【季节】，可直接补充；没有补充时可继续进入调研范围。"}</StreamingText></p>
+                    <p><StreamingText delay={2.02}>{analysisRevisionRequest ? "已结合本轮补充重新完成需求解析，确认后进入调研范围。" : promptContext.season ? `已识别季节为【${promptContext.season}】，确认后进入调研范围。` : "请确认【季节】，可直接补充；没有补充时可继续进入调研范围。"}</StreamingText></p>
                     {!scopeFormVisible && !seasonSkipped ? (
                       <motion.div
                         className="conversation-quick-actions"
@@ -1121,9 +1281,9 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                         animate="visible"
                         variants={{ visible: { transition: { delayChildren: reduceMotion ? 0 : 0.24, staggerChildren: reduceMotion ? 0 : 0.06 } } }}
                       >
-                        {!promptContext.season ? <motion.span className="conversation-quick-action" variants={quickActionReveal}>
-                          <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>补充条件</Button>
-                        </motion.span> : null}
+                        <motion.span className="conversation-quick-action" variants={quickActionReveal}>
+                          <Button variant="outline" size="small" onClick={() => setComposerFocusRequest((request) => request + 1)}>调整或补充</Button>
+                        </motion.span>
                         <motion.span className="conversation-quick-action" variants={quickActionReveal}>
                           <QuickReplyButton onClick={() => useSeasonQuickReply(promptContext.season ? "确认需求，继续" : "没有补充，继续")}>{promptContext.season ? "确认需求，继续" : "没有补充，继续"}</QuickReplyButton>
                         </motion.span>
@@ -1228,18 +1388,29 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                         variants={confirmedResultsReveal}
                         data-node-id="488:112020"
                       >
+                        {trendDirectionHistory.map((historyItem, index) => (
+                          <Fragment key={historyItem.id}>
+                            <motion.article
+                              className="conversation-message conversation-message--assistant conversation-trend-result conversation-trend-selection-step"
+                              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: reduceMotion ? 0 : 0.3, ease: revealEase }}
+                            >
+                              <p data-message-actions="true">{getTrendDirectionResultSummary(historyItem.context)} 本轮结果已归档，仅供查看。</p>
+                              <TrendDirectionSelectionForm
+                                selectedIds={historyItem.selectedIds}
+                                confirmed
+                                statusLabel="历史版本"
+                                onToggle={() => undefined}
+                                onToggleAll={() => undefined}
+                                onAdjust={() => undefined}
+                                onConfirm={() => undefined}
+                              />
+                            </motion.article>
+                            <DirectionResearchRevisionHistory messages={directionRevisionMessages.slice(index, index + 1)} />
+                          </Fragment>
+                        ))}
                         {scopeResultStage >= 1 ? <motion.article
-                          className="conversation-message conversation-message--assistant conversation-confirmed-copy"
-                          data-message-actions="true"
-                          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: reduceMotion ? 0 : 0.32, ease: revealEase }}
-                          data-node-id="488:112592"
-                        >
-                          <p>调研摘要：目标人群 {parsedAudience}；品类 {parsedCategory}；核心视觉词待验证；排除项待补充。趋势资料、社媒信号和电商供给/竞争信息将分别呈现，不把单一来源写成确定趋势或销量机会。</p>
-                        </motion.article> : null}
-
-                        {scopeResultStage >= 2 ? <motion.article
                           className="conversation-message conversation-message--assistant conversation-scan-message"
                           initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -1267,7 +1438,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                           transition={{ duration: reduceMotion ? 0 : 0.36, ease: revealEase }}
                           data-node-id="567:65705"
                         >
-                          <p data-message-actions="true">调研已完成。当前证据更支持“轻量松弛通勤”和“复古学院混搭”作为核心方向；柔性结构与都市轻机能适合小规模验证。判断分别核对了电商供给、社媒内容、品牌采用和趋势资料。社媒互动不等于销量，不同电商平台的数值未合并。</p>
+                          <p data-message-actions="true">{getTrendDirectionResultSummary(directionRevisionContext)}</p>
                           {scopeResultStage >= 4 ? (
                             <>
                               <ConversationFileCard
@@ -1306,6 +1477,7 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
                               confirmed={trendDirectionsConfirmed}
                               onToggle={toggleTrendDirection}
                               onToggleAll={() => setSelectedTrendIds(selectedTrendIds.length === trendDirections.length ? [] : trendDirections.map((direction) => direction.id))}
+                              onAdjust={() => setComposerFocusRequest((request) => request + 1)}
                               onConfirm={confirmTrendDirections}
                             />
                           </motion.article>
@@ -1699,14 +1871,19 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
           value={followUp}
           onChange={setFollowUp}
           onSubmit={submitFollowUp}
-          placeholder={conversationPlaceholder}
+          placeholder={scopeConfirmed && trendScanComplete && !trendDirectionsConfirmed ? directionResearchRevisionUi.placeholder : conversationPlaceholder}
           disabled={
             !analysisComplete
             || (scopeFormVisible && !scopeConfirmed)
             || (scopeConfirmed && !trendScanComplete)
           }
           isRunning={customerProposalRunning}
-          hint={scopeFormVisible && !scopeConfirmed ? "请先完成调研范围确认" : customerProposalStage === "results" ? "生成提案将扣除 999 积分" : undefined}
+          hint={scopeFormVisible && !scopeConfirmed ? "请先完成调研范围确认" : scopeConfirmed && trendScanComplete && !trendDirectionsConfirmed ? directionResearchRevisionUi.hint : customerProposalStage === "results" ? "生成提案将扣除 999 积分" : undefined}
+          points={analysisComplete && !scopeFormVisible
+            ? directionResearchRevisionUi.points
+            : scopeConfirmed && trendScanComplete && !trendDirectionsConfirmed
+              ? directionResearchRevisionUi.points
+              : undefined}
           onStop={stopCustomerProposalTask}
           motionDelay={0.16}
           focusRequest={composerFocusRequest}
