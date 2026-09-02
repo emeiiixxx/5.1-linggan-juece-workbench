@@ -3936,6 +3936,11 @@ a:focus-visible {
   aspect-ratio: 1;
 }
 
+.pattern-workspace .apparel-results .masonry-image-selection {
+  height: auto;
+  aspect-ratio: 1;
+}
+
 .pattern-workspace .image-selection__asset,
 .pattern-workspace .apparel-generation-grid .masonry-image-selection__toggle > img,
 .pattern-workspace .apparel-result-media > button > img {

@@ -544,7 +544,7 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
 
             {(stage === "generating" || stage === "results") && (
               <AssistantMessage className="apparel-generation-message">
-                <p>{stage === "results" ? "两批图案图片已生成完成。" : "正在为你生成图案图片。"}</p>
+                {stage === "generating" ? <p>正在为你生成图案图片。</p> : null}
                 {[0, 1].filter((batch) => stage === "results" || batch <= batchProgress).map((batch) => {
                   const complete = stage === "results" || batch < batchProgress;
                   const start = batch * 4;

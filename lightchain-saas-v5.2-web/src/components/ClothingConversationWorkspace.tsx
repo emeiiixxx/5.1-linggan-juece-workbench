@@ -750,7 +750,7 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
 
             {(stage === "generating" || stage === "results") && (
               <AssistantMessage className="apparel-generation-message">
-                <p>{stage === "results" ? "两批系列图片已生成完成。" : "立即为你生成图片"}</p>
+                {stage === "generating" ? <p>立即为你生成图片</p> : null}
                 {[0, 1].filter((batch) => stage === "results" || batch <= batchProgress).map((batch) => {
                   const complete = stage === "results" || batch < batchProgress;
                   const start = batch * 4 + 1;
