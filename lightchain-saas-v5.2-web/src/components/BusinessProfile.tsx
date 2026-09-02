@@ -429,6 +429,12 @@ export function BusinessProfile({ onCreateTask, createRequestKey = 0, listReques
   const filteredProfiles = useMemo(() => visibleProfiles.filter((profile) => profile.name.toLowerCase().includes(query.toLowerCase())), [visibleProfiles, query]);
   const complete = requiredComplete(form);
   const canSave = complete === 5;
+  const resetDraft = () => {
+    setForm(blankForm());
+    setUploads([]);
+    setUploadOpen(false);
+    if (view === "parsing") setView(parseDestination);
+  };
 
   const setArchiveView = (nextView: ArchiveView, profile?: Profile | null) => {
     if (profile !== undefined) setActiveProfile(profile);
@@ -517,18 +523,18 @@ export function BusinessProfile({ onCreateTask, createRequestKey = 0, listReques
   }
 
   if (view === "parsing") {
-    return <CreatePage form={form} setForm={setForm} files={uploads} complete={complete} canSave={false} parsing parseProgress={parseProgress} editing={parseDestination === "edit"} onBack={() => setView(parseDestination)} onSelectFile={() => setView("parsing")} onRemoveFile={(id) => setUploads((current) => current.filter((file) => file.id !== id))} onSave={parseDestination === "edit" ? saveModification : save} onCancel={() => setView(parseDestination)} />;
+    return <CreatePage form={form} setForm={setForm} files={uploads} complete={complete} canSave={false} parsing parseProgress={parseProgress} editing={parseDestination === "edit"} onBack={() => setView(parseDestination)} onSelectFile={() => setView("parsing")} onRemoveFile={(id) => setUploads((current) => current.filter((file) => file.id !== id))} onReset={resetDraft} onSave={parseDestination === "edit" ? saveModification : save} onCancel={() => setView(parseDestination)} />;
   }
 
   if (view === "create") {
     return <>
-      <CreatePage form={form} setForm={setForm} files={uploads} complete={complete} canSave={canSave} animateEntry={animateCreateEntry} onBack={() => setView("list")} onSelectFile={() => setUploadOpen(true)} onRemoveFile={(id) => setUploads((current) => current.filter((file) => file.id !== id))} onSave={save} onCancel={() => setView("list")} />
+      <CreatePage form={form} setForm={setForm} files={uploads} complete={complete} canSave={canSave} animateEntry={animateCreateEntry} onBack={() => setView("list")} onSelectFile={() => setUploadOpen(true)} onRemoveFile={(id) => setUploads((current) => current.filter((file) => file.id !== id))} onReset={resetDraft} onSave={save} onCancel={() => setView("list")} />
       {uploadOpen && <UploadModal onClose={() => setUploadOpen(false)} onConfirm={(files) => { setUploadOpen(false); setUploads(files); setParseDestination("create"); setView("parsing"); }} />}
     </>;
   }
 
   if (view === "edit" && activeProfile) {
-    return <><CreatePage form={form} setForm={setForm} files={uploads} complete={complete} canSave={canSave} editing onBack={() => setView("detail")} onSelectFile={() => setUploadOpen(true)} onRemoveFile={(id) => setUploads((current) => current.filter((file) => file.id !== id))} onSave={saveModification} onCancel={() => setView("detail")} />{uploadOpen && <UploadModal onClose={() => setUploadOpen(false)} onConfirm={(files) => { setUploadOpen(false); setUploads(files); setParseDestination("edit"); setView("parsing"); }} />}<Toast message={toast} /></>;
+    return <><CreatePage form={form} setForm={setForm} files={uploads} complete={complete} canSave={canSave} editing onBack={() => setView("detail")} onSelectFile={() => setUploadOpen(true)} onRemoveFile={(id) => setUploads((current) => current.filter((file) => file.id !== id))} onReset={resetDraft} onSave={saveModification} onCancel={() => setView("detail")} />{uploadOpen && <UploadModal onClose={() => setUploadOpen(false)} onConfirm={(files) => { setUploadOpen(false); setUploads(files); setParseDestination("edit"); setView("parsing"); }} />}<Toast message={toast} /></>;
   }
 
   const hasProfiles = visibleProfiles.length > 0;
@@ -556,12 +562,13 @@ export function BusinessProfile({ onCreateTask, createRequestKey = 0, listReques
   );
 }
 
-function CreatePage({ form, setForm, files, complete, canSave, parsing, editing, animateEntry = false, parseProgress = 0, onBack, onSelectFile, onRemoveFile, onSave, onCancel }: { form: Form; setForm: (form: Form) => void; files: LocalUpload[]; complete: number; canSave: boolean; parsing?: boolean; editing?: boolean; animateEntry?: boolean; parseProgress?: number; onBack: () => void; onSelectFile: () => void; onRemoveFile: (id: string) => void; onSave: () => void; onCancel: () => void; }) {
+function CreatePage({ form, setForm, files, complete, canSave, parsing, editing, animateEntry = false, parseProgress = 0, onBack, onSelectFile, onRemoveFile, onReset, onSave, onCancel }: { form: Form; setForm: (form: Form) => void; files: LocalUpload[]; complete: number; canSave: boolean; parsing?: boolean; editing?: boolean; animateEntry?: boolean; parseProgress?: number; onBack: () => void; onSelectFile: () => void; onRemoveFile: (id: string) => void; onReset: () => void; onSave: () => void; onCancel: () => void; }) {
   const { t } = useI18n();
   const reduceMotion = useReducedMotion();
   const change = <K extends keyof Form>(key: K, value: Form[K]) => setForm({ ...form, [key]: value });
   const category = (value: string) => change("category", form.category.includes(value) ? form.category.filter((item) => item !== value) : [...form.category, value]);
   const hasFormContent = Object.values(form).some((value) => Array.isArray(value) ? value.length > 0 : Boolean(value));
+  const hasResettableContent = hasFormContent || files.length > 0;
   return (
     <main className="profile-region profile-editor-region">
       <motion.button className="profile-back profile-back--edge" type="button" onClick={onBack} variants={primaryPageEntranceItem} initial={reduceMotion || !animateEntry ? false : "hidden"} animate="visible"><FigmaIcon name="arrow-left" size={20} />{t("返回")}</motion.button>
@@ -592,7 +599,7 @@ function CreatePage({ form, setForm, files, complete, canSave, parsing, editing,
       </motion.form>
       <motion.div className="profile-form-footer-region" data-node-id="343:5706" variants={primaryPageEntranceFadeItem}>
         <footer className="profile-form-footer" data-node-id="328:9406">
-          <button className="profile-button profile-button--outline" type="button" disabled={!hasFormContent} onClick={() => setForm(blankForm())}><FigmaIcon name="reset" size={20} />{t("重置")}</button>
+          <button className="profile-button profile-button--outline" type="button" disabled={!hasResettableContent} onClick={onReset}><FigmaIcon name="reset" size={20} />{t("重置")}</button>
           <span>{t("已完成")} <b>{complete} / 5</b> {t("项必填内容")}</span>
           <div><button className="profile-button profile-button--secondary" type="button" onClick={onCancel}>{t("取消")}</button><button className="profile-button profile-button--primary" type="button" disabled={!canSave} onClick={onSave}>{t(editing ? "保存修改" : "保存档案")}</button></div>
         </footer>
