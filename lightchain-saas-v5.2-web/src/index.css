@@ -9313,16 +9313,14 @@ img.trend-direction-media__slide {
 .task-detail-gallery-item::after {
   position: absolute;
   inset: 0;
-  border: 1px solid transparent;
   border-radius: inherit;
   content: "";
   pointer-events: none;
-  transition: border-color var(--motion-standard), background-color var(--motion-standard);
+  transition: background-color var(--motion-standard);
 }
 
 .task-detail-gallery-item:hover::after,
 .task-detail-gallery-item:focus-within::after {
-  border-color: var(--border-strong);
   background: rgb(255 255 255 / 4%);
 }
 
@@ -9341,7 +9339,7 @@ img.trend-direction-media__slide {
 
 .task-detail-gallery-item:hover .task-detail-gallery-thumbnail,
 .task-detail-gallery-item:focus-within .task-detail-gallery-thumbnail {
-  transform: scale(1.05);
+  transform: scale(1.1);
 }
 
 .task-detail-reference-heading h2 {

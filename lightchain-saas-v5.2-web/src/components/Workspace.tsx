@@ -412,8 +412,23 @@ export function Workspace({ theme, active = true, activeTask, tasks = [], homeEn
     if (activeTab !== 0) return;
     const selector = productPlanningSelectorButtonRef.current;
     if (!selector) return;
-    const nextOffset = Math.ceil(selector.getBoundingClientRect().width) + 4;
-    setProductPlanningSelectorOffset((current) => current === nextOffset ? current : nextOffset);
+
+    let cancelled = false;
+    const measureSelector = () => {
+      if (cancelled) return;
+      const nextOffset = Math.ceil(selector.getBoundingClientRect().width) + 8;
+      setProductPlanningSelectorOffset((current) => current === nextOffset ? current : nextOffset);
+    };
+
+    measureSelector();
+    const observer = new ResizeObserver(measureSelector);
+    observer.observe(selector);
+    void document.fonts?.ready.then(measureSelector);
+
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
   }, [activeTab, locale, productPlanningType]);
 
   useLayoutEffect(() => {
