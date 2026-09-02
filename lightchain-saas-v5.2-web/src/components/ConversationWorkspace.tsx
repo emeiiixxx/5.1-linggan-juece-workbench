@@ -1878,12 +1878,14 @@ export function ConversationWorkspace({ prompt, profileName, attachments = [], i
             || (scopeConfirmed && !trendScanComplete)
           }
           isRunning={customerProposalRunning}
-          hint={scopeFormVisible && !scopeConfirmed ? "请先完成调研范围确认" : scopeConfirmed && trendScanComplete && !trendDirectionsConfirmed ? directionResearchRevisionUi.hint : customerProposalStage === "results" ? "生成提案将扣除 999 积分" : undefined}
+          hint={scopeFormVisible && !scopeConfirmed ? "请先完成调研范围确认" : scopeConfirmed && trendScanComplete && !trendDirectionsConfirmed ? directionResearchRevisionUi.hint : undefined}
           points={analysisComplete && !scopeFormVisible
             ? directionResearchRevisionUi.points
             : scopeConfirmed && trendScanComplete && !trendDirectionsConfirmed
               ? directionResearchRevisionUi.points
-              : undefined}
+              : customerProposalStage === "results"
+                ? directionResearchRevisionUi.points
+                : undefined}
           onStop={stopCustomerProposalTask}
           motionDelay={0.16}
           focusRequest={composerFocusRequest}

@@ -1462,8 +1462,8 @@ export function NewProductPlanningWorkspace({ prompt, profileName, attachments =
           onChange={setFollowUp}
           onSubmit={submitFollowUp}
           placeholder={placeholder[stage]}
-          hint={exceptionDemoStage === "reconnecting" ? "Agent 正在重新解析，请稍候..." : stage === "scope" ? "请先完成调研范围确认" : stage === "directions" ? directionResearchRevisionUi.hint : stage === "structure" ? "不满意可输入修改意见 · 满意请点击上方按钮" : stage === "results" ? "生成企划将扣除 999 积分" : undefined}
-          points={stage === "directions" ? directionResearchRevisionUi.points : stage === "structure" ? 10 : undefined}
+          hint={exceptionDemoStage === "reconnecting" ? "Agent 正在重新解析，请稍候..." : stage === "scope" ? "请先完成调研范围确认" : stage === "directions" ? directionResearchRevisionUi.hint : stage === "structure" ? "不满意可输入修改意见 · 满意请点击上方按钮" : undefined}
+          points={stage === "directions" || stage === "results" ? directionResearchRevisionUi.points : stage === "structure" ? 10 : undefined}
           disabled={stage === "scope" || exceptionDemoStage === "reconnecting" || Boolean(exceptionNotice)}
           isRunning={composerRunning}
           onStop={stopCurrentTask}
