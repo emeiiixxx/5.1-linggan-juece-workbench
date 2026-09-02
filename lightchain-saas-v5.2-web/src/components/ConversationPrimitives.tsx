@@ -14,6 +14,7 @@ import { CircleCheckbox } from "./CircleCheckbox";
 import { downloadImageZip } from "../utils/downloadZip";
 import { ProgressiveImage } from "./ProgressiveImage";
 import { ConversationUserAttachments, type ConversationUserAttachment } from "./ConversationUserAttachments";
+import { MasonryImageSelection } from "./ImageSelection";
 
 export type ConversationStepStatus = "complete" | "loading" | "pending";
 export const CONVERSATION_GENERATION_BATCH_DELAY_MS = 5000;
@@ -587,10 +588,12 @@ export function ConversationGeneratedImageBatch({
   title,
   images,
   complete,
+  onPreview,
 }: {
   title: string;
-  images: readonly { src: string; alt: string }[];
+  images: readonly { id: string; src: string; alt: string }[];
   complete: boolean;
+  onPreview: (imageId: string) => void;
 }) {
   const controlsId = useId();
 
@@ -606,9 +609,16 @@ export function ConversationGeneratedImageBatch({
       {complete ? (
         <div className="apparel-generation-grid">
           {images.map((image) => (
-            <div className="is-complete" key={image.alt}>
-              <ProgressiveImage src={assetUrl(image.src)} alt={image.alt} />
-            </div>
+            <MasonryImageSelection
+              src={assetUrl(image.src)}
+              alt={image.alt}
+              label={image.alt}
+              selected={false}
+              previewOnly
+              onSelect={() => undefined}
+              onPreview={() => onPreview(image.id)}
+              key={image.id}
+            />
           ))}
         </div>
       ) : null}

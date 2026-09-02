@@ -542,20 +542,22 @@ export function PatternConversationWorkspace({ prompt, attachments = [], initial
             {stageIndex >= 9 && <AssistantMessage><p>执行矩阵已完成。确认后请开始生图，我会分两批输出 8 款图案。</p>{stage === "matrix" && <PatternQuickReply onClick={() => submitMessage("开始生图")}>开始生图</PatternQuickReply>}</AssistantMessage>}
             {matrixReply && <UserMessage entrance><span>{matrixReply}</span></UserMessage>}
 
-            {stage === "generating" && (
+            {(stage === "generating" || stage === "results") && (
               <AssistantMessage className="apparel-generation-message">
-                <p>正在为你生成图案图片。</p>
-                {[0, 1].filter((batch) => batch <= batchProgress).map((batch) => {
-                  const complete = batch < batchProgress;
+                <p>{stage === "results" ? "两批图案图片已生成完成。" : "正在为你生成图案图片。"}</p>
+                {[0, 1].filter((batch) => stage === "results" || batch <= batchProgress).map((batch) => {
+                  const complete = stage === "results" || batch < batchProgress;
                   const start = batch * 4;
                   return (
                     <ConversationGeneratedImageBatch
                       title={`我正在为系列的第 ${batch + 1} 批生成图案（PT #${String(start + 1).padStart(2, "0")}-${String(start + 4).padStart(2, "0")}）`}
                       images={Array.from({ length: 4 }, (_, itemIndex) => ({
+                        id: generatedPatternItems[start + itemIndex].id,
                         src: patternAsset(start + itemIndex),
                         alt: `生成图案 PT ${start + itemIndex + 1}`,
                       }))}
                       complete={complete}
+                      onPreview={setPreviewResult}
                       key={batch}
                     />
                   );

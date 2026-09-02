@@ -748,21 +748,23 @@ export function ClothingConversationWorkspace({ prompt, attachments = [], initia
             {(matrixReply || replyAttachments.matrix?.length) && <UserMessage entrance><ConversationUserAttachments attachments={replyAttachments.matrix ?? []} />{matrixReply && <span>{matrixReply}</span>}</UserMessage>}
             {matrixAcknowledgement && <AssistantMessage><p>{matrixAcknowledgement}</p></AssistantMessage>}
 
-            {stage === "generating" && (
+            {(stage === "generating" || stage === "results") && (
               <AssistantMessage className="apparel-generation-message">
-                <p>立即为你生成图片</p>
-                {[0, 1].filter((batch) => batch <= batchProgress).map((batch) => {
-                  const complete = batch < batchProgress;
+                <p>{stage === "results" ? "两批系列图片已生成完成。" : "立即为你生成图片"}</p>
+                {[0, 1].filter((batch) => stage === "results" || batch <= batchProgress).map((batch) => {
+                  const complete = stage === "results" || batch < batchProgress;
                   const start = batch * 4 + 1;
                   const end = Math.min(start + 3, 8);
                   return (
                     <ConversationGeneratedImageBatch
                       title={`我正在为系列的第 ${batch + 1} 批生成图像（SKU #${String(start).padStart(2, "0")}-${String(end).padStart(2, "0")}）`}
                       images={Array.from({ length: end - start + 1 }, (_, itemIndex) => ({
+                        id: apparelResultItems[start + itemIndex - 1].id,
                         src: activeReferenceImage,
                         alt: `生成款式 SKU ${start + itemIndex}`,
                       }))}
                       complete={complete}
+                      onPreview={setPreviewResult}
                       key={batch}
                     />
                   );
