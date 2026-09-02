@@ -461,6 +461,7 @@ export function TaskDisclosure({
   expanded,
   complete,
   status,
+  collapsible = true,
   controlsId,
   onToggle,
   children,
@@ -469,6 +470,7 @@ export function TaskDisclosure({
   expanded: boolean;
   complete: boolean;
   status?: "loading" | "complete" | "error";
+  collapsible?: boolean;
   controlsId: string;
   onToggle: () => void;
   children: ReactNode;
@@ -483,7 +485,14 @@ export function TaskDisclosure({
   useGSAP(() => {
     const details = detailsRef.current;
     const disclosure = disclosureRef.current;
-    if (!details || !disclosure) return;
+    if (!details) return;
+    if (!collapsible) {
+      gsap.killTweensOf(details);
+      gsap.set(details, { height: "auto", autoAlpha: 1 });
+      initializedRef.current = true;
+      return;
+    }
+    if (!disclosure) return;
     gsap.killTweensOf([details, disclosure]);
 
     if (reduceMotion || !initializedRef.current) {
@@ -526,32 +535,46 @@ export function TaskDisclosure({
       ease: gsapMotion.easeInOut,
       overwrite: "auto",
     });
-  }, { scope: rootRef, dependencies: [expanded, reduceMotion] });
+  }, { scope: rootRef, dependencies: [collapsible, expanded, reduceMotion] });
 
-  return (
-    <div className="conversation-analysis-task" ref={rootRef} data-message-meta="disabled">
-      <button type="button" className="conversation-analysis-trigger" aria-expanded={expanded} aria-controls={controlsId} onClick={onToggle}>
-        <AnimatePresence initial={false} mode="wait">
-          {resolvedStatus === "complete" ? (
-            <motion.span className="conversation-analysis-complete-icon" key="complete" initial={reduceMotion ? false : { opacity: 0, scale: 0.62, rotate: -18 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} transition={{ duration: reduceMotion ? 0 : 0.24, ease: revealEase }}>
-              <FigmaIcon name="check" size={20} />
-            </motion.span>
-          ) : resolvedStatus === "error" ? (
-            <motion.span className="conversation-analysis-error-icon" key="error" initial={reduceMotion ? false : { opacity: 0, scale: 0.72 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}>
-              <FigmaIcon name="exclamation" size={20} />
-            </motion.span>
-          ) : (
-            <motion.span className="conversation-analysis-loading" key="loading" initial={reduceMotion ? false : { opacity: 1, scale: 1 }} animate={{ opacity: 1, scale: 1 }} exit={reduceMotion ? undefined : { opacity: 0, scale: 0.68 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: revealEase }}>
-              <img className="conversation-analysis-spinner" src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" />
-            </motion.span>
-          )}
-        </AnimatePresence>
-        <span className={`conversation-analysis-title ${resolvedStatus === "loading" ? "is-loading" : ""} ${resolvedStatus === "error" ? "is-error" : ""}`}>{title}</span>
+  const triggerContent = (
+    <>
+      <AnimatePresence initial={false} mode="wait">
+        {resolvedStatus === "complete" ? (
+          <motion.span className="conversation-analysis-complete-icon" key="complete" initial={reduceMotion ? false : { opacity: 0, scale: 0.62, rotate: -18 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} transition={{ duration: reduceMotion ? 0 : 0.24, ease: revealEase }}>
+            <FigmaIcon name="check" size={20} />
+          </motion.span>
+        ) : resolvedStatus === "error" ? (
+          <motion.span className="conversation-analysis-error-icon" key="error" initial={reduceMotion ? false : { opacity: 0, scale: 0.72 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: reduceMotion ? 0 : 0.2, ease: revealEase }}>
+            <FigmaIcon name="exclamation" size={20} />
+          </motion.span>
+        ) : (
+          <motion.span className="conversation-analysis-loading" key="loading" initial={reduceMotion ? false : { opacity: 1, scale: 1 }} animate={{ opacity: 1, scale: 1 }} exit={reduceMotion ? undefined : { opacity: 0, scale: 0.68 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: revealEase }}>
+            <img className="conversation-analysis-spinner" src={assetUrl("assets/figma-icons/demand-loading.svg")} alt="" />
+          </motion.span>
+        )}
+      </AnimatePresence>
+      <span className={`conversation-analysis-title ${resolvedStatus === "loading" ? "is-loading" : ""} ${resolvedStatus === "error" ? "is-error" : ""}`}>{title}</span>
+      {collapsible ? (
         <span className="conversation-analysis-disclosure" ref={disclosureRef}>
           <FigmaIcon name="chevron-right" size={16} />
         </span>
-      </button>
-      <div id={controlsId} className="conversation-analysis-details" ref={detailsRef} aria-hidden={!expanded} style={{ pointerEvents: expanded ? "auto" : "none" }}>
+      ) : null}
+    </>
+  );
+
+  return (
+    <div className="conversation-analysis-task" ref={rootRef} data-message-meta="disabled">
+      {collapsible ? (
+        <button type="button" className="conversation-analysis-trigger" aria-expanded={expanded} aria-controls={controlsId} onClick={onToggle}>
+          {triggerContent}
+        </button>
+      ) : (
+        <div className="conversation-analysis-trigger conversation-analysis-trigger--static" role="status">
+          {triggerContent}
+        </div>
+      )}
+      <div id={controlsId} className="conversation-analysis-details" ref={detailsRef} aria-hidden={collapsible ? !expanded : false} style={{ pointerEvents: collapsible && !expanded ? "none" : "auto" }}>
         <TaskDisclosureCompleteContext.Provider value={complete}>
           {children}
         </TaskDisclosureCompleteContext.Provider>
@@ -569,16 +592,16 @@ export function ConversationGeneratedImageBatch({
   images: readonly { src: string; alt: string }[];
   complete: boolean;
 }) {
-  const [expanded, setExpanded] = useState(true);
   const controlsId = useId();
 
   return (
     <TaskDisclosure
       title={title}
-      expanded={expanded}
+      expanded
       complete={complete}
+      collapsible={false}
       controlsId={controlsId}
-      onToggle={() => setExpanded((open) => !open)}
+      onToggle={() => undefined}
     >
       {complete ? (
         <div className="apparel-generation-grid">

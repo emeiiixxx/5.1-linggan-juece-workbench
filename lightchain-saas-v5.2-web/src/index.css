@@ -6331,6 +6331,14 @@ button.selection-card:not(:disabled):active { transform: scale(0.995); }
   outline-offset: 2px;
 }
 
+.conversation-analysis-trigger--static {
+  cursor: default;
+}
+
+.conversation-analysis-trigger--static:hover {
+  color: var(--text-tertiary);
+}
+
 .conversation-analysis-title {
   display: inline-block;
 }

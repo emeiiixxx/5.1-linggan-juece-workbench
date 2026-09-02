@@ -126,9 +126,8 @@ function GeneratedImageStep({ id, title, items, complete, onPreview }: {
   complete: boolean;
   onPreview: (itemId: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
   return (
-    <TaskDisclosure title={title} expanded={expanded} complete={complete} controlsId={id} onToggle={() => setExpanded((open) => !open)}>
+    <TaskDisclosure title={title} expanded complete={complete} collapsible={false} controlsId={id} onToggle={() => undefined}>
       {complete ? (
         <div className={`plan-generation-image-grid ${items.length === 1 ? "is-single" : ""}`}>
           {items.map((item) => (
